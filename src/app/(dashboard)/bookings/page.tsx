@@ -15,8 +15,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Search, Printer, Download } from "lucide-react";
+import { Plus, Search, Printer, Download, CreditCard, Send } from "lucide-react";
 import { BookingInvoice } from "./components/BookingInvoice";
+import { OnlinePaymentDialog } from "./components/OnlinePaymentDialog";
+import { SendAlertDialog } from "@/components/alerts/SendAlertDialog";
 import { exportToCSV } from "@/lib/export-csv";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -60,6 +62,8 @@ export default function BookingsPage() {
   const [search, setSearch] = React.useState("");
   const [tab, setTab] = React.useState("All");
   const [invoiceBooking, setInvoiceBooking] = React.useState<Booking | null>(null);
+  const [paymentBooking, setPaymentBooking] = React.useState<Booking | null>(null);
+  const [alertBooking, setAlertBooking] = React.useState<Booking | null>(null);
 
   const filtered = mockBookings.filter((b) => {
     const matchesTab = tab === "All" || b.status === tab;
@@ -167,15 +171,37 @@ export default function BookingsPage() {
                         {b.date}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 w-7 p-0"
-                          onClick={() => setInvoiceBooking(b)}
-                          title="Print Invoice"
-                        >
-                          <Printer className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex gap-0.5">
+                          {b.amount - b.paid > 0 && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-green-600"
+                              onClick={() => setPaymentBooking(b)}
+                              title="Collect Payment"
+                            >
+                              <CreditCard className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-blue-600"
+                            onClick={() => setAlertBooking(b)}
+                            title="Send Alert"
+                          >
+                            <Send className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0"
+                            onClick={() => setInvoiceBooking(b)}
+                            title="Print Invoice"
+                          >
+                            <Printer className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -197,6 +223,32 @@ export default function BookingsPage() {
         <BookingInvoice
           booking={invoiceBooking}
           onClose={() => setInvoiceBooking(null)}
+        />
+      )}
+
+      {paymentBooking && (
+        <OnlinePaymentDialog
+          open={!!paymentBooking}
+          onClose={() => setPaymentBooking(null)}
+          booking={paymentBooking}
+        />
+      )}
+
+      {alertBooking && (
+        <SendAlertDialog
+          open={!!alertBooking}
+          onClose={() => setAlertBooking(null)}
+          recipient={{
+            name: alertBooking.customer,
+            mobile: "9876543210",
+            email: `${alertBooking.customer.toLowerCase().replace(/\s/g, ".")}@email.com`,
+          }}
+          context={{
+            bookingId: alertBooking.bookingNo,
+            vehicle: alertBooking.vehicle,
+            amount: alertBooking.amount,
+            remaining: alertBooking.amount - alertBooking.paid,
+          }}
         />
       )}
     </div>

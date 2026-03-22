@@ -14,29 +14,62 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ShieldCheck, User, Briefcase, ArrowLeft } from "lucide-react";
+import { ShieldCheck, User, Briefcase, ArrowLeft, Users, Calculator, Wrench } from "lucide-react";
 
 const demoAccounts = [
   {
     label: "Super Admin",
+    emoji: "🔴",
     email: "superadmin@vaahan.com",
-    password: "admin123",
+    password: "super123",
     icon: ShieldCheck,
+    access: "All clients, settings, billing, master config",
     color: "bg-red-50 text-red-700 border-red-200 hover:bg-red-100",
   },
   {
     label: "Dealer Owner",
+    emoji: "🟢",
     email: "owner@vaahan.com",
     password: "owner123",
     icon: Briefcase,
+    access: "Full dealership access — stock, bookings, reports, users",
+    color: "bg-green-50 text-green-700 border-green-200 hover:bg-green-100",
+  },
+  {
+    label: "Manager",
+    emoji: "🔵",
+    email: "manager@vaahan.com",
+    password: "manager123",
+    icon: Users,
+    access: "Sales, bookings, leads, stock, reports",
     color: "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100",
   },
   {
     label: "Sales Executive",
+    emoji: "🟡",
     email: "sales@vaahan.com",
     password: "sales123",
     icon: User,
-    color: "bg-green-50 text-green-700 border-green-200 hover:bg-green-100",
+    access: "Leads, bookings, stock, customers",
+    color: "bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100",
+  },
+  {
+    label: "Accountant",
+    emoji: "🟣",
+    email: "accountant@vaahan.com",
+    password: "accountant123",
+    icon: Calculator,
+    access: "CashFlow, expenses, reports, customer ledger",
+    color: "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100",
+  },
+  {
+    label: "Mechanic",
+    emoji: "🟤",
+    email: "mechanic@vaahan.com",
+    password: "mechanic123",
+    icon: Wrench,
+    access: "Service jobs, PDI checklists",
+    color: "bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100",
   },
 ];
 
@@ -164,9 +197,12 @@ export default function LoginPage() {
                       disabled={loading}
                       className={`flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium rounded-lg border transition-colors ${demo.color} disabled:opacity-50`}
                     >
+                      <span className="text-base shrink-0">{demo.emoji}</span>
                       <Icon className="h-4 w-4 shrink-0" />
-                      <span>Login as {demo.label}</span>
-                      <span className="ml-auto text-xs opacity-60">{demo.email}</span>
+                      <div className="text-left flex-1 min-w-0">
+                        <span className="block">{demo.label}</span>
+                        <span className="block text-[10px] opacity-60 font-normal truncate">{demo.access}</span>
+                      </div>
                     </button>
                   );
                 })}

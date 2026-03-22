@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Search, ChevronDown, ChevronRight, Download } from "lucide-react";
+import { Search, ChevronDown, ChevronRight, Download, Send } from "lucide-react";
+import { SendAlertDialog } from "@/components/alerts/SendAlertDialog";
 import { Button } from "@/components/ui/button";
 import { CustomerDetail, type Customer } from "./components/CustomerDetail";
 import { exportToCSV } from "@/lib/export-csv";
@@ -53,6 +54,7 @@ const mockCustomers: Customer[] = [
 export default function CustomersPage() {
   const [search, setSearch] = React.useState("");
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
+  const [alertCustomer, setAlertCustomer] = React.useState<Customer | null>(null);
 
   const filtered = mockCustomers.filter((c) => {
     if (!search) return true;
@@ -100,6 +102,7 @@ export default function CustomersPage() {
                 <TableHead className="text-center">Bookings</TableHead>
                 <TableHead className="text-right">Total Paid</TableHead>
                 <TableHead className="text-right">Pending</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -121,10 +124,21 @@ export default function CustomersPage() {
                         <span className="text-green-600">Clear ✓</span>
                       )}
                     </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0 text-blue-600"
+                        onClick={(e) => { e.stopPropagation(); setAlertCustomer(c); }}
+                        title="Send Alert"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                   {expandedId === c.id && (
                     <TableRow>
-                      <TableCell colSpan={7} className="p-0 bg-muted/30">
+                      <TableCell colSpan={8} className="p-0 bg-muted/30">
                         <CustomerDetail customer={c} />
                       </TableCell>
                     </TableRow>
@@ -132,12 +146,30 @@ export default function CustomersPage() {
                 </React.Fragment>
               ))}
               {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No customers found</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No customers found</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      {alertCustomer && (
+        <SendAlertDialog
+          open={!!alertCustomer}
+          onClose={() => setAlertCustomer(null)}
+          recipient={{
+            name: alertCustomer.name,
+            mobile: alertCustomer.mobile,
+            email: alertCustomer.email,
+          }}
+          context={{
+            bookingId: alertCustomer.bookings[0]?.bookingNo,
+            vehicle: alertCustomer.bookings[0]?.vehicle,
+            amount: alertCustomer.totalPaid + alertCustomer.pending,
+            remaining: alertCustomer.pending,
+          }}
+        />
+      )}
     </div>
   );
 }

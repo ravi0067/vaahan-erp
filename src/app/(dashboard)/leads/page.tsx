@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/table";
 import { AddLeadDialog, type LeadFormData } from "./components/AddLeadDialog";
 import { LeadCard, type Lead, type DealHealth, type LeadStatus } from "./components/LeadCard";
-import { Search, Phone, Calendar, ArrowRight, Users, Flame, Sun, Snowflake, List, CalendarDays, Download } from "lucide-react";
+import { Search, Phone, Calendar, ArrowRight, Users, Flame, Sun, Snowflake, List, CalendarDays, Download, Send } from "lucide-react";
+import { SendAlertDialog } from "@/components/alerts/SendAlertDialog";
 import { FollowUpCalendar } from "./components/FollowUpCalendar";
 import { exportToCSV } from "@/lib/export-csv";
 
@@ -51,6 +52,7 @@ export default function LeadsPage() {
   const [leads, setLeads] = React.useState<Lead[]>(mockLeads);
   const [search, setSearch] = React.useState("");
   const [viewMode, setViewMode] = React.useState<"table" | "calendar">("table");
+  const [alertLead, setAlertLead] = React.useState<Lead | null>(null);
 
   // Counts
   const hot = leads.filter((l) => l.dealHealth === "Hot").length;
@@ -250,16 +252,27 @@ export default function LeadsPage() {
                   <TableCell className="hidden md:table-cell">{lead.followUpDate}</TableCell>
                   <TableCell className="hidden lg:table-cell">{lead.assignedTo}</TableCell>
                   <TableCell>
-                    {lead.dealHealth === "Hot" && (
+                    <div className="flex gap-0.5">
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="h-7 text-xs"
-                        onClick={() => handleConvert(lead)}
+                        variant="ghost"
+                        className="h-7 w-7 p-0 text-blue-600"
+                        onClick={() => setAlertLead(lead)}
+                        title="Send Alert"
                       >
-                        Convert <ArrowRight className="ml-1 h-3 w-3" />
+                        <Send className="h-3.5 w-3.5" />
                       </Button>
-                    )}
+                      {lead.dealHealth === "Hot" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={() => handleConvert(lead)}
+                        >
+                          Convert <ArrowRight className="ml-1 h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -275,6 +288,21 @@ export default function LeadsPage() {
         </CardContent>
       </Card>
       </>
+      )}
+
+      {alertLead && (
+        <SendAlertDialog
+          open={!!alertLead}
+          onClose={() => setAlertLead(null)}
+          recipient={{
+            name: alertLead.name,
+            mobile: alertLead.mobile,
+            email: `${alertLead.name.toLowerCase().replace(/\s/g, ".")}@email.com`,
+          }}
+          context={{
+            vehicle: alertLead.model,
+          }}
+        />
       )}
     </div>
   );

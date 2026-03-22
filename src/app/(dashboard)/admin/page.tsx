@@ -15,7 +15,9 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Building2, Users, IndianRupee, Activity, Plus, Archive, RotateCcw } from "lucide-react";
+import { Building2, Users, IndianRupee, Activity, Plus, Archive, RotateCcw, Settings2, Settings } from "lucide-react";
+import Link from "next/link";
+import { useSettingsStore, defaultClientFeatures, type ClientFeatureConfig } from "@/store/settings-store";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
@@ -56,8 +58,118 @@ const statusColor = (s: string) => {
   }
 };
 
+// ── Client Config Dialog ───────────────────────────────────────────────
+function ClientConfigDialog({
+  client,
+  open,
+  onClose,
+}: {
+  client: Client;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const { clientFeatures, setClientFeatures } = useSettingsStore();
+  const config = clientFeatures[client.id] || defaultClientFeatures();
+  const [saved, setSaved] = React.useState(false);
+
+  const toggle = (key: keyof ClientFeatureConfig) => {
+    if (typeof config[key] === "boolean") {
+      setClientFeatures(client.id, { [key]: !config[key] });
+    }
+  };
+
+  const setNum = (key: keyof ClientFeatureConfig, val: number) => {
+    setClientFeatures(client.id, { [key]: val });
+  };
+
+  const handleSave = () => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const featureToggles: { key: keyof ClientFeatureConfig; label: string }[] = [
+    { key: "onlinePayment", label: "✅ Online Payment" },
+    { key: "aiAssistant", label: "✅ AI Assistant" },
+    { key: "whatsappAlerts", label: "✅ WhatsApp Alerts" },
+    { key: "emailAlerts", label: "✅ Email Alerts" },
+    { key: "smsAlerts", label: "✅ SMS Alerts" },
+    { key: "customerTrackingLinks", label: "✅ Customer Tracking Links" },
+    { key: "invoiceGeneration", label: "✅ Invoice Generation" },
+  ];
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Settings2 className="h-5 w-5" /> Configure: {client.name}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Feature Toggles</Label>
+            {featureToggles.map(({ key, label }) => (
+              <div key={key} className="flex items-center justify-between py-1.5 px-3 rounded-lg hover:bg-muted/50">
+                <span className="text-sm">{label}</span>
+                <button
+                  onClick={() => toggle(key)}
+                  className={`relative w-9 h-5 rounded-full transition-colors ${
+                    config[key] ? "bg-green-500" : "bg-gray-300"
+                  }`}
+                >
+                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    config[key] ? "left-[18px]" : "left-0.5"
+                  }`} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-3 border-t pt-3">
+            <Label className="text-sm font-semibold">Plan Limits</Label>
+            <div className="grid gap-3">
+              <div className="grid gap-1">
+                <Label className="text-xs text-muted-foreground">Max Users</Label>
+                <Input
+                  type="number"
+                  value={config.maxUsers}
+                  onChange={(e) => setNum("maxUsers", Number(e.target.value))}
+                  min={1}
+                />
+              </div>
+              <div className="grid gap-1">
+                <Label className="text-xs text-muted-foreground">Max Vehicles</Label>
+                <Input
+                  type="number"
+                  value={config.maxVehicles}
+                  onChange={(e) => setNum("maxVehicles", Number(e.target.value))}
+                  min={1}
+                />
+              </div>
+              <div className="grid gap-1">
+                <Label className="text-xs text-muted-foreground">Max Bookings / Month</Label>
+                <Input
+                  type="number"
+                  value={config.maxBookingsPerMonth}
+                  onChange={(e) => setNum("maxBookingsPerMonth", Number(e.target.value))}
+                  min={1}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave}>{saved ? "Saved ✅" : "Save Configuration"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function AdminPage() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [configClient, setConfigClient] = React.useState<Client | null>(null);
   const [clientName, setClientName] = React.useState("");
   const [clientSlug, setClientSlug] = React.useState("");
   const [clientPlan, setClientPlan] = React.useState<string>("Free");
@@ -77,9 +189,16 @@ export default function AdminPage() {
           <h1 className="text-2xl font-bold">Super Admin</h1>
           <p className="text-muted-foreground text-sm">Multi-tenant client management</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Add Client
-        </Button>
+        <div className="flex gap-2">
+          <Link href="/admin/settings">
+            <Button variant="outline">
+              <Settings className="h-4 w-4 mr-2" /> Master Settings
+            </Button>
+          </Link>
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Add Client
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -140,6 +259,9 @@ export default function AdminPage() {
                   <TableCell className="text-center">{c.usersCount}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" className="text-primary gap-1" onClick={() => setConfigClient(c)}>
+                        <Settings2 className="h-3 w-3" /> Configure
+                      </Button>
                       {c.status === "Active" ? (
                         <Button variant="ghost" size="sm" className="text-yellow-600 gap-1">
                           <Archive className="h-3 w-3" /> Archive
@@ -157,6 +279,15 @@ export default function AdminPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Client Config Dialog */}
+      {configClient && (
+        <ClientConfigDialog
+          client={configClient}
+          open={!!configClient}
+          onClose={() => setConfigClient(null)}
+        />
+      )}
 
       {/* Add Client Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

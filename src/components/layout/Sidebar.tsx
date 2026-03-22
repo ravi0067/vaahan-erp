@@ -25,6 +25,7 @@ import {
   FileCheck,
   ShieldCheck,
   HelpCircle,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ interface NavItem {
 // All navigation items
 const allNavItems: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+  { label: "Quick Guide", icon: BookOpen, href: "/guide" },
   { label: "Leads CRM", icon: UserPlus, href: "/leads" },
   { label: "Add Stock", icon: PackagePlus, href: "/stock/add" },
   { label: "Stock List", icon: Package, href: "/stock" },
@@ -63,13 +65,13 @@ const allNavItems: NavItem[] = [
 
 // Role → allowed hrefs mapping
 const roleNavConfig: Record<string, string[]> = {
-  SUPER_ADMIN: ["/dashboard", "/admin", "/reports", "/settings", "/help"],
+  SUPER_ADMIN: ["/dashboard", "/guide", "/admin", "/admin/settings", "/reports", "/settings", "/help"],
   OWNER: allNavItems.map((n) => n.href),
   MANAGER: allNavItems.filter((n) => !["/settings", "/users"].includes(n.href)).map((n) => n.href),
-  SALES_EXEC: ["/dashboard", "/leads", "/bookings/new", "/bookings", "/stock", "/stock/add", "/sales", "/customers", "/help"],
-  ACCOUNTANT: ["/dashboard", "/cashflow", "/expenses", "/reports", "/customers", "/help"],
-  MECHANIC: ["/dashboard", "/service", "/help"],
-  VIEWER: ["/dashboard", "/reports", "/help"],
+  SALES_EXEC: ["/dashboard", "/guide", "/leads", "/bookings/new", "/bookings", "/stock", "/stock/add", "/sales", "/customers", "/help"],
+  ACCOUNTANT: ["/dashboard", "/guide", "/cashflow", "/expenses", "/reports", "/customers", "/help"],
+  MECHANIC: ["/dashboard", "/guide", "/service", "/help"],
+  VIEWER: ["/dashboard", "/guide", "/reports", "/help"],
 };
 
 function getNavItemsForRole(role?: string): NavItem[] {
