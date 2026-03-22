@@ -1,7 +1,75 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import "@/lib/auth-types";
 
-// Auth options for NextAuth.js with Credentials provider
+// Demo users for different roles
+const demoUsers = [
+  {
+    id: "user-super-admin",
+    name: "Super Admin",
+    email: "superadmin@vaahan.com",
+    password: "admin123",
+    role: "SUPER_ADMIN" as const,
+    tenantId: "tenant-platform",
+    tenantName: "VaahanERP Platform",
+  },
+  {
+    id: "user-owner",
+    name: "Ravi Kumar",
+    email: "owner@vaahan.com",
+    password: "owner123",
+    role: "OWNER" as const,
+    tenantId: "tenant-vaahan-motors",
+    tenantName: "Vaahan Motors",
+  },
+  {
+    id: "user-manager",
+    name: "Amit Singh",
+    email: "manager@vaahan.com",
+    password: "manager123",
+    role: "MANAGER" as const,
+    tenantId: "tenant-vaahan-motors",
+    tenantName: "Vaahan Motors",
+  },
+  {
+    id: "user-sales",
+    name: "Priya Sharma",
+    email: "sales@vaahan.com",
+    password: "sales123",
+    role: "SALES_EXEC" as const,
+    tenantId: "tenant-vaahan-motors",
+    tenantName: "Vaahan Motors",
+  },
+  {
+    id: "user-accountant",
+    name: "Suresh Gupta",
+    email: "accounts@vaahan.com",
+    password: "accounts123",
+    role: "ACCOUNTANT" as const,
+    tenantId: "tenant-vaahan-motors",
+    tenantName: "Vaahan Motors",
+  },
+  {
+    id: "user-mechanic",
+    name: "Deepak Yadav",
+    email: "mechanic@vaahan.com",
+    password: "mechanic123",
+    role: "MECHANIC" as const,
+    tenantId: "tenant-vaahan-motors",
+    tenantName: "Vaahan Motors",
+  },
+  {
+    // Legacy admin login
+    id: "user-legacy-admin",
+    name: "Admin User",
+    email: "admin@vaahan.com",
+    password: "admin123",
+    role: "OWNER" as const,
+    tenantId: "tenant-vaahan-motors",
+    tenantName: "Vaahan Motors",
+  },
+];
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -15,45 +83,41 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Email and password are required");
         }
 
-        // TODO: Replace with actual DB lookup + bcrypt comparison
-        // For now, allow demo login
-        if (
-          credentials.email === "admin@vaahan.com" &&
-          credentials.password === "admin123"
-        ) {
-          return {
-            id: "demo-user-1",
-            name: "Admin User",
-            email: "admin@vaahan.com",
-            role: "OWNER",
-            tenantId: "demo-tenant-1",
-            tenantName: "Vaahan Motors",
-          };
+        const user = demoUsers.find(
+          (u) =>
+            u.email === credentials.email && u.password === credentials.password
+        );
+
+        if (!user) {
+          throw new Error("Invalid email or password");
         }
 
-        throw new Error("Invalid email or password");
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          tenantId: user.tenantId,
+          tenantName: user.tenantName,
+        };
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
-      // Attach custom fields to the JWT token
       if (user) {
-        const u = user as unknown as Record<string, unknown>;
-        token.role = u.role;
-        token.tenantId = u.tenantId;
-        token.tenantName = u.tenantName;
+        token.role = user.role;
+        token.tenantId = user.tenantId;
+        token.tenantName = user.tenantName;
       }
       return token;
     },
     async session({ session, token }) {
-      // Expose custom fields in the session
       if (session.user) {
-        const su = session.user as Record<string, unknown>;
-        su.id = token.sub;
-        su.role = token.role;
-        su.tenantId = token.tenantId;
-        su.tenantName = token.tenantName;
+        session.user.id = token.sub || "";
+        session.user.role = token.role;
+        session.user.tenantId = token.tenantId;
+        session.user.tenantName = token.tenantName;
       }
       return session;
     },
@@ -63,7 +127,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
-    maxAge: 24 * 60 * 60, // 24 hours
+    maxAge: 24 * 60 * 60,
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || "vaahan-erp-dev-secret-key-change-in-production",
 };

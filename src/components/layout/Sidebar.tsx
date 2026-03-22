@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { useSidebarStore } from "@/store/sidebar-store";
 import {
@@ -23,6 +24,7 @@ import {
   ChevronRight,
   FileCheck,
   ShieldCheck,
+  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,8 +33,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-// Navigation items with icons and paths
-const navItems = [
+interface NavItem {
+  label: string;
+  icon: LucideIcon;
+  href: string;
+}
+
+// All navigation items
+const allNavItems: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { label: "Leads CRM", icon: UserPlus, href: "/leads" },
   { label: "Add Stock", icon: PackagePlus, href: "/stock/add" },
@@ -48,12 +56,34 @@ const navItems = [
   { label: "System Settings", icon: Settings, href: "/settings" },
   { label: "Customer Ledger", icon: BookUser, href: "/customers" },
   { label: "RTO & Documents", icon: FileCheck, href: "/rto" },
-  { label: "Super Admin", icon: ShieldCheck, href: "/admin" },
+  { label: "Clients (Admin)", icon: ShieldCheck, href: "/admin" },
 ];
+
+// Role → allowed hrefs mapping
+const roleNavConfig: Record<string, string[]> = {
+  SUPER_ADMIN: ["/dashboard", "/admin", "/reports", "/settings"],
+  OWNER: allNavItems.map((n) => n.href),
+  MANAGER: allNavItems.filter((n) => !["/settings", "/users"].includes(n.href)).map((n) => n.href),
+  SALES_EXEC: ["/dashboard", "/leads", "/bookings/new", "/bookings", "/stock", "/stock/add", "/sales", "/customers"],
+  ACCOUNTANT: ["/dashboard", "/cashflow", "/expenses", "/reports", "/customers"],
+  MECHANIC: ["/dashboard", "/service"],
+  VIEWER: ["/dashboard", "/reports"],
+};
+
+function getNavItemsForRole(role?: string): NavItem[] {
+  if (!role) return allNavItems; // fallback: show all
+  const allowed = roleNavConfig[role];
+  if (!allowed) return allNavItems;
+  return allNavItems.filter((item) => allowed.includes(item.href));
+}
 
 export function Sidebar() {
   const pathname = usePathname();
   const { isCollapsed, toggle } = useSidebarStore();
+  const { data: session } = useSession();
+
+  const role = (session?.user as Record<string, unknown>)?.role as string | undefined;
+  const navItems = getNavItemsForRole(role);
 
   return (
     <aside
@@ -62,7 +92,7 @@ export function Sidebar() {
         isCollapsed ? "w-16" : "w-64"
       )}
     >
-      {/* Tenant / Brand Header */}
+      {/* Brand Header */}
       <div className="flex items-center justify-between h-16 px-4 border-b">
         {!isCollapsed && (
           <div className="flex items-center gap-2">
@@ -75,12 +105,7 @@ export function Sidebar() {
             </div>
           </div>
         )}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggle}
-          className="h-8 w-8 shrink-0"
-        >
+        <Button variant="ghost" size="icon" onClick={toggle} className="h-8 w-8 shrink-0">
           {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>
       </div>
@@ -108,7 +133,6 @@ export function Sidebar() {
             </Link>
           );
 
-          // Show tooltip when sidebar is collapsed
           if (isCollapsed) {
             return (
               <Tooltip key={item.href} delayDuration={0}>
@@ -120,7 +144,7 @@ export function Sidebar() {
             );
           }
 
-          return linkContent;
+          return <div key={item.href}>{linkContent}</div>;
         })}
       </nav>
 

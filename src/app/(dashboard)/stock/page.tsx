@@ -21,7 +21,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Search, Package } from "lucide-react";
+import { Plus, Search, Package, LayoutGrid, List } from "lucide-react";
+import { VehicleCard } from "./components/VehicleCard";
+import { ImagePreviewModal } from "@/components/ui/image-preview-modal";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type StockStatus = "Available" | "Booked" | "Sold";
@@ -36,18 +38,30 @@ interface StockItem {
   price: number;
   status: StockStatus;
   purchaseDate: string;
+  photo?: string;
 }
 
 // ── Mock data ──────────────────────────────────────────────────────────────
+const placeholderPhotos = [
+  "https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=400&h=300&fit=crop",
+  "https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=400&h=300&fit=crop",
+  "https://images.unsplash.com/photo-1609630875171-b1321377ee65?w=400&h=300&fit=crop",
+  "",
+  "https://images.unsplash.com/photo-1622185135505-2d795003994a?w=400&h=300&fit=crop",
+  "",
+  "https://images.unsplash.com/photo-1571008887538-b36bb32f4571?w=400&h=300&fit=crop",
+  "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400&h=300&fit=crop",
+];
+
 const mockStock: StockItem[] = [
-  { id: "S001", model: "Honda Activa 6G", variant: "STD", color: "Pearl White", engineNo: "ENG-A6G-001", chassisNo: "CHS-A6G-001", price: 78000, status: "Available", purchaseDate: "2024-03-01" },
-  { id: "S002", model: "Honda Activa 6G", variant: "DLX", color: "Rebel Red", engineNo: "ENG-A6G-002", chassisNo: "CHS-A6G-002", price: 85000, status: "Booked", purchaseDate: "2024-03-05" },
-  { id: "S003", model: "Honda SP 125", variant: "STD", color: "Matte Black", engineNo: "ENG-SP1-003", chassisNo: "CHS-SP1-003", price: 92000, status: "Available", purchaseDate: "2024-03-08" },
-  { id: "S004", model: "Honda Shine", variant: "Drum", color: "Athletic Blue", engineNo: "ENG-SHN-004", chassisNo: "CHS-SHN-004", price: 82000, status: "Sold", purchaseDate: "2024-02-20" },
-  { id: "S005", model: "Honda Unicorn", variant: "BS6", color: "Pearl Spartan Red", engineNo: "ENG-UNI-005", chassisNo: "CHS-UNI-005", price: 105000, status: "Available", purchaseDate: "2024-03-12" },
-  { id: "S006", model: "Honda SP 125", variant: "Disc", color: "Imperial Red", engineNo: "ENG-SP1-006", chassisNo: "CHS-SP1-006", price: 96000, status: "Booked", purchaseDate: "2024-03-10" },
-  { id: "S007", model: "Honda Dio", variant: "STD", color: "Vibrant Orange", engineNo: "ENG-DIO-007", chassisNo: "CHS-DIO-007", price: 72000, status: "Available", purchaseDate: "2024-03-15" },
-  { id: "S008", model: "Honda CB350", variant: "DLX", color: "Matte Axis Gray", engineNo: "ENG-CB3-008", chassisNo: "CHS-CB3-008", price: 210000, status: "Available", purchaseDate: "2024-03-18" },
+  { id: "S001", model: "Honda Activa 6G", variant: "STD", color: "Pearl White", engineNo: "ENG-A6G-001", chassisNo: "CHS-A6G-001", price: 78000, status: "Available", purchaseDate: "2024-03-01", photo: placeholderPhotos[0] },
+  { id: "S002", model: "Honda Activa 6G", variant: "DLX", color: "Rebel Red", engineNo: "ENG-A6G-002", chassisNo: "CHS-A6G-002", price: 85000, status: "Booked", purchaseDate: "2024-03-05", photo: placeholderPhotos[1] },
+  { id: "S003", model: "Honda SP 125", variant: "STD", color: "Matte Black", engineNo: "ENG-SP1-003", chassisNo: "CHS-SP1-003", price: 92000, status: "Available", purchaseDate: "2024-03-08", photo: placeholderPhotos[2] },
+  { id: "S004", model: "Honda Shine", variant: "Drum", color: "Athletic Blue", engineNo: "ENG-SHN-004", chassisNo: "CHS-SHN-004", price: 82000, status: "Sold", purchaseDate: "2024-02-20", photo: placeholderPhotos[3] },
+  { id: "S005", model: "Honda Unicorn", variant: "BS6", color: "Pearl Spartan Red", engineNo: "ENG-UNI-005", chassisNo: "CHS-UNI-005", price: 105000, status: "Available", purchaseDate: "2024-03-12", photo: placeholderPhotos[4] },
+  { id: "S006", model: "Honda SP 125", variant: "Disc", color: "Imperial Red", engineNo: "ENG-SP1-006", chassisNo: "CHS-SP1-006", price: 96000, status: "Booked", purchaseDate: "2024-03-10", photo: placeholderPhotos[5] },
+  { id: "S007", model: "Honda Dio", variant: "STD", color: "Vibrant Orange", engineNo: "ENG-DIO-007", chassisNo: "CHS-DIO-007", price: 72000, status: "Available", purchaseDate: "2024-03-15", photo: placeholderPhotos[6] },
+  { id: "S008", model: "Honda CB350", variant: "DLX", color: "Matte Axis Gray", engineNo: "ENG-CB3-008", chassisNo: "CHS-CB3-008", price: 210000, status: "Available", purchaseDate: "2024-03-18", photo: placeholderPhotos[7] },
 ];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -67,6 +81,10 @@ export default function StockPage() {
   const [search, setSearch] = React.useState("");
   const [filterStatus, setFilterStatus] = React.useState<string>("all");
   const [filterModel, setFilterModel] = React.useState<string>("all");
+  const [viewMode, setViewMode] = React.useState<"table" | "grid">("table");
+  const [lightboxOpen, setLightboxOpen] = React.useState(false);
+  const [lightboxImages, setLightboxImages] = React.useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = React.useState(0);
 
   const filtered = mockStock.filter((s) => {
     if (filterStatus !== "all" && s.status !== filterStatus) return false;
@@ -85,6 +103,15 @@ export default function StockPage() {
   const booked = mockStock.filter((s) => s.status === "Booked").length;
   const sold = mockStock.filter((s) => s.status === "Sold").length;
 
+  const openPhotoPreview = (photo: string) => {
+    if (!photo) return;
+    const allPhotos = filtered.map((s) => s.photo).filter(Boolean) as string[];
+    const idx = allPhotos.indexOf(photo);
+    setLightboxImages(allPhotos);
+    setLightboxIndex(idx >= 0 ? idx : 0);
+    setLightboxOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -93,11 +120,32 @@ export default function StockPage() {
           <h1 className="text-2xl font-bold tracking-tight">Stock / Inventory</h1>
           <p className="text-muted-foreground">Manage vehicle stock and inventory</p>
         </div>
-        <Link href="/stock/add">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" /> Add Vehicle
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          {/* View toggle */}
+          <div className="flex border rounded-lg overflow-hidden">
+            <Button
+              variant={viewMode === "table" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("table")}
+              className="rounded-none gap-1"
+            >
+              <List className="h-4 w-4" /> Table
+            </Button>
+            <Button
+              variant={viewMode === "grid" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("grid")}
+              className="rounded-none gap-1"
+            >
+              <LayoutGrid className="h-4 w-4" /> Cards
+            </Button>
+          </div>
+          <Link href="/stock/add">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" /> Add Vehicle
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Summary */}
@@ -161,53 +209,102 @@ export default function StockPage() {
         </CardContent>
       </Card>
 
-      {/* Stock Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" /> Inventory ({filtered.length} vehicles)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Model</TableHead>
-                <TableHead className="hidden sm:table-cell">Variant</TableHead>
-                <TableHead className="hidden md:table-cell">Color</TableHead>
-                <TableHead className="hidden lg:table-cell">Engine No</TableHead>
-                <TableHead className="hidden lg:table-cell">Chassis No</TableHead>
-                <TableHead className="text-right">Price</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.model}</TableCell>
-                  <TableCell className="hidden sm:table-cell">{item.variant}</TableCell>
-                  <TableCell className="hidden md:table-cell">{item.color}</TableCell>
-                  <TableCell className="hidden lg:table-cell font-mono text-xs">{item.engineNo}</TableCell>
-                  <TableCell className="hidden lg:table-cell font-mono text-xs">{item.chassisNo}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(item.price)}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={statusStyle[item.status]}>
-                      {item.status}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filtered.length === 0 && (
+      {/* Grid View */}
+      {viewMode === "grid" ? (
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filtered.map((item) => (
+            <VehicleCard
+              key={item.id}
+              model={item.model}
+              variant={item.variant}
+              color={item.color}
+              price={item.price}
+              status={item.status}
+              engineNo={item.engineNo}
+              chassisNo={item.chassisNo}
+              photo={item.photo}
+              onView={() => item.photo && openPhotoPreview(item.photo)}
+            />
+          ))}
+          {filtered.length === 0 && (
+            <div className="col-span-full text-center text-muted-foreground py-12">
+              No vehicles found.
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Table View */
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" /> Inventory ({filtered.length} vehicles)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    No vehicles found.
-                  </TableCell>
+                  <TableHead className="w-[50px]">Photo</TableHead>
+                  <TableHead>Model</TableHead>
+                  <TableHead className="hidden sm:table-cell">Variant</TableHead>
+                  <TableHead className="hidden md:table-cell">Color</TableHead>
+                  <TableHead className="hidden lg:table-cell">Engine No</TableHead>
+                  <TableHead className="hidden lg:table-cell">Chassis No</TableHead>
+                  <TableHead className="text-right">Price</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      {item.photo ? (
+                        <button
+                          onClick={() => openPhotoPreview(item.photo!)}
+                          className="w-10 h-10 rounded overflow-hidden hover:ring-2 hover:ring-primary transition-all"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={item.photo} alt={item.model} className="w-full h-full object-cover" />
+                        </button>
+                      ) : (
+                        <div className="w-10 h-10 rounded bg-muted flex items-center justify-center text-muted-foreground text-xs">
+                          N/A
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">{item.model}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{item.variant}</TableCell>
+                    <TableCell className="hidden md:table-cell">{item.color}</TableCell>
+                    <TableCell className="hidden lg:table-cell font-mono text-xs">{item.engineNo}</TableCell>
+                    <TableCell className="hidden lg:table-cell font-mono text-xs">{item.chassisNo}</TableCell>
+                    <TableCell className="text-right font-semibold">{formatCurrency(item.price)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={statusStyle[item.status]}>
+                        {item.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filtered.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                      No vehicles found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Lightbox */}
+      <ImagePreviewModal
+        images={lightboxImages}
+        initialIndex={lightboxIndex}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
     </div>
   );
 }
