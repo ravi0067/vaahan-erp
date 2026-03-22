@@ -26,38 +26,8 @@ import {
   VehicleStatusChart,
   TopSellingModelsChart,
 } from "@/components/charts/ChartComponents";
-
-const stats = [
-  { title: "Today's Revenue", value: "₹3,45,000", change: "4 vehicles sold today", icon: IndianRupee, color: "text-green-600", bg: "bg-green-50" },
-  { title: "Monthly Sales", value: "₹24,56,000", change: "+12.5% from last month", icon: TrendingUp, color: "text-blue-600", bg: "bg-blue-50" },
-  { title: "Active Bookings", value: "23", change: "5 pending delivery", icon: ClipboardList, color: "text-purple-600", bg: "bg-purple-50" },
-  { title: "Hot Leads", value: "18", change: "7 follow-ups today", icon: Flame, color: "text-orange-600", bg: "bg-orange-50" },
-  { title: "Today's Deliveries", value: "3", change: "2 ready, 1 in-transit", icon: Truck, color: "text-yellow-600", bg: "bg-yellow-50" },
-  { title: "Pending Payments", value: "₹8,90,000", change: "12 invoices pending", icon: CreditCard, color: "text-red-600", bg: "bg-red-50" },
-  { title: "Cash in Hand", value: "₹5,67,890", change: "Daybook balanced", icon: Wallet, color: "text-emerald-600", bg: "bg-emerald-50" },
-  { title: "Open Service Jobs", value: "7", change: "2 urgent", icon: Wrench, color: "text-indigo-600", bg: "bg-indigo-50" },
-];
-
-const recentBookings = [
-  { id: "BK-2024-001", customer: "Rahul Verma", model: "Honda Activa 6G", amount: "₹85,000", status: "Confirmed", date: "Today" },
-  { id: "BK-2024-002", customer: "Sneha Patel", model: "Honda SP 125", amount: "₹96,000", status: "Pending Payment", date: "Today" },
-  { id: "BK-2024-003", customer: "Ajay Kumar", model: "Honda Shine", amount: "₹82,000", status: "Delivered", date: "Yesterday" },
-  { id: "BK-2024-004", customer: "Meera Sharma", model: "Honda CB350", amount: "₹2,10,000", status: "Confirmed", date: "Yesterday" },
-  { id: "BK-2024-005", customer: "Karan Singh", model: "Honda Unicorn", amount: "₹1,05,000", status: "Ready for Delivery", date: "2 days ago" },
-  { id: "BK-2024-006", customer: "Pooja Gupta", model: "Honda Dio", amount: "₹72,000", status: "Confirmed", date: "2 days ago" },
-  { id: "BK-2024-007", customer: "Deepak Yadav", model: "Honda Activa 6G", amount: "₹78,000", status: "Delivered", date: "3 days ago" },
-  { id: "BK-2024-008", customer: "Anita Roy", model: "Honda SP 125", amount: "₹92,000", status: "Cancelled", date: "3 days ago" },
-  { id: "BK-2024-009", customer: "Vijay Mishra", model: "Honda Hornet 2.0", amount: "₹1,35,000", status: "Pending Payment", date: "4 days ago" },
-  { id: "BK-2024-010", customer: "Sunita Devi", model: "Honda Activa 6G", amount: "₹85,000", status: "Confirmed", date: "5 days ago" },
-];
-
-const todayFollowups = [
-  { name: "Arjun Mehta", phone: "98765-43210", model: "Honda CB350", status: "Hot", note: "Ready to book, needs finance info" },
-  { name: "Priya Raj", phone: "87654-32109", model: "Honda Activa 6G", status: "Warm", note: "Comparing with TVS Jupiter" },
-  { name: "Sanjay Tiwari", phone: "76543-21098", model: "Honda SP 125", status: "Hot", note: "Wants test ride this week" },
-  { name: "Neha Gupta", phone: "65432-10987", model: "Honda Shine", status: "Warm", note: "Budget discussion pending" },
-  { name: "Rohit Joshi", phone: "54321-09876", model: "Honda Unicorn", status: "Hot", note: "Coming today for booking" },
-];
+import { useShowroomStore } from "@/store/showroom-store";
+import { showroomConfig, mockVehiclesByType } from "@/lib/showroom-config";
 
 const bookingStatusColors: Record<string, string> = {
   Confirmed: "bg-green-50 text-green-700 border-green-200",
@@ -73,22 +43,62 @@ const leadStatusColors: Record<string, string> = {
   Cold: "bg-blue-50 text-blue-700 border-blue-200",
 };
 
-const quickActions = [
-  { label: "New Booking", href: "/bookings/new", icon: Plus, color: "bg-blue-600 hover:bg-blue-700" },
-  { label: "Add Stock", href: "/stock/add", icon: Package, color: "bg-green-600 hover:bg-green-700" },
-  { label: "Add Lead", href: "/leads", icon: UserPlus, color: "bg-orange-600 hover:bg-orange-700" },
-  { label: "New Job Card", href: "/service", icon: FileText, color: "bg-purple-600 hover:bg-purple-700" },
-];
-
 export function DealerDashboard() {
+  const { showroomType } = useShowroomStore();
+  const config = showroomConfig[showroomType];
+  const mockVehicles = mockVehiclesByType[showroomType];
+
+  // Generate mock recent bookings from current vehicle data
+  const recentBookings = mockVehicles.slice(0, 8).map((v, i) => ({
+    id: `BK-2024-${String(i + 1).padStart(3, "0")}`,
+    customer: ["Rahul Verma", "Sneha Patel", "Ajay Kumar", "Meera Sharma", "Karan Singh", "Pooja Gupta", "Deepak Yadav", "Anita Roy"][i] || "Customer",
+    model: v.model,
+    amount: `₹${(v.price / 100).toFixed(0).replace(/\B(?=(\d{2})+(?!\d))/g, ",")}`,
+    status: ["Confirmed", "Pending Payment", "Delivered", "Confirmed", "Ready for Delivery", "Confirmed", "Delivered", "Cancelled"][i] || "Confirmed",
+    date: ["Today", "Today", "Yesterday", "Yesterday", "2 days ago", "2 days ago", "3 days ago", "3 days ago"][i] || "Today",
+  }));
+
+  const todayFollowups = mockVehicles.slice(0, 5).map((v, i) => ({
+    name: ["Arjun Mehta", "Priya Raj", "Sanjay Tiwari", "Neha Gupta", "Rohit Joshi"][i] || "Lead",
+    phone: ["98765-43210", "87654-32109", "76543-21098", "65432-10987", "54321-09876"][i] || "N/A",
+    model: v.model,
+    status: ["Hot", "Warm", "Hot", "Warm", "Hot"][i] || "Warm",
+    note: [
+      "Ready to book, needs finance info",
+      `Comparing with other ${config.vehicleLabelPlural.toLowerCase()}`,
+      "Wants test ride this week",
+      "Budget discussion pending",
+      "Coming today for booking",
+    ][i] || "",
+  }));
+
+  const vehiclesSold = mockVehicles.filter((v) => v.status === "Sold").length;
+
+  const stats = [
+    { title: "Today's Revenue", value: "₹3,45,000", change: `${vehiclesSold} ${config.vehicleLabelPlural.toLowerCase()} sold`, icon: IndianRupee, color: "text-green-600", bg: "bg-green-50" },
+    { title: "Monthly Sales", value: "₹24,56,000", change: "+12.5% from last month", icon: TrendingUp, color: "text-blue-600", bg: "bg-blue-50" },
+    { title: "Active Bookings", value: "23", change: "5 pending delivery", icon: ClipboardList, color: "text-purple-600", bg: "bg-purple-50" },
+    { title: "Hot Leads", value: "18", change: "7 follow-ups today", icon: Flame, color: "text-orange-600", bg: "bg-orange-50" },
+    { title: "Today's Deliveries", value: "3", change: "2 ready, 1 in-transit", icon: Truck, color: "text-yellow-600", bg: "bg-yellow-50" },
+    { title: "Pending Payments", value: "₹8,90,000", change: "12 invoices pending", icon: CreditCard, color: "text-red-600", bg: "bg-red-50" },
+    { title: "Cash in Hand", value: "₹5,67,890", change: "Daybook balanced", icon: Wallet, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { title: "Open Service Jobs", value: "7", change: "2 urgent", icon: Wrench, color: "text-indigo-600", bg: "bg-indigo-50" },
+  ];
+
+  const quickActions = [
+    { label: `New Booking`, href: "/bookings/new", icon: Plus, color: "bg-blue-600 hover:bg-blue-700" },
+    { label: `Add ${config.vehicleLabel}`, href: "/stock/add", icon: Package, color: "bg-green-600 hover:bg-green-700" },
+    { label: "Add Lead", href: "/leads", icon: UserPlus, color: "bg-orange-600 hover:bg-orange-700" },
+    { label: "New Job Card", href: "/service", icon: FileText, color: "bg-purple-600 hover:bg-purple-700" },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back! Here&apos;s your dealership overview.</p>
+          <p className="text-muted-foreground">Welcome back! Here&apos;s your {config.label.toLowerCase()} overview.</p>
         </div>
-        {/* Quick Actions */}
         <div className="flex gap-2 flex-wrap">
           {quickActions.map((a) => {
             const Icon = a.icon;
@@ -198,11 +208,11 @@ export function DealerDashboard() {
           <CardContent><RevenueByMonthChart /></CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-lg">Vehicle Status</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg">{config.vehicleLabel} Status</CardTitle></CardHeader>
           <CardContent><VehicleStatusChart /></CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-lg">Top Selling Models</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg">Top Selling {config.vehicleLabelPlural}</CardTitle></CardHeader>
           <CardContent><TopSellingModelsChart /></CardContent>
         </Card>
       </div>

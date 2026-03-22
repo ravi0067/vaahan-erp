@@ -7,11 +7,64 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, Upload, AlertTriangle, HelpCircle } from "lucide-react";
+import { Plus, Trash2, Upload, AlertTriangle, HelpCircle, AlertCircle } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import Link from "next/link";
+import { useShowroomStore } from "@/store/showroom-store";
+import { showroomConfig, showroomTypeDescriptions, type ShowroomType } from "@/lib/showroom-config";
+
+// ── Showroom Type Settings ──────────────────────────────────────────────────
+function ShowroomTypeSettings() {
+  const { showroomType, setShowroomType } = useShowroomStore();
+  const [saved, setSaved] = React.useState(false);
+  const types: ShowroomType[] = ["BIKE", "CAR", "EV", "MULTI"];
+
+  const handleChange = (type: ShowroomType) => {
+    setShowroomType(type);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  return (
+    <Card>
+      <CardHeader><CardTitle>Showroom Type</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200 rounded-lg p-3">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <p className="text-sm">
+            Changing showroom type will update UI labels and vehicle fields across the system.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {types.map((type) => {
+            const c = showroomConfig[type];
+            const isActive = type === showroomType;
+            return (
+              <button
+                key={type}
+                onClick={() => handleChange(type)}
+                className={`flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition-all text-center ${
+                  isActive
+                    ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/30"
+                    : "border-muted hover:border-primary/30 hover:bg-muted/50"
+                }`}
+              >
+                <span className="text-3xl">{c.emoji}</span>
+                <span className="text-sm font-semibold">{c.label}</span>
+                <span className="text-[11px] text-muted-foreground leading-tight">{showroomTypeDescriptions[type]}</span>
+              </button>
+            );
+          })}
+        </div>
+        {saved && (
+          <p className="text-sm text-green-600 font-medium">✅ Showroom type updated!</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 // ── General Settings ───────────────────────────────────────────────────────
 function GeneralSettings() {
@@ -250,6 +303,7 @@ export default function SettingsPage() {
       <Tabs defaultValue="general">
         <TabsList className="flex-wrap">
           <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="showroom-type">Showroom Type</TabsTrigger>
           <TabsTrigger value="expense-heads">Expense Heads</TabsTrigger>
           <TabsTrigger value="banks">Banks</TabsTrigger>
           <TabsTrigger value="locations">Locations</TabsTrigger>
@@ -257,6 +311,7 @@ export default function SettingsPage() {
         </TabsList>
 
         <TabsContent value="general"><GeneralSettings /></TabsContent>
+        <TabsContent value="showroom-type"><ShowroomTypeSettings /></TabsContent>
         <TabsContent value="expense-heads"><ExpenseHeads /></TabsContent>
         <TabsContent value="banks"><BankSettings /></TabsContent>
         <TabsContent value="locations"><LocationSettings /></TabsContent>

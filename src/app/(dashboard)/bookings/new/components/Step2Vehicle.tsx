@@ -12,39 +12,64 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useBookingWizardStore, type VehicleData } from "@/store/booking-wizard-store";
-import { Bike, Check } from "lucide-react";
+import { useShowroomStore } from "@/store/showroom-store";
+import { showroomConfig, mockVehiclesByType } from "@/lib/showroom-config";
+import { Bike, Car, Zap, Store, Check } from "lucide-react";
 
-// ── Mock vehicles ──────────────────────────────────────────────────────────
-const mockVehicles: VehicleData[] = [
-  { id: "V001", model: "Honda Activa 6G", variant: "STD", color: "Pearl White", engineNo: "ENG-A6G-001", chassisNo: "CHS-A6G-001", price: 78000 },
-  { id: "V002", model: "Honda Activa 6G", variant: "DLX", color: "Rebel Red", engineNo: "ENG-A6G-002", chassisNo: "CHS-A6G-002", price: 85000 },
-  { id: "V003", model: "Honda SP 125", variant: "STD", color: "Matte Black", engineNo: "ENG-SP1-003", chassisNo: "CHS-SP1-003", price: 92000 },
-  { id: "V004", model: "Honda Shine", variant: "Drum", color: "Athletic Blue", engineNo: "ENG-SHN-004", chassisNo: "CHS-SHN-004", price: 82000 },
-  { id: "V005", model: "Honda Unicorn", variant: "BS6", color: "Pearl Spartan Red", engineNo: "ENG-UNI-005", chassisNo: "CHS-UNI-005", price: 105000 },
-  { id: "V006", model: "Honda SP 125", variant: "Disc", color: "Imperial Red", engineNo: "ENG-SP1-006", chassisNo: "CHS-SP1-006", price: 96000 },
-];
-
-const models = Array.from(new Set(mockVehicles.map((v) => v.model)));
-const colors = Array.from(new Set(mockVehicles.map((v) => v.color)));
+const iconMap: Record<string, React.ElementType> = { Bike, Car, Zap, Store };
 
 const formatCurrency = (amt: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amt);
 
 export function Step2Vehicle() {
   const { vehicle, setVehicle, nextStep } = useBookingWizardStore();
-  const [filterModel, setFilterModel] = React.useState<string>("all");
+  const { showroomType } = useShowroomStore();
+  const config = showroomConfig[showroomType];
+  const mockVehicles = mockVehiclesByType[showroomType];
+
+  const VehicleIcon = iconMap[config.icon] || Bike;
+
+  const [filterBrand, setFilterBrand] = React.useState<string>("all");
   const [filterColor, setFilterColor] = React.useState<string>("all");
   const [selectedId, setSelectedId] = React.useState<string>(vehicle?.id || "");
 
+  const brands = Array.from(new Set(mockVehicles.map((v) => v.brand)));
+  const colors = Array.from(new Set(mockVehicles.map((v) => v.color)));
+
+  // Only show available vehicles for booking
   const filtered = mockVehicles.filter((v) => {
-    if (filterModel !== "all" && v.model !== filterModel) return false;
+    if (v.status !== "Available") return false;
+    if (filterBrand !== "all" && v.brand !== filterBrand) return false;
     if (filterColor !== "all" && v.color !== filterColor) return false;
     return true;
   });
 
-  const handleSelect = (v: VehicleData) => {
+  const handleSelect = (v: typeof mockVehicles[0]) => {
     setSelectedId(v.id);
-    setVehicle(v);
+    const vehicleData: VehicleData = {
+      id: v.id,
+      model: v.model,
+      variant: v.variant,
+      color: v.color,
+      engineNo: v.engineNo,
+      chassisNo: v.chassisNo,
+      price: v.price,
+    };
+    setVehicle(vehicleData);
+  };
+
+  const getSpecDisplay = (v: typeof mockVehicles[0]) => {
+    const specs = v.specs;
+    switch (showroomType) {
+      case "BIKE":
+        return specs.cc ? `${specs.cc}cc • ${specs.mileage || "—"} km/l` : "";
+      case "CAR":
+        return `${specs.bodyType || ""} • ${specs.transmission || ""} • ${specs.seatingCapacity || ""} seats`;
+      case "EV":
+        return `${specs.batteryCapacity || ""} kWh • ${specs.range || ""} km range`;
+      case "MULTI":
+        return `${v.fuelType}${specs.cc ? ` • ${specs.cc}cc` : ""}${specs.range ? ` • ${specs.range} km` : ""}`;
+    }
   };
 
   return (
@@ -53,19 +78,19 @@ export function Step2Vehicle() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Bike className="h-5 w-5" /> Select Vehicle
+            <VehicleIcon className="h-5 w-5" /> Select {config.vehicleLabel}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-3">
-            <Select value={filterModel} onValueChange={setFilterModel}>
+            <Select value={filterBrand} onValueChange={setFilterBrand}>
               <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filter by Model" />
+                <SelectValue placeholder="Filter by Brand" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Models</SelectItem>
-                {models.map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                <SelectItem value="all">All Brands</SelectItem>
+                {brands.map((b) => (
+                  <SelectItem key={b} value={b}>{b}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -110,6 +135,9 @@ export function Step2Vehicle() {
                   )}
                 </div>
 
+                {/* Dynamic specs */}
+                <p className="text-xs text-muted-foreground mt-2">{getSpecDisplay(v)}</p>
+
                 <div className="mt-3 space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Engine No</span>
@@ -123,7 +151,12 @@ export function Step2Vehicle() {
 
                 <div className="mt-3 flex items-center justify-between">
                   <span className="text-lg font-bold text-primary">{formatCurrency(v.price)}</span>
-                  <Badge variant="outline" className="text-green-700 border-green-300">Available</Badge>
+                  <div className="flex gap-1">
+                    {v.fuelType === "ELECTRIC" && (
+                      <Badge variant="outline" className="text-green-700 border-green-300">⚡ EV</Badge>
+                    )}
+                    <Badge variant="outline" className="text-green-700 border-green-300">Available</Badge>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -134,7 +167,7 @@ export function Step2Vehicle() {
       {filtered.length === 0 && (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            No vehicles match the selected filters.
+            No {config.vehicleLabelPlural.toLowerCase()} match the selected filters.
           </CardContent>
         </Card>
       )}

@@ -25,47 +25,11 @@ import { Plus, Search, Package, LayoutGrid, List, Trash2, Download, CheckSquare 
 import { VehicleCard } from "./components/VehicleCard";
 import { ImagePreviewModal } from "@/components/ui/image-preview-modal";
 import { exportToCSV } from "@/lib/export-csv";
+import { useShowroomStore } from "@/store/showroom-store";
+import { showroomConfig, mockVehiclesByType, type MockVehicle } from "@/lib/showroom-config";
 
-// ── Types ──────────────────────────────────────────────────────────────────
 type StockStatus = "Available" | "Booked" | "Sold";
 
-interface StockItem {
-  id: string;
-  model: string;
-  variant: string;
-  color: string;
-  engineNo: string;
-  chassisNo: string;
-  price: number;
-  status: StockStatus;
-  purchaseDate: string;
-  photo?: string;
-}
-
-// ── Mock data ──────────────────────────────────────────────────────────────
-const placeholderPhotos = [
-  "https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=400&h=300&fit=crop",
-  "https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=400&h=300&fit=crop",
-  "https://images.unsplash.com/photo-1609630875171-b1321377ee65?w=400&h=300&fit=crop",
-  "",
-  "https://images.unsplash.com/photo-1622185135505-2d795003994a?w=400&h=300&fit=crop",
-  "",
-  "https://images.unsplash.com/photo-1571008887538-b36bb32f4571?w=400&h=300&fit=crop",
-  "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400&h=300&fit=crop",
-];
-
-const mockStock: StockItem[] = [
-  { id: "S001", model: "Honda Activa 6G", variant: "STD", color: "Pearl White", engineNo: "ENG-A6G-001", chassisNo: "CHS-A6G-001", price: 78000, status: "Available", purchaseDate: "2024-03-01", photo: placeholderPhotos[0] },
-  { id: "S002", model: "Honda Activa 6G", variant: "DLX", color: "Rebel Red", engineNo: "ENG-A6G-002", chassisNo: "CHS-A6G-002", price: 85000, status: "Booked", purchaseDate: "2024-03-05", photo: placeholderPhotos[1] },
-  { id: "S003", model: "Honda SP 125", variant: "STD", color: "Matte Black", engineNo: "ENG-SP1-003", chassisNo: "CHS-SP1-003", price: 92000, status: "Available", purchaseDate: "2024-03-08", photo: placeholderPhotos[2] },
-  { id: "S004", model: "Honda Shine", variant: "Drum", color: "Athletic Blue", engineNo: "ENG-SHN-004", chassisNo: "CHS-SHN-004", price: 82000, status: "Sold", purchaseDate: "2024-02-20", photo: placeholderPhotos[3] },
-  { id: "S005", model: "Honda Unicorn", variant: "BS6", color: "Pearl Spartan Red", engineNo: "ENG-UNI-005", chassisNo: "CHS-UNI-005", price: 105000, status: "Available", purchaseDate: "2024-03-12", photo: placeholderPhotos[4] },
-  { id: "S006", model: "Honda SP 125", variant: "Disc", color: "Imperial Red", engineNo: "ENG-SP1-006", chassisNo: "CHS-SP1-006", price: 96000, status: "Booked", purchaseDate: "2024-03-10", photo: placeholderPhotos[5] },
-  { id: "S007", model: "Honda Dio", variant: "STD", color: "Vibrant Orange", engineNo: "ENG-DIO-007", chassisNo: "CHS-DIO-007", price: 72000, status: "Available", purchaseDate: "2024-03-15", photo: placeholderPhotos[6] },
-  { id: "S008", model: "Honda CB350", variant: "DLX", color: "Matte Axis Gray", engineNo: "ENG-CB3-008", chassisNo: "CHS-CB3-008", price: 210000, status: "Available", purchaseDate: "2024-03-18", photo: placeholderPhotos[7] },
-];
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
 const formatCurrency = (amt: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amt);
 
@@ -75,22 +39,25 @@ const statusStyle: Record<StockStatus, string> = {
   Sold: "bg-gray-100 text-gray-500 border-gray-300",
 };
 
-const models = Array.from(new Set(mockStock.map((s) => s.model)));
-
-// ── Page ────────────────────────────────────────────────────────────────────
 export default function StockPage() {
+  const { showroomType } = useShowroomStore();
+  const config = showroomConfig[showroomType];
+  const mockStock = mockVehiclesByType[showroomType];
+
   const [search, setSearch] = React.useState("");
   const [filterStatus, setFilterStatus] = React.useState<string>("all");
-  const [filterModel, setFilterModel] = React.useState<string>("all");
+  const [filterBrand, setFilterBrand] = React.useState<string>("all");
   const [viewMode, setViewMode] = React.useState<"table" | "grid">("table");
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [lightboxOpen, setLightboxOpen] = React.useState(false);
   const [lightboxImages, setLightboxImages] = React.useState<string[]>([]);
   const [lightboxIndex, setLightboxIndex] = React.useState(0);
 
+  const brands = Array.from(new Set(mockStock.map((s) => s.brand)));
+
   const filtered = mockStock.filter((s) => {
     if (filterStatus !== "all" && s.status !== filterStatus) return false;
-    if (filterModel !== "all" && s.model !== filterModel) return false;
+    if (filterBrand !== "all" && s.brand !== filterBrand) return false;
     if (
       search &&
       !s.chassisNo.toLowerCase().includes(search.toLowerCase()) &&
@@ -131,16 +98,109 @@ export default function StockPage() {
     setLightboxOpen(true);
   };
 
+  // Get spec display value
+  const getSpec = (item: MockVehicle, key: string): string => {
+    const val = item.specs[key];
+    return val !== undefined ? String(val) : "—";
+  };
+
+  // Dynamic table columns based on showroom type
+  const renderTableHeaders = () => {
+    switch (showroomType) {
+      case "BIKE":
+        return (
+          <>
+            <TableHead className="hidden sm:table-cell">CC</TableHead>
+            <TableHead className="hidden md:table-cell">Color</TableHead>
+            <TableHead className="hidden md:table-cell">Fuel</TableHead>
+            <TableHead className="hidden lg:table-cell">Mileage</TableHead>
+          </>
+        );
+      case "CAR":
+        return (
+          <>
+            <TableHead className="hidden sm:table-cell">Body Type</TableHead>
+            <TableHead className="hidden md:table-cell">Fuel</TableHead>
+            <TableHead className="hidden md:table-cell">Transmission</TableHead>
+            <TableHead className="hidden lg:table-cell">Seating</TableHead>
+          </>
+        );
+      case "EV":
+        return (
+          <>
+            <TableHead className="hidden sm:table-cell">Category</TableHead>
+            <TableHead className="hidden md:table-cell">Battery</TableHead>
+            <TableHead className="hidden md:table-cell">Range</TableHead>
+            <TableHead className="hidden lg:table-cell">Charge Time</TableHead>
+          </>
+        );
+      case "MULTI":
+        return (
+          <>
+            <TableHead className="hidden sm:table-cell">Type</TableHead>
+            <TableHead className="hidden md:table-cell">Fuel</TableHead>
+          </>
+        );
+    }
+  };
+
+  const renderTableCells = (item: MockVehicle) => {
+    switch (showroomType) {
+      case "BIKE":
+        return (
+          <>
+            <TableCell className="hidden sm:table-cell">{getSpec(item, "cc")}</TableCell>
+            <TableCell className="hidden md:table-cell">{item.color}</TableCell>
+            <TableCell className="hidden md:table-cell">{item.fuelType}</TableCell>
+            <TableCell className="hidden lg:table-cell">{getSpec(item, "mileage")} km/l</TableCell>
+          </>
+        );
+      case "CAR":
+        return (
+          <>
+            <TableCell className="hidden sm:table-cell">{getSpec(item, "bodyType")}</TableCell>
+            <TableCell className="hidden md:table-cell">{item.fuelType}</TableCell>
+            <TableCell className="hidden md:table-cell">{getSpec(item, "transmission")}</TableCell>
+            <TableCell className="hidden lg:table-cell">{getSpec(item, "seatingCapacity")}</TableCell>
+          </>
+        );
+      case "EV":
+        return (
+          <>
+            <TableCell className="hidden sm:table-cell">{getSpec(item, "vehicleCategory")}</TableCell>
+            <TableCell className="hidden md:table-cell">{getSpec(item, "batteryCapacity")} kWh</TableCell>
+            <TableCell className="hidden md:table-cell">{getSpec(item, "range")} km</TableCell>
+            <TableCell className="hidden lg:table-cell">{getSpec(item, "chargingTime")} hrs</TableCell>
+          </>
+        );
+      case "MULTI":
+        return (
+          <>
+            <TableCell className="hidden sm:table-cell">{item.fuelType === "ELECTRIC" ? "EV" : item.fuelType}</TableCell>
+            <TableCell className="hidden md:table-cell">{item.fuelType}</TableCell>
+          </>
+        );
+    }
+  };
+
+  const getColSpan = () => {
+    switch (showroomType) {
+      case "BIKE": return 9;
+      case "CAR": return 9;
+      case "EV": return 9;
+      case "MULTI": return 7;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Stock / Inventory</h1>
-          <p className="text-muted-foreground">Manage vehicle stock and inventory</p>
+          <h1 className="text-2xl font-bold tracking-tight">{config.stockLabel}</h1>
+          <p className="text-muted-foreground">Manage {config.vehicleLabel.toLowerCase()} stock and inventory</p>
         </div>
         <div className="flex gap-2">
-          {/* View toggle */}
           <div className="flex border rounded-lg overflow-hidden">
             <Button
               variant={viewMode === "table" ? "default" : "ghost"}
@@ -177,7 +237,7 @@ export default function StockPage() {
           </Button>
           <Link href="/stock/add">
             <Button>
-              <Plus className="mr-2 h-4 w-4" /> Add Vehicle
+              <Plus className="mr-2 h-4 w-4" /> Add {config.vehicleLabel}
             </Button>
           </Link>
         </div>
@@ -212,7 +272,7 @@ export default function StockPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by chassis / engine no / model..."
+                placeholder={`Search by chassis / engine no / model...`}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
@@ -229,14 +289,14 @@ export default function StockPage() {
                 <SelectItem value="Sold">Sold</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={filterModel} onValueChange={setFilterModel}>
+            <Select value={filterBrand} onValueChange={setFilterBrand}>
               <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Model" />
+                <SelectValue placeholder="Brand" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Models</SelectItem>
-                {models.map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                <SelectItem value="all">All Brands</SelectItem>
+                {brands.map((b) => (
+                  <SelectItem key={b} value={b}>{b}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -276,12 +336,15 @@ export default function StockPage() {
               engineNo={item.engineNo}
               chassisNo={item.chassisNo}
               photo={item.photo}
+              fuelType={item.fuelType}
+              specs={item.specs}
+              showroomType={showroomType}
               onView={() => item.photo && openPhotoPreview(item.photo)}
             />
           ))}
           {filtered.length === 0 && (
             <div className="col-span-full text-center text-muted-foreground py-12">
-              No vehicles found.
+              No {config.vehicleLabelPlural.toLowerCase()} found.
             </div>
           )}
         </div>
@@ -290,7 +353,7 @@ export default function StockPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" /> Inventory ({filtered.length} vehicles)
+              <Package className="h-5 w-5" /> {config.stockLabel} ({filtered.length} {config.vehicleLabelPlural.toLowerCase()})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -307,10 +370,7 @@ export default function StockPage() {
                   </TableHead>
                   <TableHead className="w-[50px]">Photo</TableHead>
                   <TableHead>Model</TableHead>
-                  <TableHead className="hidden sm:table-cell">Variant</TableHead>
-                  <TableHead className="hidden md:table-cell">Color</TableHead>
-                  <TableHead className="hidden lg:table-cell">Engine No</TableHead>
-                  <TableHead className="hidden lg:table-cell">Chassis No</TableHead>
+                  {renderTableHeaders()}
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -342,10 +402,7 @@ export default function StockPage() {
                       )}
                     </TableCell>
                     <TableCell className="font-medium">{item.model}</TableCell>
-                    <TableCell className="hidden sm:table-cell">{item.variant}</TableCell>
-                    <TableCell className="hidden md:table-cell">{item.color}</TableCell>
-                    <TableCell className="hidden lg:table-cell font-mono text-xs">{item.engineNo}</TableCell>
-                    <TableCell className="hidden lg:table-cell font-mono text-xs">{item.chassisNo}</TableCell>
+                    {renderTableCells(item)}
                     <TableCell className="text-right font-semibold">{formatCurrency(item.price)}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={statusStyle[item.status]}>
@@ -356,8 +413,8 @@ export default function StockPage() {
                 ))}
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                      No vehicles found.
+                    <TableCell colSpan={getColSpan()} className="text-center text-muted-foreground py-8">
+                      No {config.vehicleLabelPlural.toLowerCase()} found.
                     </TableCell>
                   </TableRow>
                 )}
@@ -367,7 +424,6 @@ export default function StockPage() {
         </Card>
       )}
 
-      {/* Lightbox */}
       <ImagePreviewModal
         images={lightboxImages}
         initialIndex={lightboxIndex}

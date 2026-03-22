@@ -28,6 +28,7 @@ import {
   Moon,
 } from "lucide-react";
 import { MobileSidebar } from "./MobileSidebar";
+import { ShowroomSwitcher } from "./ShowroomSwitcher";
 
 export function Topbar() {
   const { data: session } = useSession();
@@ -57,6 +58,9 @@ export function Topbar() {
             <MobileSidebar />
           </SheetContent>
         </Sheet>
+
+        {/* Showroom Switcher */}
+        <ShowroomSwitcher />
 
         {/* Search */}
         <div className="relative hidden sm:block">

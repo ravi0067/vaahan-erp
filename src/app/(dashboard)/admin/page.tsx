@@ -18,6 +18,7 @@ import {
 import { Building2, Users, IndianRupee, Activity, Plus, Archive, RotateCcw, Settings2, Settings } from "lucide-react";
 import Link from "next/link";
 import { useSettingsStore, defaultClientFeatures, type ClientFeatureConfig } from "@/store/settings-store";
+import { type ShowroomType, showroomConfig, showroomTypeDescriptions } from "@/lib/showroom-config";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
@@ -30,14 +31,15 @@ interface Client {
   status: "Active" | "Expired" | "Archived";
   subscriptionExpiry: string;
   usersCount: number;
+  showroomType?: ShowroomType;
 }
 
 const mockClients: Client[] = [
-  { id: "1", name: "Vaahan Motors Lucknow", slug: "vaahan-lko", plan: "Pro", status: "Active", subscriptionExpiry: "2025-12-31", usersCount: 8 },
-  { id: "2", name: "Shree Honda Kanpur", slug: "shree-honda-knp", plan: "Enterprise", status: "Active", subscriptionExpiry: "2025-06-30", usersCount: 15 },
-  { id: "3", name: "Bajaj World Agra", slug: "bajaj-agra", plan: "Free", status: "Active", subscriptionExpiry: "2025-04-30", usersCount: 3 },
-  { id: "4", name: "Hero Point Varanasi", slug: "hero-vns", plan: "Pro", status: "Expired", subscriptionExpiry: "2025-02-28", usersCount: 6 },
-  { id: "5", name: "TVS Motors Allahabad", slug: "tvs-alld", plan: "Free", status: "Archived", subscriptionExpiry: "2024-12-31", usersCount: 2 },
+  { id: "1", name: "Vaahan Motors Lucknow", slug: "vaahan-lko", plan: "Pro", status: "Active", subscriptionExpiry: "2025-12-31", usersCount: 8, showroomType: "BIKE" },
+  { id: "2", name: "Shree Honda Kanpur", slug: "shree-honda-knp", plan: "Enterprise", status: "Active", subscriptionExpiry: "2025-06-30", usersCount: 15, showroomType: "CAR" },
+  { id: "3", name: "Bajaj World Agra", slug: "bajaj-agra", plan: "Free", status: "Active", subscriptionExpiry: "2025-04-30", usersCount: 3, showroomType: "BIKE" },
+  { id: "4", name: "Hero Point Varanasi", slug: "hero-vns", plan: "Pro", status: "Expired", subscriptionExpiry: "2025-02-28", usersCount: 6, showroomType: "MULTI" },
+  { id: "5", name: "EV Zone Allahabad", slug: "ev-zone-alld", plan: "Free", status: "Archived", subscriptionExpiry: "2024-12-31", usersCount: 2, showroomType: "EV" },
 ];
 
 const planColor = (p: string) => {
@@ -106,6 +108,16 @@ function ClientConfigDialog({
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
+          {/* Showroom Type Display */}
+          {client.showroomType && (
+            <div className="bg-muted/50 rounded-lg p-3">
+              <Label className="text-xs text-muted-foreground">Showroom Type</Label>
+              <p className="text-sm font-medium mt-1">
+                {showroomConfig[client.showroomType].emoji} {showroomConfig[client.showroomType].label}
+              </p>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label className="text-sm font-semibold">Feature Toggles</Label>
             {featureToggles.map(({ key, label }) => (
@@ -167,12 +179,49 @@ function ClientConfigDialog({
   );
 }
 
+// ── Showroom Type Card Selector ────────────────────────────────────────
+function ShowroomTypeSelector({
+  value,
+  onChange,
+}: {
+  value: ShowroomType;
+  onChange: (type: ShowroomType) => void;
+}) {
+  const types: ShowroomType[] = ["BIKE", "CAR", "EV", "MULTI"];
+
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {types.map((type) => {
+        const c = showroomConfig[type];
+        const isActive = type === value;
+        return (
+          <button
+            key={type}
+            type="button"
+            onClick={() => onChange(type)}
+            className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-center ${
+              isActive
+                ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/30"
+                : "border-muted hover:border-primary/30 hover:bg-muted/50"
+            }`}
+          >
+            <span className="text-2xl">{c.emoji}</span>
+            <span className="text-xs font-semibold">{c.label}</span>
+            <span className="text-[10px] text-muted-foreground leading-tight">{showroomTypeDescriptions[type]}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [configClient, setConfigClient] = React.useState<Client | null>(null);
   const [clientName, setClientName] = React.useState("");
   const [clientSlug, setClientSlug] = React.useState("");
   const [clientPlan, setClientPlan] = React.useState<string>("Free");
+  const [clientShowroomType, setClientShowroomType] = React.useState<ShowroomType>("BIKE");
 
   const totalClients = mockClients.length;
   const activeClients = mockClients.filter((c) => c.status === "Active").length;
@@ -241,6 +290,7 @@ export default function AdminPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead className="hidden md:table-cell">Slug</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="hidden lg:table-cell">Subscription Expiry</TableHead>
@@ -253,6 +303,13 @@ export default function AdminPage() {
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.name}</TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground">{c.slug}</TableCell>
+                  <TableCell>
+                    {c.showroomType && (
+                      <span className="text-sm" title={showroomConfig[c.showroomType].label}>
+                        {showroomConfig[c.showroomType].emoji}
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell><Badge className={planColor(c.plan)}>{c.plan}</Badge></TableCell>
                   <TableCell><Badge className={statusColor(c.status)}>{c.status}</Badge></TableCell>
                   <TableCell className="hidden lg:table-cell">{c.subscriptionExpiry}</TableCell>
@@ -291,7 +348,7 @@ export default function AdminPage() {
 
       {/* Add Client Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Client</DialogTitle>
           </DialogHeader>
@@ -314,6 +371,10 @@ export default function AdminPage() {
                   <SelectItem value="Enterprise">Enterprise</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Showroom Type</Label>
+              <ShowroomTypeSelector value={clientShowroomType} onChange={setClientShowroomType} />
             </div>
           </div>
           <DialogFooter>

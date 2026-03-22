@@ -15,37 +15,17 @@ import {
 } from "@/components/ui/select";
 import { ChevronLeft, Package, Save, Upload, X, Star, ImageIcon } from "lucide-react";
 import { ImagePreviewModal } from "@/components/ui/image-preview-modal";
+import { useShowroomStore } from "@/store/showroom-store";
+import { showroomConfig, type ShowroomType, type FuelType, type FieldConfig } from "@/lib/showroom-config";
 
-// ── Options ────────────────────────────────────────────────────────────────
-const modelOptions = [
-  "Honda Activa 6G",
-  "Honda SP 125",
-  "Honda Shine",
-  "Honda Unicorn",
-  "Honda CB350",
-  "Honda Dio",
-  "Honda Hornet 2.0",
-  "Hero Splendor Plus",
-  "Hero HF Deluxe",
-  "Bajaj Pulsar 150",
-  "TVS Apache RTR 160",
-  "Royal Enfield Classic 350",
-];
-
-const variantOptions = ["STD", "DLX", "Drum", "Disc", "BS6", "ABS", "CBS"];
+const variantOptions = ["STD", "DLX", "Drum", "Disc", "BS6", "ABS", "CBS", "Base", "Mid", "Top"];
 
 const colorOptions = [
-  "Pearl White",
-  "Rebel Red",
-  "Matte Black",
-  "Athletic Blue",
-  "Pearl Spartan Red",
-  "Imperial Red",
-  "Vibrant Orange",
-  "Matte Axis Gray",
-  "Pearl Siren Blue",
-  "Midnight Black",
-  "Racing Red",
+  "Pearl White", "Rebel Red", "Matte Black", "Athletic Blue", "Pearl Spartan Red",
+  "Imperial Red", "Vibrant Orange", "Matte Axis Gray", "Pearl Siren Blue",
+  "Midnight Black", "Racing Red", "Phantom Black", "Silver", "Deep Forest",
+  "Pristine White", "Flame Red", "Gravity Grey", "Jet Black", "Space Grey",
+  "Aurora Silver", "Copper Bronze", "Titanium Grey",
 ];
 
 const MAX_PHOTOS = 10;
@@ -53,22 +33,74 @@ const MAX_PHOTOS = 10;
 export default function AddStockPage() {
   const router = useRouter();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const { showroomType } = useShowroomStore();
+  const config = showroomConfig[showroomType];
+
+  // For MULTI showroom, allow selecting vehicle sub-type
+  const [vehicleSubType, setVehicleSubType] = React.useState<ShowroomType>("BIKE");
+  const activeConfig = showroomType === "MULTI" ? showroomConfig[vehicleSubType] : config;
+  const activeType = showroomType === "MULTI" ? vehicleSubType : showroomType;
+
   const [form, setForm] = React.useState({
+    brand: "",
     model: "",
     variant: "",
     color: "",
+    fuelType: "" as string,
     engineNo: "",
     chassisNo: "",
     price: "",
     purchaseDate: new Date().toISOString().split("T")[0],
   });
+  const [dynamicFields, setDynamicFields] = React.useState<Record<string, string>>({});
   const [photos, setPhotos] = React.useState<string[]>([]);
   const [primaryIndex, setPrimaryIndex] = React.useState(0);
   const [dragActive, setDragActive] = React.useState(false);
   const [lightboxOpen, setLightboxOpen] = React.useState(false);
   const [lightboxIndex, setLightboxIndex] = React.useState(0);
 
-  const isValid = form.model && form.engineNo && form.chassisNo && form.price;
+  const isValid = form.brand && form.model && form.engineNo && form.chassisNo && form.price;
+
+  // Get the fields to show based on showroom type + fuel type
+  const specificFields = activeConfig.specificFields;
+  const showEvFields = form.fuelType === "ELECTRIC" && activeConfig.evFields.length > 0;
+  const brands = activeConfig.popularBrands;
+  const fuelTypes = activeConfig.fuelTypes;
+
+  const handleDynamicField = (key: string, value: string) => {
+    setDynamicFields((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const renderField = (field: FieldConfig) => {
+    if (field.type === "select" && field.options) {
+      return (
+        <div key={field.key} className="grid gap-2">
+          <Label>{field.label}</Label>
+          <Select value={dynamicFields[field.key] || ""} onValueChange={(v) => handleDynamicField(field.key, v)}>
+            <SelectTrigger>
+              <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
+            </SelectTrigger>
+            <SelectContent>
+              {field.options.map((opt) => (
+                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+    return (
+      <div key={field.key} className="grid gap-2">
+        <Label>{field.label}</Label>
+        <Input
+          type={field.type === "number" ? "number" : "text"}
+          placeholder={field.placeholder}
+          value={dynamicFields[field.key] || ""}
+          onChange={(e) => handleDynamicField(field.key, e.target.value)}
+        />
+      </div>
+    );
+  };
 
   const handleFiles = (files: FileList | null) => {
     if (!files) return;
@@ -106,7 +138,7 @@ export default function AddStockPage() {
 
   const handleSubmit = () => {
     if (!isValid) return;
-    alert("Vehicle added to stock! (Mock — no API call)");
+    alert(`${config.vehicleLabel} added to stock! (Mock — no API call)`);
     router.push("/stock");
   };
 
@@ -118,32 +150,79 @@ export default function AddStockPage() {
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Add Vehicle to Stock</h1>
-          <p className="text-muted-foreground">Register a new vehicle in inventory</p>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Add {config.vehicleLabel} to Stock
+          </h1>
+          <p className="text-muted-foreground">Register a new {config.vehicleLabel.toLowerCase()} in inventory</p>
         </div>
       </div>
+
+      {/* Vehicle Type Selector for MULTI */}
+      {showroomType === "MULTI" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Vehicle Type</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-3">
+              {(["BIKE", "CAR", "EV"] as ShowroomType[]).map((type) => {
+                const c = showroomConfig[type];
+                const isActive = vehicleSubType === type;
+                return (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      setVehicleSubType(type);
+                      setForm((prev) => ({ ...prev, fuelType: "", brand: "" }));
+                      setDynamicFields({});
+                    }}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                      isActive
+                        ? "border-primary bg-primary/5 shadow-sm"
+                        : "border-muted hover:border-primary/30"
+                    }`}
+                  >
+                    <span className="text-2xl">{c.emoji}</span>
+                    <span className="text-sm font-medium">{c.vehicleLabel}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" /> Vehicle Details
+            <Package className="h-5 w-5" /> {activeType === "BIKE" ? "Bike" : activeType === "CAR" ? "Car" : "EV"} Details
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2">
-            {/* Model */}
+            {/* Brand */}
             <div className="grid gap-2">
-              <Label>Model *</Label>
-              <Select value={form.model} onValueChange={(v) => setForm({ ...form, model: v })}>
+              <Label>Brand *</Label>
+              <Select value={form.brand} onValueChange={(v) => setForm({ ...form, brand: v })}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select model" />
+                  <SelectValue placeholder="Select brand" />
                 </SelectTrigger>
                 <SelectContent>
-                  {modelOptions.map((m) => (
-                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  {brands.map((b) => (
+                    <SelectItem key={b} value={b}>{b}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Model */}
+            <div className="grid gap-2">
+              <Label>Model *</Label>
+              <Input
+                placeholder={`e.g. ${brands[0] || ""} ...`}
+                value={form.model}
+                onChange={(e) => setForm({ ...form, model: e.target.value })}
+              />
             </div>
 
             {/* Variant */}
@@ -171,6 +250,21 @@ export default function AddStockPage() {
                 <SelectContent>
                   {colorOptions.map((c) => (
                     <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Fuel Type */}
+            <div className="grid gap-2">
+              <Label>Fuel Type</Label>
+              <Select value={form.fuelType} onValueChange={(v) => setForm({ ...form, fuelType: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select fuel type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {fuelTypes.map((ft: FuelType) => (
+                    <SelectItem key={ft} value={ft}>{ft}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -221,18 +315,47 @@ export default function AddStockPage() {
         </CardContent>
       </Card>
 
+      {/* Dynamic Spec Fields */}
+      {specificFields.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{activeConfig.vehicleLabel} Specifications</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {specificFields.map(renderField)}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* EV Fields */}
+      {showEvFields && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              ⚡ Electric Vehicle Specs
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {activeConfig.evFields.map(renderField)}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Photo Upload Section */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <ImageIcon className="h-5 w-5" /> Vehicle Photos
+            <ImageIcon className="h-5 w-5" /> {config.vehicleLabel} Photos
             <span className="text-sm font-normal text-muted-foreground ml-2">
               ({photos.length}/{MAX_PHOTOS})
             </span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Drop Zone */}
           {photos.length < MAX_PHOTOS && (
             <div
               onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
@@ -261,7 +384,6 @@ export default function AddStockPage() {
             </div>
           )}
 
-          {/* Photo Previews */}
           {photos.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
               {photos.map((photo, idx) => (
@@ -274,19 +396,15 @@ export default function AddStockPage() {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={photo}
-                    alt={`Vehicle photo ${idx + 1}`}
+                    alt={`${config.vehicleLabel} photo ${idx + 1}`}
                     className="w-full h-full object-cover cursor-pointer"
                     onClick={() => { setLightboxIndex(idx); setLightboxOpen(true); }}
                   />
-
-                  {/* Primary badge */}
                   {idx === primaryIndex && (
                     <div className="absolute top-1 left-1 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                       <Star className="h-2.5 w-2.5" /> Primary
                     </div>
                   )}
-
-                  {/* Hover actions */}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     {idx !== primaryIndex && (
                       <button
@@ -322,7 +440,6 @@ export default function AddStockPage() {
         </Button>
       </div>
 
-      {/* Lightbox */}
       <ImagePreviewModal
         images={photos}
         initialIndex={lightboxIndex}

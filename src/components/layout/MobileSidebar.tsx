@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
+import { useShowroomStore } from "@/store/showroom-store";
+import { showroomConfig } from "@/lib/showroom-config";
 import {
   LayoutDashboard,
   Users,
@@ -11,6 +13,9 @@ import {
   Package,
   PackagePlus,
   Bike,
+  Car,
+  Zap,
+  Store,
   ClipboardList,
   TrendingUp,
   Wrench,
@@ -31,48 +36,64 @@ interface NavItem {
   href: string;
 }
 
-const allNavItems: NavItem[] = [
-  { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-  { label: "Leads CRM", icon: UserPlus, href: "/leads" },
-  { label: "Add Stock", icon: PackagePlus, href: "/stock/add" },
-  { label: "Stock List", icon: Package, href: "/stock" },
-  { label: "Book Bike", icon: Bike, href: "/bookings/new" },
-  { label: "Booking List", icon: ClipboardList, href: "/bookings" },
-  { label: "Sales", icon: TrendingUp, href: "/sales" },
-  { label: "Service Finance", icon: Wrench, href: "/service" },
-  { label: "CashFlow & Daybook", icon: Wallet, href: "/cashflow" },
-  { label: "Expenses", icon: Receipt, href: "/expenses" },
-  { label: "Reports", icon: BarChart3, href: "/reports" },
-  { label: "Users", icon: Users, href: "/users" },
-  { label: "System Settings", icon: Settings, href: "/settings" },
-  { label: "Customer Ledger", icon: BookUser, href: "/customers" },
-  { label: "RTO & Documents", icon: FileCheck, href: "/rto" },
-  { label: "Clients (Admin)", icon: ShieldCheck, href: "/admin" },
-  { label: "Help & Support", icon: HelpCircle, href: "/help" },
-];
+const iconMap: Record<string, LucideIcon> = { Bike, Car, Zap, Store };
+
+function getVehicleIcon(iconName: string): LucideIcon {
+  return iconMap[iconName] || Bike;
+}
+
+function buildNavItems(bookingLabel: string, stockLabel: string, iconName: string): NavItem[] {
+  const VehicleIcon = getVehicleIcon(iconName);
+  return [
+    { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+    { label: "Leads CRM", icon: UserPlus, href: "/leads" },
+    { label: "Add Stock", icon: PackagePlus, href: "/stock/add" },
+    { label: stockLabel, icon: Package, href: "/stock" },
+    { label: bookingLabel, icon: VehicleIcon, href: "/bookings/new" },
+    { label: "Booking List", icon: ClipboardList, href: "/bookings" },
+    { label: "Sales", icon: TrendingUp, href: "/sales" },
+    { label: "Service Finance", icon: Wrench, href: "/service" },
+    { label: "CashFlow & Daybook", icon: Wallet, href: "/cashflow" },
+    { label: "Expenses", icon: Receipt, href: "/expenses" },
+    { label: "Reports", icon: BarChart3, href: "/reports" },
+    { label: "Users", icon: Users, href: "/users" },
+    { label: "System Settings", icon: Settings, href: "/settings" },
+    { label: "Customer Ledger", icon: BookUser, href: "/customers" },
+    { label: "RTO & Documents", icon: FileCheck, href: "/rto" },
+    { label: "Clients (Admin)", icon: ShieldCheck, href: "/admin" },
+    { label: "Help & Support", icon: HelpCircle, href: "/help" },
+  ];
+}
 
 const roleNavConfig: Record<string, string[]> = {
   SUPER_ADMIN: ["/dashboard", "/admin", "/reports", "/settings", "/help"],
-  OWNER: allNavItems.map((n) => n.href),
-  MANAGER: allNavItems.filter((n) => !["/settings", "/users"].includes(n.href)).map((n) => n.href),
+  OWNER: [],
+  MANAGER: [],
   SALES_EXEC: ["/dashboard", "/leads", "/bookings/new", "/bookings", "/stock", "/stock/add", "/sales", "/customers", "/help"],
   ACCOUNTANT: ["/dashboard", "/cashflow", "/expenses", "/reports", "/customers", "/help"],
   MECHANIC: ["/dashboard", "/service", "/help"],
   VIEWER: ["/dashboard", "/reports", "/help"],
 };
 
-function getNavItemsForRole(role?: string): NavItem[] {
-  if (!role) return allNavItems;
+const managerExclude = ["/settings", "/users"];
+
+function getNavItemsForRole(role: string | undefined, allNavItems: NavItem[]): NavItem[] {
+  if (!role || role === "OWNER") return allNavItems;
+  if (role === "MANAGER") return allNavItems.filter((n) => !managerExclude.includes(n.href));
   const allowed = roleNavConfig[role];
-  if (!allowed) return allNavItems;
+  if (!allowed || allowed.length === 0) return allNavItems;
   return allNavItems.filter((item) => allowed.includes(item.href));
 }
 
 export function MobileSidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { showroomType } = useShowroomStore();
+  const config = showroomConfig[showroomType];
+
   const role = (session?.user as Record<string, unknown>)?.role as string | undefined;
-  const navItems = getNavItemsForRole(role);
+  const allNavItems = buildNavItems(config.bookingLabel, config.stockLabel, config.icon);
+  const navItems = getNavItemsForRole(role, allNavItems);
 
   return (
     <div className="flex flex-col h-full">
@@ -109,7 +130,6 @@ export function MobileSidebar() {
         })}
       </nav>
 
-      {/* Footer */}
       <div className="border-t px-4 py-3 space-y-0.5">
         <p className="text-[10px] text-muted-foreground text-center">VaahanERP v1.0</p>
         <p className="text-[9px] text-muted-foreground text-center">Powered by Ravi Accounting Services</p>
