@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/input";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Search, ChevronDown, ChevronRight } from "lucide-react";
+import { Search, ChevronDown, ChevronRight, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { CustomerDetail, type Customer } from "./components/CustomerDetail";
+import { exportToCSV } from "@/lib/export-csv";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
@@ -60,9 +62,25 @@ export default function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Customer Ledger</h1>
-        <p className="text-muted-foreground text-sm">Customer directory with booking & payment history</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Customer Ledger</h1>
+          <p className="text-muted-foreground text-sm">Customer directory with booking & payment history</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => exportToCSV(filtered.map(c => ({ name: c.name, mobile: c.mobile, email: c.email, totalBookings: c.totalBookings, totalPaid: c.totalPaid, pending: c.pending })) as unknown as Record<string, unknown>[], "customer-ledger", [
+            { key: "name", label: "Name" },
+            { key: "mobile", label: "Mobile" },
+            { key: "email", label: "Email" },
+            { key: "totalBookings", label: "Total Bookings" },
+            { key: "totalPaid", label: "Total Paid" },
+            { key: "pending", label: "Pending" },
+          ])}
+        >
+          <Download className="h-4 w-4 mr-1" /> Export CSV
+        </Button>
       </div>
 
       <div className="relative w-full sm:w-96">

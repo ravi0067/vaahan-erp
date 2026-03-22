@@ -15,7 +15,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Printer, Download } from "lucide-react";
+import { BookingInvoice } from "./components/BookingInvoice";
+import { exportToCSV } from "@/lib/export-csv";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type BookingStatus = "Draft" | "Confirmed" | "RTO Pending" | "Ready" | "Delivered";
@@ -57,6 +59,7 @@ const statusColor: Record<BookingStatus, string> = {
 export default function BookingsPage() {
   const [search, setSearch] = React.useState("");
   const [tab, setTab] = React.useState("All");
+  const [invoiceBooking, setInvoiceBooking] = React.useState<Booking | null>(null);
 
   const filtered = mockBookings.filter((b) => {
     const matchesTab = tab === "All" || b.status === tab;
@@ -75,11 +78,28 @@ export default function BookingsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Bookings</h1>
           <p className="text-muted-foreground">Manage all vehicle bookings</p>
         </div>
-        <Link href="/bookings/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" /> New Booking
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportToCSV(filtered as unknown as Record<string, unknown>[], "bookings", [
+              { key: "bookingNo", label: "Booking #" },
+              { key: "customer", label: "Customer" },
+              { key: "vehicle", label: "Vehicle" },
+              { key: "status", label: "Status" },
+              { key: "amount", label: "Amount" },
+              { key: "paid", label: "Paid" },
+              { key: "date", label: "Date" },
+            ])}
+          >
+            <Download className="h-4 w-4 mr-1" /> Export CSV
           </Button>
-        </Link>
+          <Link href="/bookings/new">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" /> New Booking
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Search + Tabs */}
@@ -118,6 +138,7 @@ export default function BookingsPage() {
                     <TableHead className="text-right hidden sm:table-cell">Paid</TableHead>
                     <TableHead className="text-right hidden sm:table-cell">Pending</TableHead>
                     <TableHead className="hidden lg:table-cell">Date</TableHead>
+                    <TableHead className="w-[80px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -145,11 +166,22 @@ export default function BookingsPage() {
                       <TableCell className="hidden lg:table-cell text-muted-foreground">
                         {b.date}
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={() => setInvoiceBooking(b)}
+                          title="Print Invoice"
+                        >
+                          <Printer className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {filtered.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                         No bookings found.
                       </TableCell>
                     </TableRow>
@@ -160,6 +192,13 @@ export default function BookingsPage() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {invoiceBooking && (
+        <BookingInvoice
+          booking={invoiceBooking}
+          onClose={() => setInvoiceBooking(null)}
+        />
+      )}
     </div>
   );
 }

@@ -3,11 +3,13 @@
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { TrendingUp, Calendar, IndianRupee, AlertCircle } from "lucide-react";
+import { TrendingUp, Calendar, IndianRupee, AlertCircle, Download } from "lucide-react";
+import { exportToCSV } from "@/lib/export-csv";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
@@ -61,9 +63,25 @@ export default function SalesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Sales</h1>
-        <p className="text-muted-foreground text-sm">Sales overview and collection tracking</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Sales</h1>
+          <p className="text-muted-foreground text-sm">Sales overview and collection tracking</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => exportToCSV(filtered as unknown as Record<string, unknown>[], "sales", [
+            { key: "date", label: "Date" },
+            { key: "bookingNo", label: "Booking #" },
+            { key: "customer", label: "Customer" },
+            { key: "vehicle", label: "Vehicle" },
+            { key: "amount", label: "Amount" },
+            { key: "status", label: "Status" },
+          ])}
+        >
+          <Download className="h-4 w-4 mr-1" /> Export CSV
+        </Button>
       </div>
 
       {/* Summary Cards */}

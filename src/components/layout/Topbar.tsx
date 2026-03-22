@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
+import { useTheme } from "next-themes";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,11 +23,15 @@ import {
   User,
   Settings,
   LogOut,
+  HelpCircle,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { MobileSidebar } from "./MobileSidebar";
 
 export function Topbar() {
   const { data: session } = useSession();
+  const { theme, setTheme } = useTheme();
   const userName = session?.user?.name || "User";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const userRole = (session?.user as Record<string, any>)?.role || "VIEWER";
@@ -64,16 +70,37 @@ export function Topbar() {
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
+        {/* Dark Mode Toggle */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        >
+          <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+          <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+          <span className="sr-only">Toggle theme</span>
+        </Button>
+
         {/* AI Assistant */}
         <Button variant="ghost" size="icon" className="h-9 w-9">
           <Sparkles className="h-4 w-4" />
         </Button>
 
+        {/* Help */}
+        <Link href="/help">
+          <Button variant="ghost" size="icon" className="h-9 w-9">
+            <HelpCircle className="h-4 w-4" />
+          </Button>
+        </Link>
+
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="h-9 w-9 relative">
-          <Bell className="h-4 w-4" />
-          <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
-        </Button>
+        <Link href="/notifications">
+          <Button variant="ghost" size="icon" className="h-9 w-9 relative">
+            <Bell className="h-4 w-4" />
+            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
+          </Button>
+        </Link>
 
         {/* User Menu */}
         <DropdownMenu>

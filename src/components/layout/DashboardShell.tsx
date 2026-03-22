@@ -2,6 +2,8 @@
 
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { QuickStatsBar } from "./QuickStatsBar";
+import { MobileBottomNav } from "./MobileBottomNav";
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -17,7 +19,9 @@ export function DashboardShell({ children }: DashboardShellProps) {
       {/* Main Content Area */}
       <div className="flex flex-col flex-1 overflow-hidden">
         <Topbar />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
+        <QuickStatsBar />
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6">{children}</main>
+        <MobileBottomNav />
       </div>
     </div>
   );

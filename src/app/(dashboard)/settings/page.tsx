@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, Upload, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Upload, AlertTriangle, HelpCircle } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import Link from "next/link";
 
 // ── General Settings ───────────────────────────────────────────────────────
 function GeneralSettings() {
@@ -20,20 +21,20 @@ function GeneralSettings() {
       <CardContent className="grid gap-4">
         <div className="grid gap-2">
           <Label>Dealership Name</Label>
-          <Input defaultValue="Vaahan Motors" />
+          <Input defaultValue="Ravi Accounting Services" />
         </div>
         <div className="grid gap-2">
           <Label>Address</Label>
-          <Input defaultValue="123 MG Road, Lucknow, UP 226001" />
+          <Input defaultValue="Chinhat, Gomti Nagar, Lucknow 226028" />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="grid gap-2">
             <Label>Phone</Label>
-            <Input defaultValue="+91 9876543210" />
+            <Input defaultValue="+91 9554762008" />
           </div>
           <div className="grid gap-2">
             <Label>Email</Label>
-            <Input defaultValue="info@vaahanmotors.com" />
+            <Input defaultValue="raviverma0067@gmail.com" />
           </div>
         </div>
         <div className="grid gap-2">
@@ -48,6 +49,23 @@ function GeneralSettings() {
         </div>
         <div className="flex justify-end">
           <Button>Save Changes</Button>
+        </div>
+
+        <Separator className="my-4" />
+
+        <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <HelpCircle className="h-4 w-4 text-muted-foreground" />
+            <p className="font-medium text-sm">Support Contact</p>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Need help? Visit our Help &amp; Support page for FAQs, contact info, and bug reporting.
+          </p>
+          <Link href="/help">
+            <Button variant="outline" size="sm" className="mt-1">
+              <HelpCircle className="h-4 w-4 mr-2" /> Go to Help &amp; Support
+            </Button>
+          </Link>
         </div>
       </CardContent>
     </Card>

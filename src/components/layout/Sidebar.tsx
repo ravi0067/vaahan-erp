@@ -24,6 +24,7 @@ import {
   ChevronRight,
   FileCheck,
   ShieldCheck,
+  HelpCircle,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -57,17 +58,18 @@ const allNavItems: NavItem[] = [
   { label: "Customer Ledger", icon: BookUser, href: "/customers" },
   { label: "RTO & Documents", icon: FileCheck, href: "/rto" },
   { label: "Clients (Admin)", icon: ShieldCheck, href: "/admin" },
+  { label: "Help & Support", icon: HelpCircle, href: "/help" },
 ];
 
 // Role → allowed hrefs mapping
 const roleNavConfig: Record<string, string[]> = {
-  SUPER_ADMIN: ["/dashboard", "/admin", "/reports", "/settings"],
+  SUPER_ADMIN: ["/dashboard", "/admin", "/reports", "/settings", "/help"],
   OWNER: allNavItems.map((n) => n.href),
   MANAGER: allNavItems.filter((n) => !["/settings", "/users"].includes(n.href)).map((n) => n.href),
-  SALES_EXEC: ["/dashboard", "/leads", "/bookings/new", "/bookings", "/stock", "/stock/add", "/sales", "/customers"],
-  ACCOUNTANT: ["/dashboard", "/cashflow", "/expenses", "/reports", "/customers"],
-  MECHANIC: ["/dashboard", "/service"],
-  VIEWER: ["/dashboard", "/reports"],
+  SALES_EXEC: ["/dashboard", "/leads", "/bookings/new", "/bookings", "/stock", "/stock/add", "/sales", "/customers", "/help"],
+  ACCOUNTANT: ["/dashboard", "/cashflow", "/expenses", "/reports", "/customers", "/help"],
+  MECHANIC: ["/dashboard", "/service", "/help"],
+  VIEWER: ["/dashboard", "/reports", "/help"],
 };
 
 function getNavItemsForRole(role?: string): NavItem[] {
@@ -150,9 +152,12 @@ export function Sidebar() {
 
       {/* Footer */}
       {!isCollapsed && (
-        <div className="border-t px-4 py-3">
+        <div className="border-t px-4 py-3 space-y-0.5">
           <p className="text-[10px] text-muted-foreground text-center">
-            VaahanERP v1.0 © 2025
+            VaahanERP v1.0
+          </p>
+          <p className="text-[9px] text-muted-foreground text-center">
+            Powered by Ravi Accounting Services
           </p>
         </div>
       )}

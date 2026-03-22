@@ -21,9 +21,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Search, Package, LayoutGrid, List } from "lucide-react";
+import { Plus, Search, Package, LayoutGrid, List, Trash2, Download, CheckSquare } from "lucide-react";
 import { VehicleCard } from "./components/VehicleCard";
 import { ImagePreviewModal } from "@/components/ui/image-preview-modal";
+import { exportToCSV } from "@/lib/export-csv";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type StockStatus = "Available" | "Booked" | "Sold";
@@ -82,6 +83,7 @@ export default function StockPage() {
   const [filterStatus, setFilterStatus] = React.useState<string>("all");
   const [filterModel, setFilterModel] = React.useState<string>("all");
   const [viewMode, setViewMode] = React.useState<"table" | "grid">("table");
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [lightboxOpen, setLightboxOpen] = React.useState(false);
   const [lightboxImages, setLightboxImages] = React.useState<string[]>([]);
   const [lightboxIndex, setLightboxIndex] = React.useState(0);
@@ -102,6 +104,23 @@ export default function StockPage() {
   const available = mockStock.filter((s) => s.status === "Available").length;
   const booked = mockStock.filter((s) => s.status === "Booked").length;
   const sold = mockStock.filter((s) => s.status === "Sold").length;
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((s) => s.id)));
+    }
+  };
 
   const openPhotoPreview = (photo: string) => {
     if (!photo) return;
@@ -140,6 +159,22 @@ export default function StockPage() {
               <LayoutGrid className="h-4 w-4" /> Cards
             </Button>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportToCSV(filtered as unknown as Record<string, unknown>[], "stock-list", [
+              { key: "id", label: "ID" },
+              { key: "model", label: "Model" },
+              { key: "variant", label: "Variant" },
+              { key: "color", label: "Color" },
+              { key: "engineNo", label: "Engine No" },
+              { key: "chassisNo", label: "Chassis No" },
+              { key: "price", label: "Price" },
+              { key: "status", label: "Status" },
+            ])}
+          >
+            <Download className="h-4 w-4 mr-1" /> Export CSV
+          </Button>
           <Link href="/stock/add">
             <Button>
               <Plus className="mr-2 h-4 w-4" /> Add Vehicle
@@ -209,6 +244,24 @@ export default function StockPage() {
         </CardContent>
       </Card>
 
+      {/* Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 bg-primary/10 border border-primary/30 rounded-lg px-4 py-2">
+          <span className="text-sm font-medium">{selectedIds.size} selected</span>
+          <div className="flex gap-2 ml-auto">
+            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => alert("Marking as sold...")}>
+              <CheckSquare className="h-3 w-3 mr-1" /> Mark as Sold
+            </Button>
+            <Button size="sm" variant="outline" className="h-7 text-xs text-red-600" onClick={() => alert("Deleting...")}>
+              <Trash2 className="h-3 w-3 mr-1" /> Delete
+            </Button>
+            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => alert("Exporting...")}>
+              <Download className="h-3 w-3 mr-1" /> Export Selected
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Grid View */}
       {viewMode === "grid" ? (
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -244,6 +297,14 @@ export default function StockPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[40px]">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size === filtered.length && filtered.length > 0}
+                      onChange={toggleSelectAll}
+                      className="rounded"
+                    />
+                  </TableHead>
                   <TableHead className="w-[50px]">Photo</TableHead>
                   <TableHead>Model</TableHead>
                   <TableHead className="hidden sm:table-cell">Variant</TableHead>
@@ -256,7 +317,15 @@ export default function StockPage() {
               </TableHeader>
               <TableBody>
                 {filtered.map((item) => (
-                  <TableRow key={item.id}>
+                  <TableRow key={item.id} className={selectedIds.has(item.id) ? "bg-primary/5" : ""}>
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(item.id)}
+                        onChange={() => toggleSelect(item.id)}
+                        className="rounded"
+                      />
+                    </TableCell>
                     <TableCell>
                       {item.photo ? (
                         <button
@@ -287,7 +356,7 @@ export default function StockPage() {
                 ))}
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                       No vehicles found.
                     </TableCell>
                   </TableRow>

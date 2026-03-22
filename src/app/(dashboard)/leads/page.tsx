@@ -15,7 +15,9 @@ import {
 } from "@/components/ui/table";
 import { AddLeadDialog, type LeadFormData } from "./components/AddLeadDialog";
 import { LeadCard, type Lead, type DealHealth, type LeadStatus } from "./components/LeadCard";
-import { Search, Phone, Calendar, ArrowRight, Users, Flame, Sun, Snowflake } from "lucide-react";
+import { Search, Phone, Calendar, ArrowRight, Users, Flame, Sun, Snowflake, List, CalendarDays, Download } from "lucide-react";
+import { FollowUpCalendar } from "./components/FollowUpCalendar";
+import { exportToCSV } from "@/lib/export-csv";
 
 // ── Mock data ──────────────────────────────────────────────────────────────
 const mockLeads: Lead[] = [
@@ -48,6 +50,7 @@ const statusColor: Record<LeadStatus, string> = {
 export default function LeadsPage() {
   const [leads, setLeads] = React.useState<Lead[]>(mockLeads);
   const [search, setSearch] = React.useState("");
+  const [viewMode, setViewMode] = React.useState<"table" | "calendar">("table");
 
   // Counts
   const hot = leads.filter((l) => l.dealHealth === "Hot").length;
@@ -93,7 +96,44 @@ export default function LeadsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Leads CRM</h1>
           <p className="text-muted-foreground">Track and convert leads into bookings</p>
         </div>
-        <AddLeadDialog onAdd={handleAddLead} />
+        <div className="flex gap-2">
+          <div className="flex border rounded-lg overflow-hidden">
+            <Button
+              variant={viewMode === "table" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("table")}
+              className="rounded-none gap-1"
+            >
+              <List className="h-4 w-4" /> Table
+            </Button>
+            <Button
+              variant={viewMode === "calendar" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("calendar")}
+              className="rounded-none gap-1"
+            >
+              <CalendarDays className="h-4 w-4" /> Calendar
+            </Button>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportToCSV(leads as unknown as Record<string, unknown>[], "leads", [
+              { key: "id", label: "ID" },
+              { key: "name", label: "Name" },
+              { key: "mobile", label: "Mobile" },
+              { key: "model", label: "Model" },
+              { key: "status", label: "Status" },
+              { key: "dealHealth", label: "Health" },
+              { key: "followUpDate", label: "Follow-up" },
+              { key: "assignedTo", label: "Assigned To" },
+              { key: "source", label: "Source" },
+            ])}
+          >
+            <Download className="h-4 w-4 mr-1" /> Export
+          </Button>
+          <AddLeadDialog onAdd={handleAddLead} />
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -136,6 +176,10 @@ export default function LeadsPage() {
         </Card>
       </div>
 
+      {viewMode === "calendar" ? (
+        <FollowUpCalendar leads={leads} onConvert={handleConvert} />
+      ) : (
+      <>
       {/* Today's Follow-ups */}
       {todayFollowups.length > 0 && (
         <Card className="border-orange-200 bg-orange-50/50">
@@ -230,6 +274,8 @@ export default function LeadsPage() {
           </Table>
         </CardContent>
       </Card>
+      </>
+      )}
     </div>
   );
 }

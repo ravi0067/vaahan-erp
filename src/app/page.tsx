@@ -166,6 +166,36 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Contact Section */}
+      <section className="bg-muted/30 border-t">
+        <div className="max-w-6xl mx-auto px-4 py-12">
+          <h2 className="text-2xl font-bold text-center mb-8">Contact Us</h2>
+          <div className="grid gap-6 sm:grid-cols-3 text-center">
+            <div className="space-y-2">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+                <span className="text-primary text-lg">📍</span>
+              </div>
+              <p className="font-medium">Address</p>
+              <p className="text-sm text-muted-foreground">Chinhat, Gomti Nagar, Lucknow 226028</p>
+            </div>
+            <div className="space-y-2">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+                <span className="text-primary text-lg">📧</span>
+              </div>
+              <p className="font-medium">Email</p>
+              <p className="text-sm text-muted-foreground">raviverma0067@gmail.com</p>
+            </div>
+            <div className="space-y-2">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+                <span className="text-primary text-lg">📞</span>
+              </div>
+              <p className="font-medium">Phone</p>
+              <p className="text-sm text-muted-foreground">+91 9554762008</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="border-t bg-background">
         <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -176,7 +206,10 @@ export default function HomePage() {
             <span className="font-semibold">VaahanERP</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © 2025 VaahanERP. Built with ❤️ for Indian Dealerships.
+            Powered by Ravi Accounting Services
+          </p>
+          <p className="text-sm text-muted-foreground">
+            © 2026 Ravi Accounting Services. All rights reserved.
           </p>
         </div>
       </footer>

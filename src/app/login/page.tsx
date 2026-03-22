@@ -174,6 +174,10 @@ export default function LoginPage() {
             </div>
           </CardContent>
         </Card>
+
+        <p className="text-center text-xs text-muted-foreground mt-4">
+          Powered by Ravi Accounting Services
+        </p>
       </div>
     </div>
   );
