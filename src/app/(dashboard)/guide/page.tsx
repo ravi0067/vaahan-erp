@@ -134,7 +134,7 @@ export default function GuidePage() {
               <Play className="h-8 w-8 ml-1" />
             </button>
             <div>
-              <p className="font-semibold text-lg">Demo Video Coming Soon</p>
+              <p className="font-semibold text-lg">Watch Demo Video</p>
               <p className="text-sm text-muted-foreground">
                 Watch a complete walkthrough of VaahanERP
               </p>

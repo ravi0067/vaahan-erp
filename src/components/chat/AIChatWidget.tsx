@@ -243,7 +243,7 @@ export function AIChatWidget() {
           variant="ghost"
           size="icon"
           className="shrink-0 h-9 w-9"
-          title="Voice input (coming soon)"
+          title="Voice input"
         >
           <Mic className="h-4 w-4 text-muted-foreground" />
         </Button>

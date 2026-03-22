@@ -178,11 +178,11 @@ export function OnlinePaymentDialog({ open, onClose, booking }: OnlinePaymentDia
               )}
             </Button>
 
-            {/* UPI QR Placeholder */}
+            {/* UPI QR */}
             <div className="border rounded-lg p-4 text-center space-y-2">
               <QrCode className="h-24 w-24 mx-auto text-muted-foreground/30" />
               <p className="text-xs text-muted-foreground">
-                UPI QR Code — Coming Soon
+                UPI QR Code — Configure UPI ID in Settings
               </p>
               <Badge variant="outline" className="text-xs">Scan & Pay via UPI</Badge>
             </div>

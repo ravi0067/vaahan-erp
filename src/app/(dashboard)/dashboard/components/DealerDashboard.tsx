@@ -19,6 +19,13 @@ import {
   FileText,
   Phone,
 } from "lucide-react";
+import {
+  SalesTrendChart,
+  LeadPipelineChart,
+  RevenueByMonthChart,
+  VehicleStatusChart,
+  TopSellingModelsChart,
+} from "@/components/charts/ChartComponents";
 
 const stats = [
   { title: "Today's Revenue", value: "₹3,45,000", change: "4 vehicles sold today", icon: IndianRupee, color: "text-green-600", bg: "bg-green-50" },
@@ -173,19 +180,30 @@ export function DealerDashboard() {
         </Card>
       </div>
 
-      {/* Charts placeholder */}
+      {/* Charts */}
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle className="text-lg">Sales Trend</CardTitle></CardHeader>
-          <CardContent className="h-[250px] flex items-center justify-center text-muted-foreground">
-            📊 Sales chart coming soon...
-          </CardContent>
+          <CardHeader><CardTitle className="text-lg">Sales Trend (Last 7 Days)</CardTitle></CardHeader>
+          <CardContent><SalesTrendChart /></CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle className="text-lg">Lead Pipeline</CardTitle></CardHeader>
-          <CardContent className="h-[250px] flex items-center justify-center text-muted-foreground">
-            📈 Lead funnel chart coming soon...
-          </CardContent>
+          <CardContent><LeadPipelineChart /></CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Revenue by Month</CardTitle></CardHeader>
+          <CardContent><RevenueByMonthChart /></CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Vehicle Status</CardTitle></CardHeader>
+          <CardContent><VehicleStatusChart /></CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Top Selling Models</CardTitle></CardHeader>
+          <CardContent><TopSellingModelsChart /></CardContent>
         </Card>
       </div>
     </div>

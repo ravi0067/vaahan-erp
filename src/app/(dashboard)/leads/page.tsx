@@ -16,6 +16,7 @@ import {
 import { AddLeadDialog, type LeadFormData } from "./components/AddLeadDialog";
 import { LeadCard, type Lead, type DealHealth, type LeadStatus } from "./components/LeadCard";
 import { Search, Phone, Calendar, ArrowRight, Users, Flame, Sun, Snowflake, List, CalendarDays, Download, Send } from "lucide-react";
+import { LeadSourceChart, LeadConversionGauge } from "@/components/charts/ChartComponents";
 import { SendAlertDialog } from "@/components/alerts/SendAlertDialog";
 import { FollowUpCalendar } from "./components/FollowUpCalendar";
 import { exportToCSV } from "@/lib/export-csv";
@@ -175,6 +176,18 @@ export default function LeadsPage() {
           <CardContent>
             <div className="text-2xl font-bold text-blue-700">{cold}</div>
           </CardContent>
+        </Card>
+      </div>
+
+      {/* Lead Analytics Charts */}
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Lead Source Distribution</CardTitle></CardHeader>
+          <CardContent><LeadSourceChart /></CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Lead Conversion Rate</CardTitle></CardHeader>
+          <CardContent><LeadConversionGauge /></CardContent>
         </Card>
       </div>
 

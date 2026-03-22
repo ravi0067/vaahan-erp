@@ -13,6 +13,12 @@ import {
   Activity,
   ArrowRight,
 } from "lucide-react";
+import {
+  RevenueByClientChart,
+  PlanDistributionChart,
+  ClientGrowthChart,
+  SuperOwnerRevenueTrendChart,
+} from "@/components/charts/ChartComponents";
 
 const stats = [
   { title: "Total Clients", value: "24", change: "+3 this month", icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
@@ -128,14 +134,28 @@ export function SuperOwnerDashboard() {
               </div>
             ))}
 
-            {/* Revenue chart placeholder */}
+            {/* Revenue Trend */}
             <div className="mt-6 border-t pt-4">
               <p className="text-sm font-medium mb-3">Revenue Trend (All Clients)</p>
-              <div className="h-[120px] flex items-center justify-center text-muted-foreground text-sm bg-muted/50 rounded-lg">
-                📊 Chart coming soon...
-              </div>
+              <SuperOwnerRevenueTrendChart />
             </div>
           </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Revenue by Client</CardTitle></CardHeader>
+          <CardContent><RevenueByClientChart /></CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Plan Distribution</CardTitle></CardHeader>
+          <CardContent><PlanDistributionChart /></CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Client Growth</CardTitle></CardHeader>
+          <CardContent><ClientGrowthChart /></CardContent>
         </Card>
       </div>
     </div>

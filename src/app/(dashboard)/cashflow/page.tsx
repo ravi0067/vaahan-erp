@@ -26,6 +26,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { CashFlowChart } from "@/components/charts/ChartComponents";
 
 // ── Mock data ──────────────────────────────────────────────────────────────
 const mockTransactions: Transaction[] = [
@@ -148,6 +149,12 @@ export default function CashFlowPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Cash Flow Chart */}
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Daily Cash Flow (Last 7 Days)</CardTitle></CardHeader>
+        <CardContent><CashFlowChart /></CardContent>
+      </Card>
 
       {/* Transaction Table */}
       <Card>

@@ -13,6 +13,7 @@ import {
 import { Receipt, TrendingDown, PieChart, Plus, Download } from "lucide-react";
 import { AddExpenseDialog } from "./components/AddExpenseDialog";
 import { exportToCSV } from "@/lib/export-csv";
+import { ExpenseCategoryChart, MonthlyExpenseTrendChart } from "@/components/charts/ChartComponents";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
@@ -164,70 +165,19 @@ export default function ExpensesPage() {
 
       {/* Analytics Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Pie Chart Placeholder */}
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <PieChart className="h-4 w-4" /> Category Breakdown
+              <PieChart className="h-4 w-4" /> Expense Category Breakdown
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {Object.entries(topCategory)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 5)
-                .map(([cat, amount]) => {
-                  const pct = Math.round((amount / totalExpenses) * 100);
-                  return (
-                    <div key={cat} className="space-y-1">
-                      <div className="flex items-center justify-between text-sm">
-                        <span>{cat}</span>
-                        <span className="font-medium">{fmt(amount)} ({pct}%)</span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full ${catColor(cat).includes("purple") ? "bg-purple-500" : catColor(cat).includes("blue") ? "bg-blue-500" : catColor(cat).includes("yellow") ? "bg-yellow-500" : catColor(cat).includes("pink") ? "bg-pink-500" : catColor(cat).includes("orange") ? "bg-orange-500" : "bg-gray-500"}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </CardContent>
+          <CardContent><ExpenseCategoryChart /></CardContent>
         </Card>
-
-        {/* Budget vs Actual */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Budget vs Actual by Department</CardTitle>
+            <CardTitle className="text-sm font-medium">Monthly Expense Trend vs Budget</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {[
-              { dept: "Admin", budget: 50000, actual: mockExpenses.filter(e => e.department === "Admin").reduce((s, e) => s + e.amount, 0) },
-              { dept: "Sales", budget: 30000, actual: mockExpenses.filter(e => e.department === "Sales").reduce((s, e) => s + e.amount, 0) },
-              { dept: "Service", budget: 20000, actual: mockExpenses.filter(e => e.department === "Service").reduce((s, e) => s + e.amount, 0) },
-            ].map((d) => {
-              const pct = Math.round((d.actual / d.budget) * 100);
-              return (
-                <div key={d.dept} className="space-y-1">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">{d.dept}</span>
-                    <span className="text-muted-foreground">
-                      {fmt(d.actual)} / {fmt(d.budget)}
-                    </span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-3">
-                    <div
-                      className={`h-3 rounded-full transition-all ${pct > 90 ? "bg-red-500" : pct > 70 ? "bg-yellow-500" : "bg-green-500"}`}
-                      style={{ width: `${Math.min(pct, 100)}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground text-right">{pct}% used</p>
-                </div>
-              );
-            })}
-          </CardContent>
+          <CardContent><MonthlyExpenseTrendChart /></CardContent>
         </Card>
       </div>
 

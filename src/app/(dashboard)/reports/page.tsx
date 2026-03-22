@@ -12,6 +12,12 @@ import {
   TrendingUp, ClipboardList, IndianRupee, Receipt, UserCheck,
   Package, Wallet, Wrench, FileDown, BarChart3,
 } from "lucide-react";
+import {
+  ReportRevenueAreaChart,
+  ReportSalesBarChart,
+  ReportLeadFunnelChart,
+  ReportInventoryChart,
+} from "@/components/charts/ChartComponents";
 
 interface ReportCard {
   title: string;
@@ -97,6 +103,18 @@ export default function ReportsPage() {
             </Button>
           </CardHeader>
           <CardContent>
+            {/* Report Chart */}
+            <div className="mb-6 border rounded-lg p-4">
+              {selectedReport === "Revenue Report" && <ReportRevenueAreaChart />}
+              {selectedReport === "Sales Report" && <ReportSalesBarChart />}
+              {selectedReport === "Lead Conversion Report" && <ReportLeadFunnelChart />}
+              {selectedReport === "Inventory Report" && <ReportInventoryChart />}
+              {selectedReport === "Booking Report" && <ReportSalesBarChart />}
+              {selectedReport === "Expense Report" && <ReportRevenueAreaChart />}
+              {selectedReport === "CashFlow Report" && <ReportSalesBarChart />}
+              {selectedReport === "Service Report" && <ReportRevenueAreaChart />}
+            </div>
+
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
               <div className="bg-muted/50 rounded-lg p-3 text-center">
                 <p className="text-xs text-muted-foreground">Total Records</p>

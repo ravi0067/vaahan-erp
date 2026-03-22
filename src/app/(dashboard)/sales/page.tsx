@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { TrendingUp, Calendar, IndianRupee, AlertCircle, Download } from "lucide-react";
 import { exportToCSV } from "@/lib/export-csv";
+import { DailySalesChart, SalesByPaymentModeChart } from "@/components/charts/ChartComponents";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
@@ -113,6 +114,18 @@ export default function SalesPage() {
             <AlertCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent><div className="text-2xl font-bold text-red-600">{fmt(pendingCollections)}</div></CardContent>
+        </Card>
+      </div>
+
+      {/* Charts */}
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Daily Sales (March 2025)</CardTitle></CardHeader>
+          <CardContent><DailySalesChart /></CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Sales by Payment Mode</CardTitle></CardHeader>
+          <CardContent><SalesByPaymentModeChart /></CardContent>
         </Card>
       </div>
 

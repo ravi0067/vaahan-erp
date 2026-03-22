@@ -10,6 +10,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Wrench, Clock, CheckCircle2, AlertCircle, Plus, Search, IndianRupee } from "lucide-react";
+import { ServiceRevenueChart } from "@/components/charts/ChartComponents";
 import { JobCardDialog, type JobCard } from "./components/JobCardDialog";
 import { QuickReceiptDialog } from "./components/QuickReceiptDialog";
 
@@ -98,6 +99,12 @@ export default function ServicePage() {
           <CardContent><div className="text-2xl font-bold">{fmt(pendingPayments)}</div></CardContent>
         </Card>
       </div>
+
+      {/* Service Revenue Chart */}
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Service Revenue (Last 7 Days)</CardTitle></CardHeader>
+        <CardContent><ServiceRevenueChart /></CardContent>
+      </Card>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
