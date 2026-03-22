@@ -1,0 +1,431 @@
+// VaahanERP - Multi-Tenant Dealership Management System
+// Production-grade Prisma schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+
+enum Role {
+  SUPER_ADMIN
+  OWNER
+  MANAGER
+  SALES_EXEC
+  ACCOUNTANT
+  MECHANIC
+  VIEWER
+}
+
+enum TenantPlan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  FOLLOWUP
+  CONVERTED
+  LOST
+}
+
+enum DealHealth {
+  HOT
+  WARM
+  COLD
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  BOOKED
+  SOLD
+  IN_TRANSIT
+}
+
+enum BookingStatus {
+  DRAFT
+  CONFIRMED
+  RTO_PENDING
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMode {
+  CASH
+  UPI
+  NEFT
+  BANK_TRANSFER
+  LOAN
+}
+
+enum DocumentType {
+  AADHAR
+  PAN
+  FORM20
+  FORM21
+  FORM22
+  INVOICE
+  INSURANCE
+  OTHER
+}
+
+enum RTOStatus {
+  APPLIED
+  PENDING
+  APPROVED
+}
+
+enum TransactionType {
+  INFLOW
+  OUTFLOW
+}
+
+enum JobCardStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  INVOICED
+}
+
+// ==================== CORE / AUTH ====================
+
+model Tenant {
+  id                 String       @id @default(cuid())
+  name               String
+  slug               String       @unique
+  plan               TenantPlan   @default(FREE)
+  status             TenantStatus @default(ACTIVE)
+  subscriptionExpiry DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  // Relations
+  users            User[]
+  permissions      Permission[]
+  leads            Lead[]
+  vehicles         Vehicle[]
+  bookings         Booking[]
+  customers        Customer[]
+  daybookEntries   DaybookEntry[]
+  cashTransactions CashTransaction[]
+  expenses         Expense[]
+  expenseBudgets   ExpenseBudget[]
+  jobCards         JobCard[]
+}
+
+model User {
+  id       String  @id @default(cuid())
+  tenantId String
+  name     String
+  email    String  @unique
+  password String
+  phone    String?
+  role     Role    @default(VIEWER)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+
+  // Relations
+  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedLeads     Lead[]          @relation("AssignedLeads")
+  salesBookings     Booking[]       @relation("SalesExec")
+  lockedDaybooks    DaybookEntry[]  @relation("LockedBy")
+  approvedExpenses  Expense[]       @relation("ApprovedBy")
+  mechanicJobCards  JobCard[]       @relation("Mechanic")
+
+  @@index([tenantId])
+  @@index([email])
+}
+
+model Permission {
+  id        String @id @default(cuid())
+  tenantId  String
+  roleType  Role
+  module    String
+  canView   Boolean @default(false)
+  canEdit   Boolean @default(false)
+  canDelete Boolean @default(false)
+  canExport Boolean @default(false)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@unique([tenantId, roleType, module])
+}
+
+// ==================== LEADS & CRM ====================
+
+model Lead {
+  id                  String     @id @default(cuid())
+  tenantId            String
+  customerName        String
+  mobile              String
+  email               String?
+  interestedModel     String?
+  location            String?
+  source              String?
+  status              LeadStatus @default(NEW)
+  dealHealth          DealHealth @default(WARM)
+  followUpDate        DateTime?
+  assignedToId        String?
+  notes               String?
+  convertedToBookingId String?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  // Relations
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedTo User?    @relation("AssignedLeads", fields: [assignedToId], references: [id], onDelete: SetNull)
+  convertedToBooking Booking? @relation("ConvertedFromLead", fields: [convertedToBookingId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([assignedToId])
+}
+
+// ==================== INVENTORY ====================
+
+model Vehicle {
+  id           String        @id @default(cuid())
+  tenantId     String
+  model        String
+  variant      String?
+  color        String?
+  engineNo     String?
+  chassisNo    String?       @unique
+  price        Decimal       @db.Decimal(12, 2)
+  status       VehicleStatus @default(AVAILABLE)
+  purchaseDate DateTime?
+  supplierId   String?
+  createdAt    DateTime      @default(now())
+
+  // Relations
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@index([tenantId])
+  @@index([status])
+}
+
+// ==================== CUSTOMERS ====================
+
+model Customer {
+  id       String  @id @default(cuid())
+  tenantId String
+  name     String
+  mobile   String
+  email    String?
+  address  String?
+  aadharNo String?
+  panNo    String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@index([tenantId])
+  @@index([mobile])
+}
+
+// ==================== BOOKING ENGINE (6-STEP) ====================
+
+model Booking {
+  id              String        @id @default(cuid())
+  tenantId        String
+  bookingNumber   String        @unique @default(cuid())
+  customerId      String
+  vehicleId       String?
+  salesExecId     String?
+  status          BookingStatus @default(DRAFT)
+  step            Int           @default(1) // 1 to 6
+  totalAmount     Decimal       @default(0) @db.Decimal(12, 2)
+  paidAmount      Decimal       @default(0) @db.Decimal(12, 2)
+  pendingAmount   Decimal       @default(0) @db.Decimal(12, 2)
+  financeProvider String?
+  loanAmount      Decimal?      @db.Decimal(12, 2)
+  loanStatus      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer        Customer          @relation(fields: [customerId], references: [id])
+  vehicle         Vehicle?          @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  salesExec       User?             @relation("SalesExec", fields: [salesExecId], references: [id], onDelete: SetNull)
+  payments        BookingPayment[]
+  documents       BookingDocument[]
+  rtoRegistration RTORegistration?
+  convertedLeads  Lead[]            @relation("ConvertedFromLead")
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([bookingNumber])
+}
+
+model BookingPayment {
+  id         String      @id @default(cuid())
+  bookingId  String
+  amount     Decimal     @db.Decimal(12, 2)
+  mode       PaymentMode
+  reference  String?
+  receivedBy String?
+  date       DateTime    @default(now())
+  notes      String?
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+}
+
+model BookingDocument {
+  id         String       @id @default(cuid())
+  bookingId  String
+  type       DocumentType
+  fileUrl    String
+  fileName   String?
+  uploadedAt DateTime     @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+}
+
+// ==================== RTO ====================
+
+model RTORegistration {
+  id                 String    @id @default(cuid())
+  bookingId          String    @unique
+  registrationNumber String?
+  status             RTOStatus @default(APPLIED)
+  appliedDate        DateTime  @default(now())
+  approvedDate       DateTime?
+  insuranceExpiry    DateTime?
+  notes              String?
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+// ==================== CASHFLOW & DAYBOOK ====================
+
+model DaybookEntry {
+  id             String   @id @default(cuid())
+  tenantId       String
+  date           DateTime @db.Date
+  openingBalance Decimal  @default(0) @db.Decimal(14, 2)
+  closingBalance Decimal  @default(0) @db.Decimal(14, 2)
+  physicalCash   Decimal  @default(0) @db.Decimal(14, 2)
+  difference     Decimal  @default(0) @db.Decimal(14, 2)
+  isLocked       Boolean  @default(false)
+  lockedById     String?
+  lockedAt       DateTime?
+  createdAt      DateTime @default(now())
+
+  // Relations
+  tenant       Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lockedBy     User?             @relation("LockedBy", fields: [lockedById], references: [id], onDelete: SetNull)
+  transactions CashTransaction[]
+
+  @@index([tenantId])
+  @@unique([tenantId, date])
+}
+
+model CashTransaction {
+  id             String          @id @default(cuid())
+  tenantId       String
+  daybookEntryId String?
+  type           TransactionType
+  category       String
+  description    String?
+  amount         Decimal         @db.Decimal(14, 2)
+  mode           String?
+  reference      String?
+  createdAt      DateTime        @default(now())
+
+  // Relations
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  daybookEntry DaybookEntry? @relation(fields: [daybookEntryId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([daybookEntryId])
+}
+
+// ==================== EXPENSES ====================
+
+model Expense {
+  id           String   @id @default(cuid())
+  tenantId     String
+  amount       Decimal  @db.Decimal(12, 2)
+  category     String
+  description  String?
+  location     String?
+  department   String?
+  date         DateTime @default(now())
+  approvedById String?
+  receiptUrl   String?
+  createdAt    DateTime @default(now())
+
+  // Relations
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  approvedBy User?  @relation("ApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+}
+
+model ExpenseBudget {
+  id           String  @id @default(cuid())
+  tenantId     String
+  category     String
+  department   String?
+  monthlyLimit Decimal @db.Decimal(12, 2)
+  month        Int
+  year         Int
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@unique([tenantId, category, department, month, year])
+}
+
+// ==================== SERVICE ====================
+
+model JobCard {
+  id              String        @id @default(cuid())
+  tenantId        String
+  vehicleRegNo    String
+  customerName    String
+  customerMobile  String
+  complaints      String?
+  diagnosis       String?
+  partsUsed       Json?
+  labourCharge    Decimal       @default(0) @db.Decimal(12, 2)
+  partsCharge     Decimal       @default(0) @db.Decimal(12, 2)
+  totalBilled     Decimal       @default(0) @db.Decimal(12, 2)
+  totalReceived   Decimal       @default(0) @db.Decimal(12, 2)
+  pendingAmount   Decimal       @default(0) @db.Decimal(12, 2)
+  status          JobCardStatus @default(OPEN)
+  mechanicId      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  mechanic User?  @relation("Mechanic", fields: [mechanicId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([status])
+}
