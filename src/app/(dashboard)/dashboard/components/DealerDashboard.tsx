@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import {
   UserPlus,
   FileText,
   Phone,
+  RefreshCw,
 } from "lucide-react";
 import {
   SalesTrendChart,
@@ -27,63 +29,79 @@ import {
   TopSellingModelsChart,
 } from "@/components/charts/ChartComponents";
 import { useShowroomStore } from "@/store/showroom-store";
-import { showroomConfig, mockVehiclesByType } from "@/lib/showroom-config";
+import { showroomConfig } from "@/lib/showroom-config";
+import { apiGet } from "@/lib/api";
 
 const bookingStatusColors: Record<string, string> = {
-  Confirmed: "bg-green-50 text-green-700 border-green-200",
-  "Pending Payment": "bg-amber-50 text-amber-700 border-amber-200",
-  Delivered: "bg-blue-50 text-blue-700 border-blue-200",
-  "Ready for Delivery": "bg-purple-50 text-purple-700 border-purple-200",
-  Cancelled: "bg-red-50 text-red-700 border-red-200",
+  DRAFT: "bg-gray-50 text-gray-700 border-gray-200",
+  CONFIRMED: "bg-green-50 text-green-700 border-green-200",
+  RTO_PENDING: "bg-amber-50 text-amber-700 border-amber-200",
+  READY: "bg-purple-50 text-purple-700 border-purple-200",
+  DELIVERED: "bg-blue-50 text-blue-700 border-blue-200",
+  CANCELLED: "bg-red-50 text-red-700 border-red-200",
 };
 
 const leadStatusColors: Record<string, string> = {
-  Hot: "bg-red-50 text-red-700 border-red-200",
-  Warm: "bg-amber-50 text-amber-700 border-amber-200",
-  Cold: "bg-blue-50 text-blue-700 border-blue-200",
+  HOT: "bg-red-50 text-red-700 border-red-200",
+  WARM: "bg-amber-50 text-amber-700 border-amber-200",
+  COLD: "bg-blue-50 text-blue-700 border-blue-200",
 };
+
+interface DashboardStats {
+  totalRevenue: number;
+  todaySales: number;
+  activeBookings: number;
+  hotLeads: number;
+  pendingDeliveries: number;
+  cashInHand: number;
+  totalVehicles: number;
+  availableVehicles: number;
+  totalCustomers: number;
+  totalLeads: number;
+}
+
+const formatCurrency = (amt: number) =>
+  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amt);
 
 export function DealerDashboard() {
   const { showroomType } = useShowroomStore();
   const config = showroomConfig[showroomType];
-  const mockVehicles = mockVehiclesByType[showroomType];
 
-  // Generate mock recent bookings from current vehicle data
-  const recentBookings = mockVehicles.slice(0, 8).map((v, i) => ({
-    id: `BK-2024-${String(i + 1).padStart(3, "0")}`,
-    customer: ["Rahul Verma", "Sneha Patel", "Ajay Kumar", "Meera Sharma", "Karan Singh", "Pooja Gupta", "Deepak Yadav", "Anita Roy"][i] || "Customer",
-    model: v.model,
-    amount: `₹${(v.price / 100).toFixed(0).replace(/\B(?=(\d{2})+(?!\d))/g, ",")}`,
-    status: ["Confirmed", "Pending Payment", "Delivered", "Confirmed", "Ready for Delivery", "Confirmed", "Delivered", "Cancelled"][i] || "Confirmed",
-    date: ["Today", "Today", "Yesterday", "Yesterday", "2 days ago", "2 days ago", "3 days ago", "3 days ago"][i] || "Today",
-  }));
+  const [stats, setStats] = React.useState<DashboardStats | null>(null);
+  const [recentBookings, setRecentBookings] = React.useState<any[]>([]);
+  const [hotLeads, setHotLeads] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
-  const todayFollowups = mockVehicles.slice(0, 5).map((v, i) => ({
-    name: ["Arjun Mehta", "Priya Raj", "Sanjay Tiwari", "Neha Gupta", "Rohit Joshi"][i] || "Lead",
-    phone: ["98765-43210", "87654-32109", "76543-21098", "65432-10987", "54321-09876"][i] || "N/A",
-    model: v.model,
-    status: ["Hot", "Warm", "Hot", "Warm", "Hot"][i] || "Warm",
-    note: [
-      "Ready to book, needs finance info",
-      `Comparing with other ${config.vehicleLabelPlural.toLowerCase()}`,
-      "Wants test ride this week",
-      "Budget discussion pending",
-      "Coming today for booking",
-    ][i] || "",
-  }));
+  const fetchData = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const [statsData, bookingsData, leadsData] = await Promise.all([
+        apiGet<DashboardStats>('/api/dashboard/stats'),
+        apiGet<any[]>('/api/bookings?status=all'),
+        apiGet<any[]>('/api/leads?dealHealth=HOT'),
+      ]);
+      setStats(statsData);
+      setRecentBookings(bookingsData.slice(0, 8));
+      setHotLeads(leadsData.slice(0, 5));
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const vehiclesSold = mockVehicles.filter((v) => v.status === "Sold").length;
+  React.useEffect(() => { fetchData(); }, [fetchData]);
 
-  const stats = [
-    { title: "Today's Revenue", value: "₹3,45,000", change: `${vehiclesSold} ${config.vehicleLabelPlural.toLowerCase()} sold`, icon: IndianRupee, color: "text-green-600", bg: "bg-green-50" },
-    { title: "Monthly Sales", value: "₹24,56,000", change: "+12.5% from last month", icon: TrendingUp, color: "text-blue-600", bg: "bg-blue-50" },
-    { title: "Active Bookings", value: "23", change: "5 pending delivery", icon: ClipboardList, color: "text-purple-600", bg: "bg-purple-50" },
-    { title: "Hot Leads", value: "18", change: "7 follow-ups today", icon: Flame, color: "text-orange-600", bg: "bg-orange-50" },
-    { title: "Today's Deliveries", value: "3", change: "2 ready, 1 in-transit", icon: Truck, color: "text-yellow-600", bg: "bg-yellow-50" },
-    { title: "Pending Payments", value: "₹8,90,000", change: "12 invoices pending", icon: CreditCard, color: "text-red-600", bg: "bg-red-50" },
-    { title: "Cash in Hand", value: "₹5,67,890", change: "Daybook balanced", icon: Wallet, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { title: "Open Service Jobs", value: "7", change: "2 urgent", icon: Wrench, color: "text-indigo-600", bg: "bg-indigo-50" },
-  ];
+  const statCards = stats ? [
+    { title: "Total Revenue", value: formatCurrency(stats.totalRevenue), change: `${stats.todaySales} sold today`, icon: IndianRupee, color: "text-green-600", bg: "bg-green-50" },
+    { title: "Active Bookings", value: String(stats.activeBookings), change: `${stats.pendingDeliveries} pending delivery`, icon: ClipboardList, color: "text-purple-600", bg: "bg-purple-50" },
+    { title: "Hot Leads", value: String(stats.hotLeads), change: `${stats.totalLeads} total leads`, icon: Flame, color: "text-orange-600", bg: "bg-orange-50" },
+    { title: "Pending Deliveries", value: String(stats.pendingDeliveries), change: "Ready for delivery", icon: Truck, color: "text-yellow-600", bg: "bg-yellow-50" },
+    { title: "Cash in Hand", value: formatCurrency(stats.cashInHand), change: "Today's daybook", icon: Wallet, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { title: "Total Vehicles", value: String(stats.totalVehicles), change: `${stats.availableVehicles} available`, icon: Package, color: "text-blue-600", bg: "bg-blue-50" },
+    { title: "Total Customers", value: String(stats.totalCustomers), change: "All time", icon: UserPlus, color: "text-indigo-600", bg: "bg-indigo-50" },
+    { title: "Today's Sales", value: String(stats.todaySales), change: "Delivered today", icon: TrendingUp, color: "text-red-600", bg: "bg-red-50" },
+  ] : [];
 
   const quickActions = [
     { label: `New Booking`, href: "/bookings/new", icon: Plus, color: "bg-blue-600 hover:bg-blue-700" },
@@ -91,6 +109,19 @@ export function DealerDashboard() {
     { label: "Add Lead", href: "/leads", icon: UserPlus, color: "bg-orange-600 hover:bg-orange-700" },
     { label: "New Job Card", href: "/service", icon: FileText, color: "bg-purple-600 hover:bg-purple-700" },
   ];
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-48 bg-muted animate-pulse rounded" />
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          {[...Array(8)].map((_, i) => (
+            <Card key={i}><CardContent className="p-6"><div className="h-16 bg-muted animate-pulse rounded" /></CardContent></Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -100,6 +131,9 @@ export function DealerDashboard() {
           <p className="text-muted-foreground">Welcome back! Here&apos;s your {config.label.toLowerCase()} overview.</p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <Button size="sm" variant="outline" onClick={fetchData} className="gap-1">
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </Button>
           {quickActions.map((a) => {
             const Icon = a.icon;
             return (
@@ -115,7 +149,7 @@ export function DealerDashboard() {
 
       {/* Stats */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => {
+        {statCards.map((stat) => {
           const Icon = stat.icon;
           return (
             <Card key={stat.title} className="hover:shadow-md transition-shadow">
@@ -141,51 +175,61 @@ export function DealerDashboard() {
             <CardTitle className="text-lg">Recent Bookings</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              {recentBookings.map((b) => (
-                <div key={b.id} className="flex items-center justify-between p-2.5 rounded-lg border text-sm">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{b.customer}</span>
-                      <span className="text-xs text-muted-foreground">{b.id}</span>
+            {recentBookings.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">No bookings yet</p>
+            ) : (
+              <div className="space-y-2">
+                {recentBookings.map((b: any) => (
+                  <div key={b.id} className="flex items-center justify-between p-2.5 rounded-lg border text-sm">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{b.customer?.name || 'N/A'}</span>
+                        <span className="text-xs text-muted-foreground">{b.bookingNumber}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {b.vehicle?.model || 'No vehicle'} · {new Date(b.createdAt).toLocaleDateString('en-IN')}
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground">{b.model} · {b.date}</p>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-semibold text-sm">{formatCurrency(b.totalAmount || 0)}</span>
+                      <Badge variant="outline" className={bookingStatusColors[b.status] || ""}>
+                        {b.status}
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-semibold text-sm">{b.amount}</span>
-                    <Badge variant="outline" className={bookingStatusColors[b.status] || ""}>
-                      {b.status}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Today's Follow-ups */}
+        {/* Hot Leads */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <Phone className="h-5 w-5" /> Today&apos;s Follow-ups
+              <Phone className="h-5 w-5" /> Hot Leads
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {todayFollowups.map((lead) => (
-                <div key={lead.phone} className="p-3 rounded-lg border space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm">{lead.name}</span>
-                    <Badge variant="outline" className={leadStatusColors[lead.status] || ""}>
-                      {lead.status}
-                    </Badge>
+            {hotLeads.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">No hot leads</p>
+            ) : (
+              <div className="space-y-3">
+                {hotLeads.map((lead: any) => (
+                  <div key={lead.id} className="p-3 rounded-lg border space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">{lead.customerName}</span>
+                      <Badge variant="outline" className={leadStatusColors[lead.dealHealth] || ""}>
+                        {lead.dealHealth}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{lead.interestedModel || 'No model specified'}</p>
+                    {lead.notes && <p className="text-xs text-muted-foreground">{lead.notes}</p>}
+                    <p className="text-xs font-mono text-muted-foreground">{lead.mobile}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">{lead.model}</p>
-                  <p className="text-xs text-muted-foreground">{lead.note}</p>
-                  <p className="text-xs font-mono text-muted-foreground">{lead.phone}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

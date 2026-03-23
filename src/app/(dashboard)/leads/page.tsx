@@ -14,123 +14,151 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AddLeadDialog, type LeadFormData } from "./components/AddLeadDialog";
-import { LeadCard, type Lead, type DealHealth, type LeadStatus } from "./components/LeadCard";
-import { Search, Phone, Calendar, ArrowRight, Users, Flame, Sun, Snowflake, List, CalendarDays, Download, Send } from "lucide-react";
+import { Search, Phone, ArrowRight, Users, Flame, Sun, Snowflake, List, CalendarDays, Download, Send, RefreshCw } from "lucide-react";
 import { LeadSourceChart, LeadConversionGauge } from "@/components/charts/ChartComponents";
 import { SendAlertDialog } from "@/components/alerts/SendAlertDialog";
 import { FollowUpCalendar } from "./components/FollowUpCalendar";
 import { exportToCSV } from "@/lib/export-csv";
+import { apiGet, apiPost, apiPut } from "@/lib/api";
+import { toast } from "sonner";
 
-// ── Mock data ──────────────────────────────────────────────────────────────
-const mockLeads: Lead[] = [
-  { id: "L001", name: "Amit Verma", mobile: "9876543210", model: "Honda Activa 6G", status: "Negotiation", dealHealth: "Hot", followUpDate: "2024-03-22", assignedTo: "Ravi", source: "Walk-in" },
-  { id: "L002", name: "Sneha Gupta", mobile: "8765432109", model: "Honda SP 125", status: "Test Ride", dealHealth: "Hot", followUpDate: "2024-03-22", assignedTo: "Ajay", source: "Website" },
-  { id: "L003", name: "Rohit Mishra", mobile: "7654321098", model: "Honda Shine", status: "Contacted", dealHealth: "Warm", followUpDate: "2024-03-23", assignedTo: "Ravi", source: "Referral" },
-  { id: "L004", name: "Kavita Rani", mobile: "6543210987", model: "Honda Dio", status: "New", dealHealth: "Warm", followUpDate: "2024-03-24", assignedTo: "Priya", source: "WhatsApp" },
-  { id: "L005", name: "Deepak Singh", mobile: "5432109876", model: "Honda Unicorn", status: "Interested", dealHealth: "Warm", followUpDate: "2024-03-25", assignedTo: "Ajay", source: "Social Media" },
-  { id: "L006", name: "Sunita Devi", mobile: "4321098765", model: "Honda Activa 6G", status: "Contacted", dealHealth: "Cold", followUpDate: "2024-03-28", assignedTo: "Ravi", source: "Phone Call" },
-  { id: "L007", name: "Manoj Tiwari", mobile: "3210987654", model: "Honda CB350", status: "Lost", dealHealth: "Cold", followUpDate: "2024-03-30", assignedTo: "Priya", source: "Walk-in" },
-];
+// ── Types ──────────────────────────────────────────────────────────────────
+interface LeadData {
+  id: string;
+  customerName: string;
+  mobile: string;
+  email?: string;
+  interestedModel?: string;
+  location?: string;
+  source?: string;
+  status: string;
+  dealHealth: string;
+  followUpDate?: string;
+  notes?: string;
+  assignedTo?: { id: string; name: string };
+  createdAt: string;
+}
 
 // ── Health config ──────────────────────────────────────────────────────────
-const healthBadge: Record<DealHealth, { emoji: string; color: string }> = {
-  Hot: { emoji: "🔥", color: "bg-red-100 text-red-700 border-red-300" },
-  Warm: { emoji: "☀️", color: "bg-amber-100 text-amber-700 border-amber-300" },
-  Cold: { emoji: "❄️", color: "bg-blue-100 text-blue-700 border-blue-300" },
+const healthBadge: Record<string, { emoji: string; color: string }> = {
+  HOT: { emoji: "🔥", color: "bg-red-100 text-red-700 border-red-300" },
+  WARM: { emoji: "☀️", color: "bg-amber-100 text-amber-700 border-amber-300" },
+  COLD: { emoji: "❄️", color: "bg-blue-100 text-blue-700 border-blue-300" },
 };
 
-const statusColor: Record<LeadStatus, string> = {
-  New: "bg-green-100 text-green-700",
-  Contacted: "bg-blue-100 text-blue-700",
-  Interested: "bg-purple-100 text-purple-700",
-  "Test Ride": "bg-orange-100 text-orange-700",
-  Negotiation: "bg-amber-100 text-amber-700",
-  Lost: "bg-gray-100 text-gray-700",
+const statusColor: Record<string, string> = {
+  NEW: "bg-green-100 text-green-700",
+  CONTACTED: "bg-blue-100 text-blue-700",
+  FOLLOWUP: "bg-purple-100 text-purple-700",
+  CONVERTED: "bg-amber-100 text-amber-700",
+  LOST: "bg-gray-100 text-gray-700",
 };
 
 // ── Page ────────────────────────────────────────────────────────────────────
 export default function LeadsPage() {
-  const [leads, setLeads] = React.useState<Lead[]>(mockLeads);
+  const [leads, setLeads] = React.useState<LeadData[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
   const [viewMode, setViewMode] = React.useState<"table" | "calendar">("table");
-  const [alertLead, setAlertLead] = React.useState<Lead | null>(null);
+  const [alertLead, setAlertLead] = React.useState<LeadData | null>(null);
 
-  // Counts
-  const hot = leads.filter((l) => l.dealHealth === "Hot").length;
-  const warm = leads.filter((l) => l.dealHealth === "Warm").length;
-  const cold = leads.filter((l) => l.dealHealth === "Cold").length;
+  const fetchLeads = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await apiGet<LeadData[]>('/api/leads');
+      setLeads(data);
+    } catch (error) {
+      console.error('Failed to fetch leads:', error);
+      toast.error('Failed to load leads');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  // Today's follow-ups
-  const today = new Date().toISOString().split("T")[0];
-  const todayFollowups = leads.filter((l) => l.followUpDate === today || l.followUpDate <= today);
+  React.useEffect(() => { fetchLeads(); }, [fetchLeads]);
+
+  const hot = leads.filter((l) => l.dealHealth === "HOT").length;
+  const warm = leads.filter((l) => l.dealHealth === "WARM").length;
+  const cold = leads.filter((l) => l.dealHealth === "COLD").length;
 
   const filtered = leads.filter(
     (l) =>
       !search ||
-      l.name.toLowerCase().includes(search.toLowerCase()) ||
+      l.customerName.toLowerCase().includes(search.toLowerCase()) ||
       l.mobile.includes(search) ||
-      l.model.toLowerCase().includes(search.toLowerCase())
+      (l.interestedModel?.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const handleAddLead = (data: LeadFormData) => {
-    const newLead: Lead = {
-      id: `L${Date.now()}`,
-      name: data.name,
-      mobile: data.mobile,
-      model: data.interestedModel,
-      status: "New",
-      dealHealth: "Warm",
-      followUpDate: new Date(Date.now() + 86400000).toISOString().split("T")[0],
-      assignedTo: "Unassigned",
-      source: data.source,
-    };
-    setLeads((prev) => [newLead, ...prev]);
+  const handleAddLead = async (data: LeadFormData) => {
+    try {
+      await apiPost('/api/leads', {
+        customerName: data.name,
+        mobile: data.mobile,
+        email: data.email || null,
+        interestedModel: data.interestedModel,
+        source: data.source,
+        dealHealth: (data.dealHealth || 'WARM').toUpperCase(),
+        notes: data.notes || null,
+      });
+      toast.success('Lead added successfully!');
+      fetchLeads();
+    } catch (error) {
+      toast.error('Failed to add lead');
+    }
   };
 
-  const handleConvert = (lead: Lead) => {
-    alert(`Converting ${lead.name} to a booking! (Redirect to /bookings/new)`);
+  const handleConvertLead = async (leadId: string) => {
+    try {
+      await apiPost(`/api/leads/${leadId}/convert`, {});
+      toast.success('Lead converted to booking!');
+      fetchLeads();
+    } catch (error) {
+      toast.error('Failed to convert lead');
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-48 bg-muted animate-pulse rounded" />
+        <div className="grid gap-4 grid-cols-3">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i}><CardContent className="p-4"><div className="h-12 bg-muted animate-pulse rounded" /></CardContent></Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Leads CRM</h1>
-          <p className="text-muted-foreground">Track and convert leads into bookings</p>
+          <h1 className="text-2xl font-bold tracking-tight">Leads</h1>
+          <p className="text-muted-foreground">{leads.length} total leads</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={fetchLeads} className="gap-1">
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </Button>
           <div className="flex border rounded-lg overflow-hidden">
-            <Button
-              variant={viewMode === "table" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("table")}
-              className="rounded-none gap-1"
-            >
+            <Button variant={viewMode === "table" ? "default" : "ghost"} size="sm" onClick={() => setViewMode("table")} className="rounded-none gap-1">
               <List className="h-4 w-4" /> Table
             </Button>
-            <Button
-              variant={viewMode === "calendar" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("calendar")}
-              className="rounded-none gap-1"
-            >
+            <Button variant={viewMode === "calendar" ? "default" : "ghost"} size="sm" onClick={() => setViewMode("calendar")} className="rounded-none gap-1">
               <CalendarDays className="h-4 w-4" /> Calendar
             </Button>
           </div>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => exportToCSV(leads as unknown as Record<string, unknown>[], "leads", [
-              { key: "id", label: "ID" },
-              { key: "name", label: "Name" },
+            onClick={() => exportToCSV(filtered as unknown as Record<string, unknown>[], "leads", [
+              { key: "customerName", label: "Name" },
               { key: "mobile", label: "Mobile" },
-              { key: "model", label: "Model" },
+              { key: "interestedModel", label: "Model" },
               { key: "status", label: "Status" },
-              { key: "dealHealth", label: "Health" },
-              { key: "followUpDate", label: "Follow-up" },
-              { key: "assignedTo", label: "Assigned To" },
-              { key: "source", label: "Source" },
+              { key: "dealHealth", label: "Deal Health" },
             ])}
           >
             <Download className="h-4 w-4 mr-1" /> Export
@@ -139,181 +167,183 @@ export default function LeadsPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{leads.length}</div>
-          </CardContent>
-        </Card>
+      {/* Health Summary */}
+      <div className="grid gap-4 grid-cols-3">
         <Card className="border-red-200">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-red-700">Hot 🔥</CardTitle>
-            <Flame className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-700">{hot}</div>
-          </CardContent>
-        </Card>
-        <Card className="border-amber-200">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-amber-700">Warm ☀️</CardTitle>
-            <Sun className="h-4 w-4 text-amber-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-700">{warm}</div>
-          </CardContent>
-        </Card>
-        <Card className="border-blue-200">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-blue-700">Cold ❄️</CardTitle>
-            <Snowflake className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-700">{cold}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Lead Analytics Charts */}
-      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle className="text-lg">Lead Source Distribution</CardTitle></CardHeader>
-          <CardContent><LeadSourceChart /></CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle className="text-lg">Lead Conversion Rate</CardTitle></CardHeader>
-          <CardContent><LeadConversionGauge /></CardContent>
-        </Card>
-      </div>
-
-      {viewMode === "calendar" ? (
-        <FollowUpCalendar leads={leads} onConvert={handleConvert} />
-      ) : (
-      <>
-      {/* Today's Follow-ups */}
-      {todayFollowups.length > 0 && (
-        <Card className="border-orange-200 bg-orange-50/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Calendar className="h-5 w-5 text-orange-600" />
-              Today&apos;s Follow-ups ({todayFollowups.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {todayFollowups.slice(0, 6).map((lead) => (
-                <LeadCard key={lead.id} lead={lead} onConvert={handleConvert} />
-              ))}
+          <CardContent className="p-4 flex items-center gap-3">
+            <Flame className="h-8 w-8 text-red-500" />
+            <div>
+              <p className="text-sm text-red-700">Hot Leads</p>
+              <p className="text-3xl font-bold text-red-700">{hot}</p>
             </div>
           </CardContent>
         </Card>
-      )}
+        <Card className="border-amber-200">
+          <CardContent className="p-4 flex items-center gap-3">
+            <Sun className="h-8 w-8 text-amber-500" />
+            <div>
+              <p className="text-sm text-amber-700">Warm Leads</p>
+              <p className="text-3xl font-bold text-amber-700">{warm}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-blue-200">
+          <CardContent className="p-4 flex items-center gap-3">
+            <Snowflake className="h-8 w-8 text-blue-500" />
+            <div>
+              <p className="text-sm text-blue-700">Cold Leads</p>
+              <p className="text-3xl font-bold text-blue-700">{cold}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* All Leads Table */}
+      {/* Search */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>All Leads</CardTitle>
-          <div className="relative w-64">
+        <CardContent className="pt-6">
+          <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search leads..."
+              placeholder="Search by name, mobile, or model..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10"
             />
           </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead className="hidden sm:table-cell">Mobile</TableHead>
-                <TableHead>Model</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Health</TableHead>
-                <TableHead className="hidden md:table-cell">Follow-up</TableHead>
-                <TableHead className="hidden lg:table-cell">Assigned</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((lead) => (
-                <TableRow key={lead.id}>
-                  <TableCell className="font-medium">{lead.name}</TableCell>
-                  <TableCell className="hidden sm:table-cell">
-                    <span className="flex items-center gap-1">
-                      <Phone className="h-3 w-3" /> {lead.mobile}
-                    </span>
-                  </TableCell>
-                  <TableCell>{lead.model}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={statusColor[lead.status]}>
-                      {lead.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={healthBadge[lead.dealHealth].color}>
-                      {healthBadge[lead.dealHealth].emoji} {lead.dealHealth}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">{lead.followUpDate}</TableCell>
-                  <TableCell className="hidden lg:table-cell">{lead.assignedTo}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-0.5">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0 text-blue-600"
-                        onClick={() => setAlertLead(lead)}
-                        title="Send Alert"
-                      >
-                        <Send className="h-3.5 w-3.5" />
-                      </Button>
-                      {lead.dealHealth === "Hot" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs"
-                          onClick={() => handleConvert(lead)}
-                        >
-                          Convert <ArrowRight className="ml-1 h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filtered.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                    No leads found.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
         </CardContent>
       </Card>
-      </>
+
+      {viewMode === "calendar" ? (
+        <FollowUpCalendar
+          leads={filtered.map(l => ({
+            id: l.id,
+            name: l.customerName,
+            mobile: l.mobile,
+            model: l.interestedModel || '',
+            status: l.status as any,
+            dealHealth: l.dealHealth as any,
+            followUpDate: l.followUpDate || '',
+            assignedTo: l.assignedTo?.name || '',
+            source: l.source || '',
+          }))}
+        />
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" /> All Leads
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead className="hidden sm:table-cell">Mobile</TableHead>
+                  <TableHead className="hidden md:table-cell">Model</TableHead>
+                  <TableHead>Health</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="hidden lg:table-cell">Assigned</TableHead>
+                  <TableHead className="hidden lg:table-cell">Follow-up</TableHead>
+                  <TableHead className="w-[100px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((lead) => (
+                  <TableRow key={lead.id}>
+                    <TableCell className="font-medium">{lead.customerName}</TableCell>
+                    <TableCell className="hidden sm:table-cell font-mono text-sm">{lead.mobile}</TableCell>
+                    <TableCell className="hidden md:table-cell text-muted-foreground">{lead.interestedModel || '—'}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={healthBadge[lead.dealHealth]?.color || ""}>
+                        {healthBadge[lead.dealHealth]?.emoji} {lead.dealHealth}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={statusColor[lead.status] || ""}>
+                        {lead.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell text-muted-foreground">
+                      {lead.assignedTo?.name || '—'}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell text-muted-foreground">
+                      {lead.followUpDate ? new Date(lead.followUpDate).toLocaleDateString('en-IN') : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-0.5">
+                        {lead.status !== 'CONVERTED' && lead.status !== 'LOST' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-green-600"
+                            onClick={() => handleConvertLead(lead.id)}
+                            title="Convert to Booking"
+                          >
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-blue-600"
+                          onClick={() => setAlertLead(lead)}
+                          title="Send Alert"
+                        >
+                          <Send className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={() => window.open(`tel:${lead.mobile}`)}
+                          title="Call"
+                        >
+                          <Phone className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filtered.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                      No leads found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
+
+      {/* Charts */}
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Lead Sources</CardTitle></CardHeader>
+          <CardContent><LeadSourceChart /></CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Conversion Rate</CardTitle></CardHeader>
+          <CardContent><LeadConversionGauge /></CardContent>
+        </Card>
+      </div>
 
       {alertLead && (
         <SendAlertDialog
           open={!!alertLead}
           onClose={() => setAlertLead(null)}
           recipient={{
-            name: alertLead.name,
+            name: alertLead.customerName,
             mobile: alertLead.mobile,
-            email: `${alertLead.name.toLowerCase().replace(/\s/g, ".")}@email.com`,
+            email: alertLead.email || '',
           }}
           context={{
-            vehicle: alertLead.model,
+            bookingId: '',
+            vehicle: alertLead.interestedModel || '',
+            amount: 0,
+            remaining: 0,
           }}
         />
       )}

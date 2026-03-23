@@ -9,28 +9,30 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { FileText, Search, ShieldCheck, Clock, CheckCircle2 } from "lucide-react";
+import { FileText, Search, ShieldCheck, Clock, CheckCircle2, RefreshCw } from "lucide-react";
 import { RTODetailDialog, type RTORecord } from "./components/RTODetailDialog";
 import { DocumentVault } from "./components/DocumentVault";
-
-const mockRTORecords: RTORecord[] = [
-  { id: "1", bookingNo: "BK-001", customer: "Raj Kumar", vehicle: "Honda Activa 6G", regNumber: "UP32-AB-1234", status: "Approved", appliedDate: "2025-01-10", approvedDate: "2025-02-01", insuranceExpiry: "2026-01-10", notes: "All documents verified" },
-  { id: "2", bookingNo: "BK-002", customer: "Priya Singh", vehicle: "TVS Jupiter 125", regNumber: "UP32-CD-5678", status: "Pending", appliedDate: "2025-02-15", approvedDate: "", insuranceExpiry: "2026-02-15", notes: "Waiting for NOC" },
-  { id: "3", bookingNo: "BK-003", customer: "Amit Sharma", vehicle: "Hero Splendor Plus", regNumber: "", status: "Applied", appliedDate: "2025-03-01", approvedDate: "", insuranceExpiry: "2026-03-01", notes: "" },
-  { id: "4", bookingNo: "BK-004", customer: "Neha Gupta", vehicle: "Suzuki Access 125", regNumber: "UP32-EF-9012", status: "Approved", appliedDate: "2025-01-20", approvedDate: "2025-02-10", insuranceExpiry: "2026-01-20", notes: "" },
-  { id: "5", bookingNo: "BK-005", customer: "Suresh Yadav", vehicle: "Bajaj Pulsar 150", regNumber: "", status: "Pending", appliedDate: "2025-03-05", approvedDate: "", insuranceExpiry: "2026-03-05", notes: "Insurance pending" },
-];
+import { apiGet } from "@/lib/api";
+import { toast } from "sonner";
 
 const statusColor = (s: string) => {
   switch (s) {
-    case "Applied": return "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300";
-    case "Pending": return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300";
-    case "Approved": return "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300";
+    case "APPLIED": case "Applied": return "bg-blue-100 text-blue-700";
+    case "PENDING": case "Pending": return "bg-yellow-100 text-yellow-700";
+    case "APPROVED": case "Approved": return "bg-green-100 text-green-700";
     default: return "";
   }
 };
 
+const statusMap: Record<string, string> = {
+  APPLIED: "Applied",
+  PENDING: "Pending",
+  APPROVED: "Approved",
+};
+
 export default function RTOPage() {
+  const [records, setRecords] = React.useState<RTORecord[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [tab, setTab] = React.useState("All");
   const [search, setSearch] = React.useState("");
   const [selected, setSelected] = React.useState<RTORecord | null>(null);
@@ -38,37 +40,72 @@ export default function RTOPage() {
   const [vaultOpen, setVaultOpen] = React.useState(false);
   const [vaultBooking, setVaultBooking] = React.useState("");
 
-  const filtered = mockRTORecords.filter((r) => {
+  const fetchRTO = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await apiGet<any[]>('/api/rto');
+      const mapped: RTORecord[] = data.map((r: any) => ({
+        id: r.id,
+        bookingNo: r.booking?.bookingNumber || '',
+        customer: r.booking?.customer?.name || '',
+        vehicle: r.booking?.vehicle ? `${r.booking.vehicle.brand} ${r.booking.vehicle.model}` : '',
+        regNumber: r.registrationNumber || '',
+        status: statusMap[r.status] || r.status,
+        appliedDate: r.appliedDate ? new Date(r.appliedDate).toLocaleDateString('en-IN') : '',
+        approvedDate: r.approvedDate ? new Date(r.approvedDate).toLocaleDateString('en-IN') : '',
+        insuranceExpiry: r.insuranceExpiry ? new Date(r.insuranceExpiry).toLocaleDateString('en-IN') : '',
+        notes: r.notes || '',
+      }));
+      setRecords(mapped);
+    } catch (error) {
+      console.error('Failed to fetch RTO data:', error);
+      toast.error('Failed to load RTO data');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => { fetchRTO(); }, [fetchRTO]);
+
+  const filtered = records.filter((r) => {
     if (tab !== "All" && r.status !== tab) return false;
     if (search) {
       const q = search.toLowerCase();
-      return (
-        r.bookingNo.toLowerCase().includes(q) ||
-        r.customer.toLowerCase().includes(q) ||
-        r.vehicle.toLowerCase().includes(q) ||
-        r.regNumber.toLowerCase().includes(q)
-      );
+      return r.bookingNo.toLowerCase().includes(q) || r.customer.toLowerCase().includes(q) || r.vehicle.toLowerCase().includes(q) || r.regNumber.toLowerCase().includes(q);
     }
     return true;
   });
 
   const counts = {
-    All: mockRTORecords.length,
-    Applied: mockRTORecords.filter((r) => r.status === "Applied").length,
-    Pending: mockRTORecords.filter((r) => r.status === "Pending").length,
-    Approved: mockRTORecords.filter((r) => r.status === "Approved").length,
+    All: records.length,
+    Applied: records.filter((r) => r.status === "Applied").length,
+    Pending: records.filter((r) => r.status === "Pending").length,
+    Approved: records.filter((r) => r.status === "Approved").length,
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-48 bg-muted animate-pulse rounded" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => <Card key={i}><CardContent className="p-6"><div className="h-16 bg-muted animate-pulse rounded" /></CardContent></Card>)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">RTO & Documents</h1>
-          <p className="text-muted-foreground text-sm">Manage registrations, documents & insurance</p>
+          <p className="text-muted-foreground text-sm">Manage registrations, documents & insurance ({records.length} records)</p>
         </div>
+        <Button variant="outline" size="sm" onClick={fetchRTO} className="gap-1">
+          <RefreshCw className="h-4 w-4" /> Refresh
+        </Button>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -93,7 +130,6 @@ export default function RTOPage() {
         </Card>
       </div>
 
-      {/* Filter Tabs + Search */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
@@ -108,7 +144,6 @@ export default function RTOPage() {
         </div>
       </div>
 
-      {/* Table */}
       <Card>
         <CardContent className="p-0">
           <Table>

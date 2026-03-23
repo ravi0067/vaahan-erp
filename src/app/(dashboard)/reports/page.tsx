@@ -10,49 +10,61 @@ import {
 } from "@/components/ui/table";
 import {
   TrendingUp, ClipboardList, IndianRupee, Receipt, UserCheck,
-  Package, Wallet, Wrench, FileDown, BarChart3,
+  Package, Wallet, Wrench, FileDown, BarChart3, Loader2,
 } from "lucide-react";
 import {
-  ReportRevenueAreaChart,
-  ReportSalesBarChart,
-  ReportLeadFunnelChart,
-  ReportInventoryChart,
+  ReportRevenueAreaChart, ReportSalesBarChart, ReportLeadFunnelChart, ReportInventoryChart,
 } from "@/components/charts/ChartComponents";
+import { apiGet } from "@/lib/api";
+import { toast } from "sonner";
 
 interface ReportCard {
   title: string;
+  type: string;
   description: string;
   icon: React.ElementType;
   color: string;
 }
 
 const reportCards: ReportCard[] = [
-  { title: "Sales Report", description: "Daily, weekly & monthly sales analysis", icon: TrendingUp, color: "text-green-500" },
-  { title: "Booking Report", description: "All bookings with status breakdown", icon: ClipboardList, color: "text-blue-500" },
-  { title: "Revenue Report", description: "Revenue trends and comparisons", icon: IndianRupee, color: "text-purple-500" },
-  { title: "Expense Report", description: "Category-wise expense analysis", icon: Receipt, color: "text-red-500" },
-  { title: "Lead Conversion Report", description: "Lead funnel and conversion rates", icon: UserCheck, color: "text-teal-500" },
-  { title: "Inventory Report", description: "Stock aging and movement analysis", icon: Package, color: "text-orange-500" },
-  { title: "CashFlow Report", description: "Inflow vs outflow summary", icon: Wallet, color: "text-indigo-500" },
-  { title: "Service Report", description: "Job cards and service revenue", icon: Wrench, color: "text-yellow-500" },
+  { title: "Sales Report", type: "sales", description: "Daily, weekly & monthly sales analysis", icon: TrendingUp, color: "text-green-500" },
+  { title: "Revenue Report", type: "revenue", description: "Revenue trends and comparisons", icon: IndianRupee, color: "text-purple-500" },
+  { title: "Lead Report", type: "leads", description: "Lead funnel and conversion rates", icon: UserCheck, color: "text-teal-500" },
+  { title: "Inventory Report", type: "inventory", description: "Stock aging and movement analysis", icon: Package, color: "text-orange-500" },
+  { title: "Expense Report", type: "expenses", description: "Category-wise expense analysis", icon: Receipt, color: "text-red-500" },
+  { title: "CashFlow Report", type: "cashflow", description: "Inflow vs outflow summary", icon: Wallet, color: "text-indigo-500" },
+  { title: "Service Report", type: "service", description: "Job cards and service revenue", icon: Wrench, color: "text-yellow-500" },
 ];
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 
-// Sample report data
-const sampleSalesData = [
-  { date: "2025-03-20", booking: "BK-010", customer: "Raj Kumar", vehicle: "Honda Activa 6G", amount: 85000, status: "Completed" },
-  { date: "2025-03-19", booking: "BK-009", customer: "Priya Singh", vehicle: "TVS Jupiter 125", amount: 78000, status: "Completed" },
-  { date: "2025-03-18", booking: "BK-008", customer: "Amit Sharma", vehicle: "Hero Splendor Plus", amount: 72000, status: "Pending" },
-  { date: "2025-03-17", booking: "BK-007", customer: "Neha Gupta", vehicle: "Suzuki Access 125", amount: 92000, status: "Completed" },
-  { date: "2025-03-16", booking: "BK-006", customer: "Suresh Yadav", vehicle: "Bajaj Pulsar 150", amount: 145000, status: "Completed" },
-];
-
 export default function ReportsPage() {
   const [selectedReport, setSelectedReport] = React.useState<string | null>(null);
+  const [selectedType, setSelectedType] = React.useState<string | null>(null);
   const [fromDate, setFromDate] = React.useState("2025-03-01");
   const [toDate, setToDate] = React.useState("2025-03-31");
+  const [reportData, setReportData] = React.useState<any>(null);
+  const [generating, setGenerating] = React.useState(false);
+
+  const generateReport = async (type: string, title: string) => {
+    setGenerating(true);
+    setSelectedReport(title);
+    setSelectedType(type);
+    try {
+      const data = await apiGet<any>(`/api/reports?type=${type}&from=${fromDate}&to=${toDate}`);
+      setReportData(data);
+      toast.success(`${title} generated!`);
+    } catch (error) {
+      console.error('Failed to generate report:', error);
+      toast.error('Failed to generate report');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const records = reportData?.data || [];
+  const totalAmount = reportData?.total || records.reduce((s: number, r: any) => s + (r.totalAmount || r.amount || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -61,13 +73,12 @@ export default function ReportsPage() {
         <p className="text-muted-foreground text-sm">Generate and analyze dealership reports</p>
       </div>
 
-      {/* Report Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {reportCards.map((r) => {
           const Icon = r.icon;
           const isActive = selectedReport === r.title;
           return (
-            <Card key={r.title} className={`cursor-pointer transition-all hover:shadow-md ${isActive ? "ring-2 ring-primary" : ""}`} onClick={() => setSelectedReport(r.title)}>
+            <Card key={r.title} className={`cursor-pointer transition-all hover:shadow-md ${isActive ? "ring-2 ring-primary" : ""}`} onClick={() => { setSelectedReport(r.title); setSelectedType(r.type); }}>
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-muted rounded-lg">
@@ -78,14 +89,12 @@ export default function ReportsPage() {
                     <p className="text-xs text-muted-foreground">{r.description}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="grid grid-cols-2 gap-2 flex-1">
-                    <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="h-8 text-xs" />
-                    <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="h-8 text-xs" />
-                  </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="h-8 text-xs" />
+                  <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="h-8 text-xs" />
                 </div>
-                <Button size="sm" className="w-full gap-1" variant={isActive ? "default" : "outline"} onClick={(e) => { e.stopPropagation(); setSelectedReport(r.title); }}>
-                  <BarChart3 className="h-3 w-3" /> Generate
+                <Button size="sm" className="w-full gap-1" variant={isActive ? "default" : "outline"} onClick={(e) => { e.stopPropagation(); generateReport(r.type, r.title); }} disabled={generating}>
+                  {generating && selectedReport === r.title ? <Loader2 className="h-3 w-3 animate-spin" /> : <BarChart3 className="h-3 w-3" />} Generate
                 </Button>
               </CardContent>
             </Card>
@@ -93,8 +102,7 @@ export default function ReportsPage() {
         })}
       </div>
 
-      {/* Report View */}
-      {selectedReport && (
+      {selectedReport && reportData && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>{selectedReport}</CardTitle>
@@ -103,63 +111,58 @@ export default function ReportsPage() {
             </Button>
           </CardHeader>
           <CardContent>
-            {/* Report Chart */}
             <div className="mb-6 border rounded-lg p-4">
-              {selectedReport === "Revenue Report" && <ReportRevenueAreaChart />}
-              {selectedReport === "Sales Report" && <ReportSalesBarChart />}
-              {selectedReport === "Lead Conversion Report" && <ReportLeadFunnelChart />}
-              {selectedReport === "Inventory Report" && <ReportInventoryChart />}
-              {selectedReport === "Booking Report" && <ReportSalesBarChart />}
-              {selectedReport === "Expense Report" && <ReportRevenueAreaChart />}
-              {selectedReport === "CashFlow Report" && <ReportSalesBarChart />}
-              {selectedReport === "Service Report" && <ReportRevenueAreaChart />}
+              {selectedType === "revenue" && <ReportRevenueAreaChart />}
+              {selectedType === "sales" && <ReportSalesBarChart />}
+              {selectedType === "leads" && <ReportLeadFunnelChart />}
+              {selectedType === "inventory" && <ReportInventoryChart />}
+              {selectedType === "expenses" && <ReportRevenueAreaChart />}
+              {selectedType === "cashflow" && <ReportSalesBarChart />}
+              {selectedType === "service" && <ReportRevenueAreaChart />}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
               <div className="bg-muted/50 rounded-lg p-3 text-center">
                 <p className="text-xs text-muted-foreground">Total Records</p>
-                <p className="text-xl font-bold">{sampleSalesData.length}</p>
+                <p className="text-xl font-bold">{records.length}</p>
               </div>
-              <div className="bg-green-50 dark:bg-green-950 rounded-lg p-3 text-center">
+              <div className="bg-green-50 rounded-lg p-3 text-center">
                 <p className="text-xs text-muted-foreground">Total Amount</p>
-                <p className="text-xl font-bold text-green-600">{fmt(sampleSalesData.reduce((s, r) => s + r.amount, 0))}</p>
+                <p className="text-xl font-bold text-green-600">{fmt(totalAmount)}</p>
               </div>
-              <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-3 text-center">
-                <p className="text-xs text-muted-foreground">Completed</p>
-                <p className="text-xl font-bold text-blue-600">{sampleSalesData.filter((r) => r.status === "Completed").length}</p>
-              </div>
-              <div className="bg-yellow-50 dark:bg-yellow-950 rounded-lg p-3 text-center">
-                <p className="text-xs text-muted-foreground">Pending</p>
-                <p className="text-xl font-bold text-yellow-600">{sampleSalesData.filter((r) => r.status === "Pending").length}</p>
+              <div className="bg-blue-50 rounded-lg p-3 text-center">
+                <p className="text-xs text-muted-foreground">Date Range</p>
+                <p className="text-sm font-medium">{fromDate} to {toDate}</p>
               </div>
             </div>
 
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Booking #</TableHead>
-                  <TableHead className="hidden md:table-cell">Customer</TableHead>
-                  <TableHead className="hidden md:table-cell">Vehicle</TableHead>
+                  <TableHead>#</TableHead>
+                  <TableHead>Details</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sampleSalesData.map((r) => (
-                  <TableRow key={r.booking}>
-                    <TableCell>{r.date}</TableCell>
-                    <TableCell className="font-medium">{r.booking}</TableCell>
-                    <TableCell className="hidden md:table-cell">{r.customer}</TableCell>
-                    <TableCell className="hidden md:table-cell">{r.vehicle}</TableCell>
-                    <TableCell className="text-right">{fmt(r.amount)}</TableCell>
+                {records.slice(0, 20).map((r: any, idx: number) => (
+                  <TableRow key={r.id || idx}>
+                    <TableCell>{idx + 1}</TableCell>
+                    <TableCell className="font-medium">
+                      {r.bookingNumber || r.customerName || r.model || r.category || r.description || r.vehicleRegNo || `Record ${idx + 1}`}
+                    </TableCell>
+                    <TableCell className="text-right">{fmt(r.totalAmount || r.amount || r.totalBilled || 0)}</TableCell>
                     <TableCell>
-                      <Badge className={r.status === "Completed" ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"}>
-                        {r.status}
+                      <Badge variant="outline">
+                        {r.status || r.dealHealth || r.type || '—'}
                       </Badge>
                     </TableCell>
                   </TableRow>
                 ))}
+                {records.length === 0 && (
+                  <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No data for this period</TableCell></TableRow>
+                )}
               </TableBody>
             </Table>
           </CardContent>

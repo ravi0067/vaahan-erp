@@ -9,32 +9,36 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Wrench, Clock, CheckCircle2, AlertCircle, Plus, Search, IndianRupee } from "lucide-react";
+import { Wrench, Clock, CheckCircle2, AlertCircle, Plus, Search, IndianRupee, RefreshCw } from "lucide-react";
 import { ServiceRevenueChart } from "@/components/charts/ChartComponents";
 import { JobCardDialog, type JobCard } from "./components/JobCardDialog";
 import { QuickReceiptDialog } from "./components/QuickReceiptDialog";
+import { apiGet } from "@/lib/api";
+import { toast } from "sonner";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 
-const mockJobs: JobCard[] = [
-  { id: "1", jobNo: "SVC-001", vehicleReg: "UP32-AB-1234", customerName: "Raj Kumar", customerMobile: "9876543210", complaints: "Engine noise", diagnosis: "Timing chain loose", parts: [{ name: "Timing Chain", qty: 1, rate: 1200, amount: 1200 }], labourCharge: 800, status: "Completed", mechanic: "Amit", totalBilled: 2000, received: 2000, pending: 0 },
-  { id: "2", jobNo: "SVC-002", vehicleReg: "UP32-CD-5678", customerName: "Priya Singh", customerMobile: "9876543211", complaints: "Brake squeal", diagnosis: "Worn brake pads", parts: [{ name: "Brake Pad Set", qty: 1, rate: 600, amount: 600 }, { name: "Brake Oil", qty: 1, rate: 200, amount: 200 }], labourCharge: 500, status: "In Progress", mechanic: "Raju", totalBilled: 1300, received: 500, pending: 800 },
-  { id: "3", jobNo: "SVC-003", vehicleReg: "UP32-EF-9012", customerName: "Suresh Yadav", customerMobile: "9876543212", complaints: "General service", diagnosis: "Oil change + filter", parts: [{ name: "Engine Oil", qty: 1, rate: 450, amount: 450 }, { name: "Oil Filter", qty: 1, rate: 150, amount: 150 }], labourCharge: 300, status: "Open", mechanic: "", totalBilled: 900, received: 0, pending: 900 },
-  { id: "4", jobNo: "SVC-004", vehicleReg: "UP32-GH-3456", customerName: "Neha Gupta", customerMobile: "9876543213", complaints: "Flat tyre", diagnosis: "Puncture repair", parts: [], labourCharge: 100, status: "Completed", mechanic: "Amit", totalBilled: 100, received: 100, pending: 0 },
-  { id: "5", jobNo: "SVC-005", vehicleReg: "UP32-IJ-7890", customerName: "Vikash Tiwari", customerMobile: "9876543214", complaints: "Battery dead", diagnosis: "Battery replacement needed", parts: [{ name: "Battery 12V", qty: 1, rate: 2500, amount: 2500 }], labourCharge: 200, status: "In Progress", mechanic: "Raju", totalBilled: 2700, received: 1000, pending: 1700 },
-];
-
 const statusColor = (s: string) => {
   switch (s) {
-    case "Open": return "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300";
-    case "In Progress": return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300";
-    case "Completed": return "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300";
+    case "OPEN": case "Open": return "bg-blue-100 text-blue-700";
+    case "IN_PROGRESS": case "In Progress": return "bg-yellow-100 text-yellow-700";
+    case "COMPLETED": case "Completed": return "bg-green-100 text-green-700";
+    case "INVOICED": return "bg-purple-100 text-purple-700";
     default: return "";
   }
 };
 
+const statusMap: Record<string, string> = {
+  OPEN: "Open",
+  IN_PROGRESS: "In Progress",
+  COMPLETED: "Completed",
+  INVOICED: "Invoiced",
+};
+
 export default function ServicePage() {
+  const [jobs, setJobs] = React.useState<JobCard[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [tab, setTab] = React.useState("All");
   const [search, setSearch] = React.useState("");
   const [jobDialogOpen, setJobDialogOpen] = React.useState(false);
@@ -42,7 +46,38 @@ export default function ServicePage() {
   const [selectedJob, setSelectedJob] = React.useState<JobCard | null>(null);
   const [editJob, setEditJob] = React.useState<JobCard | null>(null);
 
-  const filtered = mockJobs.filter((j) => {
+  const fetchJobs = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await apiGet<any[]>('/api/service/jobs');
+      const mapped: JobCard[] = data.map((j: any) => ({
+        id: j.id,
+        jobNo: j.id.slice(0, 8).toUpperCase(),
+        vehicleReg: j.vehicleRegNo,
+        customerName: j.customerName,
+        customerMobile: j.customerMobile,
+        complaints: j.complaints || '',
+        diagnosis: '',
+        parts: [],
+        labourCharge: j.labourCharge || 0,
+        status: statusMap[j.status] || j.status,
+        mechanic: j.mechanic?.name || '',
+        totalBilled: j.totalBilled || 0,
+        received: j.totalReceived || 0,
+        pending: j.pendingAmount || 0,
+      }));
+      setJobs(mapped);
+    } catch (error) {
+      console.error('Failed to fetch jobs:', error);
+      toast.error('Failed to load service jobs');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => { fetchJobs(); }, [fetchJobs]);
+
+  const filtered = jobs.filter((j) => {
     if (tab !== "All" && j.status !== tab) return false;
     if (search) {
       const q = search.toLowerCase();
@@ -51,10 +86,21 @@ export default function ServicePage() {
     return true;
   });
 
-  const openJobs = mockJobs.filter((j) => j.status === "Open").length;
-  const inProgress = mockJobs.filter((j) => j.status === "In Progress").length;
-  const completedToday = mockJobs.filter((j) => j.status === "Completed").length;
-  const pendingPayments = mockJobs.reduce((s, j) => s + j.pending, 0);
+  const openJobs = jobs.filter((j) => j.status === "Open").length;
+  const inProgress = jobs.filter((j) => j.status === "In Progress").length;
+  const completedToday = jobs.filter((j) => j.status === "Completed").length;
+  const pendingPayments = jobs.reduce((s, j) => s + j.pending, 0);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-48 bg-muted animate-pulse rounded" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <Card key={i}><CardContent className="p-6"><div className="h-16 bg-muted animate-pulse rounded" /></CardContent></Card>)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -63,12 +109,16 @@ export default function ServicePage() {
           <h1 className="text-2xl font-bold">Service & Workshop</h1>
           <p className="text-muted-foreground text-sm">Manage job cards, service billing & payments</p>
         </div>
-        <Button onClick={() => { setEditJob(null); setJobDialogOpen(true); }}>
-          <Plus className="h-4 w-4 mr-2" /> New Job Card
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={fetchJobs} className="gap-1">
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </Button>
+          <Button onClick={() => { setEditJob(null); setJobDialogOpen(true); }}>
+            <Plus className="h-4 w-4 mr-2" /> New Job Card
+          </Button>
+        </div>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -86,7 +136,7 @@ export default function ServicePage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Completed Today</CardTitle>
+            <CardTitle className="text-sm font-medium">Completed</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent><div className="text-2xl font-bold">{completedToday}</div></CardContent>
@@ -100,13 +150,11 @@ export default function ServicePage() {
         </Card>
       </div>
 
-      {/* Service Revenue Chart */}
       <Card>
         <CardHeader><CardTitle className="text-lg">Service Revenue (Last 7 Days)</CardTitle></CardHeader>
         <CardContent><ServiceRevenueChart /></CardContent>
       </Card>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
@@ -121,7 +169,6 @@ export default function ServicePage() {
         </div>
       </div>
 
-      {/* Table */}
       <Card>
         <CardContent className="p-0">
           <Table>

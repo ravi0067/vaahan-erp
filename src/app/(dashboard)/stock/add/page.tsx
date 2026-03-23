@@ -17,6 +17,8 @@ import { ChevronLeft, Package, Save, Upload, X, Star, ImageIcon } from "lucide-r
 import { ImagePreviewModal } from "@/components/ui/image-preview-modal";
 import { useShowroomStore } from "@/store/showroom-store";
 import { showroomConfig, type ShowroomType, type FuelType, type FieldConfig } from "@/lib/showroom-config";
+import { apiPost } from "@/lib/api";
+import { toast } from "sonner";
 
 const variantOptions = ["STD", "DLX", "Drum", "Disc", "BS6", "ABS", "CBS", "Base", "Mid", "Top"];
 
@@ -136,10 +138,27 @@ export default function AddStockPage() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!isValid) return;
-    alert(`${config.vehicleLabel} added to stock! (Mock — no API call)`);
-    router.push("/stock");
+    try {
+      await apiPost('/api/vehicles', {
+        brand: form.brand,
+        model: form.model,
+        variant: form.variant,
+        color: form.color,
+        chassisNo: form.chassisNo,
+        engineNo: form.engineNo,
+        exShowroomPrice: Number(form.exShowroomPrice) || 0,
+        purchasePrice: Number(form.purchasePrice) || 0,
+        year: Number(form.year) || new Date().getFullYear(),
+        fuelType: form.fuelType || null,
+        photo: photos[0] || null,
+      });
+      toast.success(`${config.vehicleLabel} added successfully!`);
+      router.push("/stock");
+    } catch (error: any) {
+      toast.error(error.message || `Failed to add ${config.vehicleLabel.toLowerCase()}`);
+    }
   };
 
   return (

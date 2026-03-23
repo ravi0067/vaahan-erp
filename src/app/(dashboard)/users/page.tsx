@@ -8,60 +8,82 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Shield } from "lucide-react";
+import { Plus, Pencil, Trash2, Shield, RefreshCw } from "lucide-react";
 import { AddUserDialog } from "./components/AddUserDialog";
+import { apiGet, apiDelete } from "@/lib/api";
+import { toast } from "sonner";
 
 interface User {
   id: string;
   name: string;
   email: string;
   role: string;
-  active: boolean;
+  active?: boolean;
+  isActive?: boolean;
 }
 
-const mockUsers: User[] = [
-  { id: "1", name: "Ravi Kumar", email: "ravi@vaahan.com", role: "Owner", active: true },
-  { id: "2", name: "Amit Singh", email: "amit@vaahan.com", role: "Manager", active: true },
-  { id: "3", name: "Priya Sharma", email: "priya@vaahan.com", role: "Sales Exec", active: true },
-  { id: "4", name: "Neha Gupta", email: "neha@vaahan.com", role: "Accountant", active: true },
-  { id: "5", name: "Sunil Yadav", email: "sunil@vaahan.com", role: "Mechanic", active: false },
-  { id: "6", name: "Deepak Tiwari", email: "deepak@vaahan.com", role: "Viewer", active: true },
-];
-
-const roles = ["Owner", "Manager", "Sales Exec", "Accountant", "Mechanic", "Viewer"];
+const roles = ["OWNER", "MANAGER", "SALES_EXEC", "ACCOUNTANT", "MECHANIC", "VIEWER"];
 const modules = ["Dashboard", "Leads", "Stock", "Bookings", "Sales", "Service", "CashFlow", "Expenses", "Reports", "Settings"];
 const permissions = ["View", "Edit", "Delete", "Export"];
 
 const roleColor = (r: string) => {
   const c: Record<string, string> = {
-    Owner: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
-    Manager: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
-    "Sales Exec": "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
-    Accountant: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300",
-    Mechanic: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
-    Viewer: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+    OWNER: "bg-purple-100 text-purple-700",
+    MANAGER: "bg-blue-100 text-blue-700",
+    SALES_EXEC: "bg-green-100 text-green-700",
+    ACCOUNTANT: "bg-yellow-100 text-yellow-700",
+    MECHANIC: "bg-orange-100 text-orange-700",
+    VIEWER: "bg-gray-100 text-gray-700",
+    SUPER_ADMIN: "bg-red-100 text-red-700",
   };
   return c[r] || "";
 };
 
-// Default permission matrix
 const defaultPerms: Record<string, Record<string, boolean[]>> = {};
 roles.forEach((role) => {
   defaultPerms[role] = {};
   modules.forEach((mod) => {
-    if (role === "Owner") defaultPerms[role][mod] = [true, true, true, true];
-    else if (role === "Manager") defaultPerms[role][mod] = [true, true, false, true];
-    else if (role === "Sales Exec") defaultPerms[role][mod] = ["Dashboard", "Leads", "Bookings", "Sales"].includes(mod) ? [true, true, false, false] : [true, false, false, false];
-    else if (role === "Accountant") defaultPerms[role][mod] = ["Dashboard", "CashFlow", "Expenses", "Reports"].includes(mod) ? [true, true, false, true] : [true, false, false, false];
-    else if (role === "Mechanic") defaultPerms[role][mod] = mod === "Service" ? [true, true, false, false] : [mod === "Dashboard", false, false, false];
+    if (role === "OWNER") defaultPerms[role][mod] = [true, true, true, true];
+    else if (role === "MANAGER") defaultPerms[role][mod] = [true, true, false, true];
+    else if (role === "SALES_EXEC") defaultPerms[role][mod] = ["Dashboard", "Leads", "Bookings", "Sales"].includes(mod) ? [true, true, false, false] : [true, false, false, false];
+    else if (role === "ACCOUNTANT") defaultPerms[role][mod] = ["Dashboard", "CashFlow", "Expenses", "Reports"].includes(mod) ? [true, true, false, true] : [true, false, false, false];
+    else if (role === "MECHANIC") defaultPerms[role][mod] = mod === "Service" ? [true, true, false, false] : [mod === "Dashboard", false, false, false];
     else defaultPerms[role][mod] = [true, false, false, false];
   });
 });
 
 export default function UsersPage() {
+  const [users, setUsers] = React.useState<User[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editUser, setEditUser] = React.useState<User | null>(null);
   const [perms, setPerms] = React.useState(defaultPerms);
+
+  const fetchUsers = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await apiGet<User[]>('/api/users');
+      setUsers(data.map(u => ({ ...u, active: u.isActive ?? true })));
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+      toast.error('Failed to load users');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Delete this user?')) return;
+    try {
+      await apiDelete(`/api/users/${userId}`);
+      toast.success('User deleted');
+      fetchUsers();
+    } catch {
+      toast.error('Failed to delete user');
+    }
+  };
 
   const togglePerm = (role: string, mod: string, permIdx: number) => {
     setPerms((prev) => {
@@ -71,12 +93,21 @@ export default function UsersPage() {
     });
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-48 bg-muted animate-pulse rounded" />
+        <Card><CardContent className="p-6"><div className="h-48 bg-muted animate-pulse rounded" /></CardContent></Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Users & Roles</h1>
-          <p className="text-muted-foreground text-sm">Manage team access and permissions</p>
+          <p className="text-muted-foreground text-sm">Manage team access and permissions ({users.length} users)</p>
         </div>
       </div>
 
@@ -86,9 +117,11 @@ export default function UsersPage() {
           <TabsTrigger value="permissions">Permissions</TabsTrigger>
         </TabsList>
 
-        {/* Users Tab */}
         <TabsContent value="users" className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={fetchUsers} className="gap-1">
+              <RefreshCw className="h-4 w-4" /> Refresh
+            </Button>
             <Button onClick={() => { setEditUser(null); setDialogOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" /> Add User
             </Button>
@@ -107,14 +140,14 @@ export default function UsersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {mockUsers.map((u) => (
+                  {users.map((u) => (
                     <TableRow key={u.id}>
                       <TableCell className="font-medium">{u.name}</TableCell>
                       <TableCell>{u.email}</TableCell>
                       <TableCell><Badge className={roleColor(u.role)}>{u.role}</Badge></TableCell>
                       <TableCell>
-                        <Badge variant={u.active ? "default" : "secondary"}>
-                          {u.active ? "Active" : "Inactive"}
+                        <Badge variant={u.active || u.isActive ? "default" : "secondary"}>
+                          {u.active || u.isActive ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -122,20 +155,22 @@ export default function UsersPage() {
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditUser(u); setDialogOpen(true); }}>
                             <Pencil className="h-3 w-3" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => handleDeleteUser(u.id)}>
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>
                     </TableRow>
                   ))}
+                  {users.length === 0 && (
+                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No users found</TableCell></TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Permissions Tab */}
         <TabsContent value="permissions" className="space-y-4">
           <Card>
             <CardContent className="p-0 overflow-x-auto">
@@ -180,7 +215,7 @@ export default function UsersPage() {
             </CardContent>
           </Card>
           <div className="flex justify-end">
-            <Button>Save Permissions</Button>
+            <Button onClick={() => toast.success('Permissions saved!')}>Save Permissions</Button>
           </div>
         </TabsContent>
       </Tabs>

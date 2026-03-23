@@ -21,29 +21,50 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Search, Package, LayoutGrid, List, Trash2, Download, CheckSquare } from "lucide-react";
+import { Plus, Search, Package, LayoutGrid, List, Trash2, Download, CheckSquare, RefreshCw } from "lucide-react";
 import { VehicleCard } from "./components/VehicleCard";
 import { ImagePreviewModal } from "@/components/ui/image-preview-modal";
 import { exportToCSV } from "@/lib/export-csv";
 import { useShowroomStore } from "@/store/showroom-store";
-import { showroomConfig, mockVehiclesByType, type MockVehicle } from "@/lib/showroom-config";
+import { showroomConfig } from "@/lib/showroom-config";
+import { apiGet, apiDelete } from "@/lib/api";
+import { toast } from "sonner";
 
-type StockStatus = "Available" | "Booked" | "Sold";
+type VehicleStatusLabel = "AVAILABLE" | "BOOKED" | "SOLD" | "IN_TRANSIT";
 
 const formatCurrency = (amt: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amt);
 
-const statusStyle: Record<StockStatus, string> = {
-  Available: "bg-green-100 text-green-700 border-green-300",
-  Booked: "bg-amber-100 text-amber-700 border-amber-300",
-  Sold: "bg-gray-100 text-gray-500 border-gray-300",
+const statusStyle: Record<string, string> = {
+  AVAILABLE: "bg-green-100 text-green-700 border-green-300",
+  BOOKED: "bg-amber-100 text-amber-700 border-amber-300",
+  SOLD: "bg-gray-100 text-gray-500 border-gray-300",
+  IN_TRANSIT: "bg-blue-100 text-blue-700 border-blue-300",
 };
+
+interface Vehicle {
+  id: string;
+  brand: string;
+  model: string;
+  variant?: string;
+  color?: string;
+  chassisNo: string;
+  engineNo: string;
+  exShowroomPrice: number;
+  purchasePrice: number;
+  year: number;
+  fuelType?: string;
+  photo?: string;
+  status: VehicleStatusLabel;
+  createdAt: string;
+}
 
 export default function StockPage() {
   const { showroomType } = useShowroomStore();
   const config = showroomConfig[showroomType];
-  const mockStock = mockVehiclesByType[showroomType];
 
+  const [vehicles, setVehicles] = React.useState<Vehicle[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
   const [filterStatus, setFilterStatus] = React.useState<string>("all");
   const [filterBrand, setFilterBrand] = React.useState<string>("all");
@@ -53,9 +74,24 @@ export default function StockPage() {
   const [lightboxImages, setLightboxImages] = React.useState<string[]>([]);
   const [lightboxIndex, setLightboxIndex] = React.useState(0);
 
-  const brands = Array.from(new Set(mockStock.map((s) => s.brand)));
+  const fetchVehicles = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await apiGet<Vehicle[]>('/api/vehicles');
+      setVehicles(data);
+    } catch (error) {
+      console.error('Failed to fetch vehicles:', error);
+      toast.error('Failed to load vehicles');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const filtered = mockStock.filter((s) => {
+  React.useEffect(() => { fetchVehicles(); }, [fetchVehicles]);
+
+  const brands = Array.from(new Set(vehicles.map((s) => s.brand)));
+
+  const filtered = vehicles.filter((s) => {
     if (filterStatus !== "all" && s.status !== filterStatus) return false;
     if (filterBrand !== "all" && s.brand !== filterBrand) return false;
     if (
@@ -68,9 +104,9 @@ export default function StockPage() {
     return true;
   });
 
-  const available = mockStock.filter((s) => s.status === "Available").length;
-  const booked = mockStock.filter((s) => s.status === "Booked").length;
-  const sold = mockStock.filter((s) => s.status === "Sold").length;
+  const available = vehicles.filter((s) => s.status === "AVAILABLE").length;
+  const booked = vehicles.filter((s) => s.status === "BOOKED").length;
+  const sold = vehicles.filter((s) => s.status === "SOLD").length;
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -89,6 +125,18 @@ export default function StockPage() {
     }
   };
 
+  const handleDeleteSelected = async () => {
+    if (!confirm(`Delete ${selectedIds.size} vehicle(s)?`)) return;
+    try {
+      await Promise.all(Array.from(selectedIds).map(id => apiDelete(`/api/vehicles/${id}`)));
+      toast.success(`${selectedIds.size} vehicle(s) deleted`);
+      setSelectedIds(new Set());
+      fetchVehicles();
+    } catch {
+      toast.error('Failed to delete vehicles');
+    }
+  };
+
   const openPhotoPreview = (photo: string) => {
     if (!photo) return;
     const allPhotos = filtered.map((s) => s.photo).filter(Boolean) as string[];
@@ -98,99 +146,19 @@ export default function StockPage() {
     setLightboxOpen(true);
   };
 
-  // Get spec display value
-  const getSpec = (item: MockVehicle, key: string): string => {
-    const val = item.specs[key];
-    return val !== undefined ? String(val) : "—";
-  };
-
-  // Dynamic table columns based on showroom type
-  const renderTableHeaders = () => {
-    switch (showroomType) {
-      case "BIKE":
-        return (
-          <>
-            <TableHead className="hidden sm:table-cell">CC</TableHead>
-            <TableHead className="hidden md:table-cell">Color</TableHead>
-            <TableHead className="hidden md:table-cell">Fuel</TableHead>
-            <TableHead className="hidden lg:table-cell">Mileage</TableHead>
-          </>
-        );
-      case "CAR":
-        return (
-          <>
-            <TableHead className="hidden sm:table-cell">Body Type</TableHead>
-            <TableHead className="hidden md:table-cell">Fuel</TableHead>
-            <TableHead className="hidden md:table-cell">Transmission</TableHead>
-            <TableHead className="hidden lg:table-cell">Seating</TableHead>
-          </>
-        );
-      case "EV":
-        return (
-          <>
-            <TableHead className="hidden sm:table-cell">Category</TableHead>
-            <TableHead className="hidden md:table-cell">Battery</TableHead>
-            <TableHead className="hidden md:table-cell">Range</TableHead>
-            <TableHead className="hidden lg:table-cell">Charge Time</TableHead>
-          </>
-        );
-      case "MULTI":
-        return (
-          <>
-            <TableHead className="hidden sm:table-cell">Type</TableHead>
-            <TableHead className="hidden md:table-cell">Fuel</TableHead>
-          </>
-        );
-    }
-  };
-
-  const renderTableCells = (item: MockVehicle) => {
-    switch (showroomType) {
-      case "BIKE":
-        return (
-          <>
-            <TableCell className="hidden sm:table-cell">{getSpec(item, "cc")}</TableCell>
-            <TableCell className="hidden md:table-cell">{item.color}</TableCell>
-            <TableCell className="hidden md:table-cell">{item.fuelType}</TableCell>
-            <TableCell className="hidden lg:table-cell">{getSpec(item, "mileage")} km/l</TableCell>
-          </>
-        );
-      case "CAR":
-        return (
-          <>
-            <TableCell className="hidden sm:table-cell">{getSpec(item, "bodyType")}</TableCell>
-            <TableCell className="hidden md:table-cell">{item.fuelType}</TableCell>
-            <TableCell className="hidden md:table-cell">{getSpec(item, "transmission")}</TableCell>
-            <TableCell className="hidden lg:table-cell">{getSpec(item, "seatingCapacity")}</TableCell>
-          </>
-        );
-      case "EV":
-        return (
-          <>
-            <TableCell className="hidden sm:table-cell">{getSpec(item, "vehicleCategory")}</TableCell>
-            <TableCell className="hidden md:table-cell">{getSpec(item, "batteryCapacity")} kWh</TableCell>
-            <TableCell className="hidden md:table-cell">{getSpec(item, "range")} km</TableCell>
-            <TableCell className="hidden lg:table-cell">{getSpec(item, "chargingTime")} hrs</TableCell>
-          </>
-        );
-      case "MULTI":
-        return (
-          <>
-            <TableCell className="hidden sm:table-cell">{item.fuelType === "ELECTRIC" ? "EV" : item.fuelType}</TableCell>
-            <TableCell className="hidden md:table-cell">{item.fuelType}</TableCell>
-          </>
-        );
-    }
-  };
-
-  const getColSpan = () => {
-    switch (showroomType) {
-      case "BIKE": return 9;
-      case "CAR": return 9;
-      case "EV": return 9;
-      case "MULTI": return 7;
-    }
-  };
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-48 bg-muted animate-pulse rounded" />
+        <div className="grid gap-4 grid-cols-3">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i}><CardContent className="p-4"><div className="h-12 bg-muted animate-pulse rounded" /></CardContent></Card>
+          ))}
+        </div>
+        <Card><CardContent className="p-6"><div className="h-64 bg-muted animate-pulse rounded" /></CardContent></Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -201,6 +169,9 @@ export default function StockPage() {
           <p className="text-muted-foreground">Manage {config.vehicleLabel.toLowerCase()} stock and inventory</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={fetchVehicles} className="gap-1">
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </Button>
           <div className="flex border rounded-lg overflow-hidden">
             <Button
               variant={viewMode === "table" ? "default" : "ghost"}
@@ -224,12 +195,13 @@ export default function StockPage() {
             size="sm"
             onClick={() => exportToCSV(filtered as unknown as Record<string, unknown>[], "stock-list", [
               { key: "id", label: "ID" },
+              { key: "brand", label: "Brand" },
               { key: "model", label: "Model" },
               { key: "variant", label: "Variant" },
               { key: "color", label: "Color" },
               { key: "engineNo", label: "Engine No" },
               { key: "chassisNo", label: "Chassis No" },
-              { key: "price", label: "Price" },
+              { key: "exShowroomPrice", label: "Price" },
               { key: "status", label: "Status" },
             ])}
           >
@@ -272,7 +244,7 @@ export default function StockPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder={`Search by chassis / engine no / model...`}
+                placeholder="Search by chassis / engine no / model..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
@@ -284,9 +256,10 @@ export default function StockPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="Available">Available</SelectItem>
-                <SelectItem value="Booked">Booked</SelectItem>
-                <SelectItem value="Sold">Sold</SelectItem>
+                <SelectItem value="AVAILABLE">Available</SelectItem>
+                <SelectItem value="BOOKED">Booked</SelectItem>
+                <SelectItem value="SOLD">Sold</SelectItem>
+                <SelectItem value="IN_TRANSIT">In Transit</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filterBrand} onValueChange={setFilterBrand}>
@@ -309,13 +282,19 @@ export default function StockPage() {
         <div className="flex items-center gap-3 bg-primary/10 border border-primary/30 rounded-lg px-4 py-2">
           <span className="text-sm font-medium">{selectedIds.size} selected</span>
           <div className="flex gap-2 ml-auto">
-            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => alert("Marking as sold...")}>
-              <CheckSquare className="h-3 w-3 mr-1" /> Mark as Sold
-            </Button>
-            <Button size="sm" variant="outline" className="h-7 text-xs text-red-600" onClick={() => alert("Deleting...")}>
+            <Button size="sm" variant="outline" className="h-7 text-xs text-red-600" onClick={handleDeleteSelected}>
               <Trash2 className="h-3 w-3 mr-1" /> Delete
             </Button>
-            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => alert("Exporting...")}>
+            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => {
+              const selected = filtered.filter(v => selectedIds.has(v.id));
+              exportToCSV(selected as unknown as Record<string, unknown>[], "selected-stock", [
+                { key: "brand", label: "Brand" },
+                { key: "model", label: "Model" },
+                { key: "chassisNo", label: "Chassis No" },
+                { key: "exShowroomPrice", label: "Price" },
+                { key: "status", label: "Status" },
+              ]);
+            }}>
               <Download className="h-3 w-3 mr-1" /> Export Selected
             </Button>
           </div>
@@ -329,15 +308,15 @@ export default function StockPage() {
             <VehicleCard
               key={item.id}
               model={item.model}
-              variant={item.variant}
-              color={item.color}
-              price={item.price}
-              status={item.status}
+              variant={item.variant || ""}
+              color={item.color || ""}
+              price={item.exShowroomPrice}
+              status={item.status === "AVAILABLE" ? "Available" : item.status === "BOOKED" ? "Booked" : "Sold"}
               engineNo={item.engineNo}
               chassisNo={item.chassisNo}
               photo={item.photo}
-              fuelType={item.fuelType}
-              specs={item.specs}
+              fuelType={item.fuelType || ""}
+              specs={{}}
               showroomType={showroomType}
               onView={() => item.photo && openPhotoPreview(item.photo)}
             />
@@ -369,8 +348,11 @@ export default function StockPage() {
                     />
                   </TableHead>
                   <TableHead className="w-[50px]">Photo</TableHead>
+                  <TableHead>Brand</TableHead>
                   <TableHead>Model</TableHead>
-                  {renderTableHeaders()}
+                  <TableHead className="hidden sm:table-cell">Chassis No</TableHead>
+                  <TableHead className="hidden md:table-cell">Color</TableHead>
+                  <TableHead className="hidden md:table-cell">Year</TableHead>
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -401,11 +383,14 @@ export default function StockPage() {
                         </div>
                       )}
                     </TableCell>
+                    <TableCell>{item.brand}</TableCell>
                     <TableCell className="font-medium">{item.model}</TableCell>
-                    {renderTableCells(item)}
-                    <TableCell className="text-right font-semibold">{formatCurrency(item.price)}</TableCell>
+                    <TableCell className="hidden sm:table-cell font-mono text-xs">{item.chassisNo}</TableCell>
+                    <TableCell className="hidden md:table-cell">{item.color || '—'}</TableCell>
+                    <TableCell className="hidden md:table-cell">{item.year}</TableCell>
+                    <TableCell className="text-right font-semibold">{formatCurrency(item.exShowroomPrice)}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={statusStyle[item.status]}>
+                      <Badge variant="outline" className={statusStyle[item.status] || ""}>
                         {item.status}
                       </Badge>
                     </TableCell>
@@ -413,7 +398,7 @@ export default function StockPage() {
                 ))}
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={getColSpan()} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                       No {config.vehicleLabelPlural.toLowerCase()} found.
                     </TableCell>
                   </TableRow>
