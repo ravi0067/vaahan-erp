@@ -31,6 +31,8 @@ import {
   ShieldCheck,
   HelpCircle,
   BookOpen,
+  Megaphone,
+  Phone,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -76,6 +78,8 @@ function buildNavItems(bookingLabel: string, stockLabel: string, iconName: strin
     { label: "System Settings", icon: Settings, href: "/settings" },
     { label: "Customer Ledger", icon: BookUser, href: "/customers" },
     { label: "RTO & Documents", icon: FileCheck, href: "/rto" },
+    { label: "Promotions", icon: Megaphone, href: "/promotions" },
+    { label: "Communication Center", icon: Phone, href: "/communications" },
     { label: "Clients (Admin)", icon: ShieldCheck, href: "/admin" },
     { label: "Brand Management", icon: Store, href: "/admin/brands" },
     { label: "Help & Support", icon: HelpCircle, href: "/help" },

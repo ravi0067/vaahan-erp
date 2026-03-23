@@ -14,6 +14,7 @@ export function AIBotConfig() {
   const [config, setConfig] = useState({
     claudeApiKey: '',
     openaiApiKey: '',
+    geminiApiKey: '',
     githubToken: '',
     githubRepo: 'ravi0067/vaahan-erp',
     vercelToken: '',
@@ -57,6 +58,8 @@ export function AIBotConfig() {
                 <SelectItem value="claude-opus-4">Claude Opus 4 (Most Powerful - Higher Cost)</SelectItem>
                 <SelectItem value="gpt-4o">GPT-4o (OpenAI)</SelectItem>
                 <SelectItem value="gpt-4o-mini">GPT-4o Mini (Budget Friendly)</SelectItem>
+                <SelectItem value="gemini-pro">Gemini Pro (Google)</SelectItem>
+                <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash (Google - Fast & Efficient)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -68,6 +71,11 @@ export function AIBotConfig() {
           <div>
             <Label>OpenAI API Key (Optional)</Label>
             <Input type="password" placeholder="sk-..." value={config.openaiApiKey} onChange={(e) => setConfig(p => ({...p, openaiApiKey: e.target.value}))} />
+          </div>
+          <div>
+            <Label>Google Gemini API Key (Optional)</Label>
+            <Input type="password" placeholder="AIza..." value={config.geminiApiKey} onChange={(e) => setConfig(p => ({...p, geminiApiKey: e.target.value}))} />
+            <p className="text-xs text-muted-foreground mt-1">Get from aistudio.google.dev</p>
           </div>
         </CardContent>
       </Card>
