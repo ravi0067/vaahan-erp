@@ -78,6 +78,7 @@ function buildNavItems(bookingLabel: string, stockLabel: string, iconName: strin
     { label: "System Settings", icon: Settings, href: "/settings" },
     { label: "Customer Ledger", icon: BookUser, href: "/customers" },
     { label: "RTO & Documents", icon: FileCheck, href: "/rto" },
+    { label: "Document Vault", icon: FileCheck, href: "/documents" },
     { label: "Promotions", icon: Megaphone, href: "/promotions" },
     { label: "Communication Center", icon: Phone, href: "/communications" },
     { label: "Clients (Admin)", icon: ShieldCheck, href: "/admin" },

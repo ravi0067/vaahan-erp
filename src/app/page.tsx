@@ -79,9 +79,14 @@ export default function HomePage() {
             </div>
             <span className="text-xl font-bold">VaahanERP</span>
           </div>
-          <Link href="/login">
-            <Button>Login to Dashboard</Button>
-          </Link>
+          <div className="flex gap-2">
+            <Link href="/demo">
+              <Button variant="outline">📖 Quick Guide</Button>
+            </Link>
+            <Link href="/login">
+              <Button>Login to Dashboard</Button>
+            </Link>
+          </div>
         </div>
       </header>
 
