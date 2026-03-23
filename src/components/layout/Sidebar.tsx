@@ -33,6 +33,7 @@ import {
   BookOpen,
   Megaphone,
   Phone,
+  Brain,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -65,6 +66,8 @@ function buildNavItems(bookingLabel: string, stockLabel: string, iconName: strin
     { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
     { label: "Quick Guide", icon: BookOpen, href: "/guide" },
     { label: "Leads CRM", icon: UserPlus, href: "/leads" },
+    { label: "Advanced CRM", icon: Brain, href: "/leads/advanced" },
+    { label: "Marketing Hub", icon: Megaphone, href: "/marketing" },
     { label: `Add Stock`, icon: PackagePlus, href: "/stock/add" },
     { label: stockLabel, icon: Package, href: "/stock" },
     { label: bookingLabel, icon: VehicleIcon, href: "/bookings/new" },
