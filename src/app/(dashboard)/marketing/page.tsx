@@ -20,10 +20,10 @@ import {
 import {
   Megaphone, Target, TrendingUp, Users, Mail, MessageSquare,
   Phone, Calendar, BarChart3, PieChart, LineChart, Zap,
-  Globe, Share2, Heart, ThumbsUp, Eye, Click, Send,
+  Globe, Share2, Heart, ThumbsUp, Eye, MousePointerClick, Send,
   Star, Award, Trophy, Crown, Rocket, Flame, Sparkles,
-  Bot, Brain, Lightbulb, Magic, Wand2, Settings,
-  Plus, Play, Pause, Stop, Edit, Trash2, Copy,
+  Bot, Brain, Lightbulb, Settings,
+  Plus, Play, Pause, StopCircle, Edit, Trash2, Copy,
   Download, Upload, RefreshCw, CheckCircle, AlertTriangle,
   Clock, DollarSign, Percent, Hash, Tag, Map, Filter
 } from "lucide-react";
@@ -270,7 +270,7 @@ export default function MarketingPage() {
     switch(status) {
       case "active": return <Badge className="bg-green-100 text-green-700"><Play className="h-3 w-3 mr-1" />Active</Badge>;
       case "paused": return <Badge className="bg-yellow-100 text-yellow-700"><Pause className="h-3 w-3 mr-1" />Paused</Badge>;
-      case "stopped": return <Badge className="bg-red-100 text-red-700"><Stop className="h-3 w-3 mr-1" />Stopped</Badge>;
+      case "stopped": return <Badge className="bg-red-100 text-red-700"><StopCircle className="h-3 w-3 mr-1" />Stopped</Badge>;
       case "draft": return <Badge className="bg-gray-100 text-gray-700"><Edit className="h-3 w-3 mr-1" />Draft</Badge>;
       default: return <Badge variant="secondary">{status}</Badge>;
     }
@@ -375,7 +375,7 @@ export default function MarketingPage() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <Click className="h-5 w-5 text-yellow-600" />
+                <MousePointerClick className="h-5 w-5 text-yellow-600" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Click Rate</p>

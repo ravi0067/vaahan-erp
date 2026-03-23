@@ -27,7 +27,7 @@ import {
   Filter, Search, Download, Share, Eye, Edit, Trash2, Plus,
   CheckCircle, XCircle, ArrowUp, ArrowDown, ArrowRight,
   Smartphone, Globe, MapPin, Heart, ThumbsUp, Send, Bot,
-  Lightbulb, Rocket, Trophy, Flame, Diamond, Crown
+  Lightbulb, Rocket, Trophy, Flame
 } from "lucide-react";
 import { toast } from "sonner";
 
