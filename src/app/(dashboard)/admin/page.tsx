@@ -16,6 +16,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Building2, Users, IndianRupee, Activity, Plus, Archive, RotateCcw, Settings2, Settings, RefreshCw } from "lucide-react";
+import { EnhancedAddClientDialog } from './components/EnhancedAddClientDialog';
 import Link from "next/link";
 import { useSettingsStore, defaultClientFeatures, type ClientFeatureConfig } from "@/store/settings-store";
 import { type ShowroomType, showroomConfig, showroomTypeDescriptions } from "@/lib/showroom-config";
@@ -164,22 +165,7 @@ export default function AdminPage() {
 
   React.useEffect(() => { fetchTenants(); }, [fetchTenants]);
 
-  const handleAddClient = async () => {
-    if (!clientName || !clientSlug) {
-      toast.error('Name and slug are required');
-      return;
-    }
-    try {
-      await apiPost('/api/tenants', { name: clientName, slug: clientSlug, plan: clientPlan });
-      toast.success('Client added successfully!');
-      setDialogOpen(false);
-      setClientName("");
-      setClientSlug("");
-      fetchTenants();
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to add client');
-    }
-  };
+
 
   const totalClients = tenants.length;
   const activeClients = tenants.filter((c) => c.status === "ACTIVE").length;
@@ -274,32 +260,12 @@ export default function AdminPage() {
       </Card>
 
       {configClient && <ClientConfigDialog client={configClient} open={!!configClient} onClose={() => setConfigClient(null)} />}
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Add New Client</DialogTitle></DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2"><Label>Client Name</Label><Input value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="e.g., Honda Motors Delhi" /></div>
-            <div className="grid gap-2"><Label>Slug</Label><Input value={clientSlug} onChange={(e) => setClientSlug(e.target.value)} placeholder="e.g., honda-del" /></div>
-            <div className="grid gap-2">
-              <Label>Plan</Label>
-              <Select value={clientPlan} onValueChange={setClientPlan}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="FREE">Free</SelectItem>
-                  <SelectItem value="PRO">Pro</SelectItem>
-                  <SelectItem value="ENTERPRISE">Enterprise</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2"><Label>Showroom Type</Label><ShowroomTypeSelector value={clientShowroomType} onChange={setClientShowroomType} /></div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddClient}>Add Client</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      
+      <EnhancedAddClientDialog 
+        isOpen={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        onSuccess={fetchTenants}
+      />
     </div>
   );
 }
