@@ -136,6 +136,57 @@ async function main() {
 
   console.log(`✅ Sample vehicles created: ${vehicles.length} vehicles`);
 
+  // Create sample brands (KTM, Triumph)
+  const ktmBrand = await prisma.dealershipBrand.create({
+    data: {
+      tenantId: tenant.id,
+      brandName: 'KTM',
+      brandType: 'BIKE',
+    },
+  });
+
+  const triumphBrand = await prisma.dealershipBrand.create({
+    data: {
+      tenantId: tenant.id,
+      brandName: 'Triumph',
+      brandType: 'BIKE',
+    },
+  });
+
+  console.log(`✅ Sample brands created: KTM, Triumph`);
+
+  // Create showroom locations
+  await prisma.showroomLocation.createMany({
+    data: [
+      {
+        tenantId: tenant.id,
+        brandId: ktmBrand.id,
+        locationName: 'Chinhat KTM Branch',
+        address: 'Chinhat, Gomti Nagar, Lucknow - 226028',
+        phone: '+91-9554762001',
+        managerName: 'Amit Kumar',
+      },
+      {
+        tenantId: tenant.id,
+        brandId: ktmBrand.id,
+        locationName: 'Ring Road KTM Branch',
+        address: 'Ring Road, Lucknow - 226025',
+        phone: '+91-9554762002',
+        managerName: 'Rajesh Singh',
+      },
+      {
+        tenantId: tenant.id,
+        brandId: triumphBrand.id,
+        locationName: 'Vibhuti Khand Triumph Branch',
+        address: 'Vibhuti Khand, Gomti Nagar, Lucknow - 226010',
+        phone: '+91-9554762003',
+        managerName: 'Priya Sharma',
+      },
+    ],
+  });
+
+  console.log(`✅ Sample showroom locations created`);
+
   // Create sample leads
   const leads = [
     {

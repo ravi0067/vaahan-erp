@@ -32,6 +32,16 @@ const colorOptions = [
 
 const MAX_PHOTOS = 10;
 
+interface Brand {
+  id: string;
+  brandName: string;
+  brandType: string;
+  showroomLocations: Array<{
+    id: string;
+    locationName: string;
+  }>;
+}
+
 export default function AddStockPage() {
   const router = useRouter();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -44,63 +54,102 @@ export default function AddStockPage() {
   const activeType = showroomType === "MULTI" ? vehicleSubType : showroomType;
 
   const [form, setForm] = React.useState({
-    brand: "",
+    brandId: "",
+    locationId: "",
     model: "",
     variant: "",
     color: "",
-    fuelType: "" as string,
-    engineNo: "",
     chassisNo: "",
-    price: "",
-    purchaseDate: new Date().toISOString().split("T")[0],
+    engineNo: "",
+    exShowroomPrice: "",
+    purchasePrice: "",
+    year: new Date().getFullYear().toString(),
+    fuelType: "",
   });
+
+  // Brand/Location Management
+  const [brands, setBrands] = React.useState<Brand[]>([]);
+  const [filteredLocations, setFilteredLocations] = React.useState<Array<{id: string; locationName: string;}>>([]);
+
   const [dynamicFields, setDynamicFields] = React.useState<Record<string, string>>({});
   const [photos, setPhotos] = React.useState<string[]>([]);
-  const [primaryIndex, setPrimaryIndex] = React.useState(0);
   const [dragActive, setDragActive] = React.useState(false);
-  const [lightboxOpen, setLightboxOpen] = React.useState(false);
-  const [lightboxIndex, setLightboxIndex] = React.useState(0);
+  const [isUploading, setIsUploading] = React.useState(false);
+  const [primaryIndex, setPrimaryIndex] = React.useState(0);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = React.useState<number | null>(null);
 
-  const isValid = form.brand && form.model && form.engineNo && form.chassisNo && form.price;
+  // Fetch brands on component mount
+  React.useEffect(() => {
+    fetchBrands();
+  }, []);
 
-  // Get the fields to show based on showroom type + fuel type
-  const specificFields = activeConfig.specificFields;
-  const showEvFields = form.fuelType === "ELECTRIC" && activeConfig.evFields.length > 0;
-  const brands = activeConfig.popularBrands;
-  const fuelTypes = activeConfig.fuelTypes;
+  // Update locations when brand changes
+  React.useEffect(() => {
+    if (form.brandId) {
+      const selectedBrand = brands.find(b => b.id === form.brandId);
+      setFilteredLocations(selectedBrand?.showroomLocations || []);
+      setForm(prev => ({ ...prev, locationId: "" })); // Reset location
+    } else {
+      setFilteredLocations([]);
+    }
+  }, [form.brandId, brands]);
 
-  const handleDynamicField = (key: string, value: string) => {
-    setDynamicFields((prev) => ({ ...prev, [key]: value }));
+  const fetchBrands = async () => {
+    try {
+      const response = await fetch('/api/brands');
+      const data = await response.json();
+      setBrands(data);
+    } catch (error) {
+      console.error('Error fetching brands:', error);
+    }
   };
 
-  const renderField = (field: FieldConfig) => {
-    if (field.type === "select" && field.options) {
+  const handleInputChange = (field: string, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleDynamicField = (field: string, value: string) => {
+    setDynamicFields((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const isValid = React.useMemo(() => {
+    return (
+      form.brandId &&
+      form.locationId &&
+      form.model.trim() &&
+      form.chassisNo.trim() &&
+      form.exShowroomPrice.trim() &&
+      Number(form.exShowroomPrice) > 0
+    );
+  }, [form]);
+
+  const renderFieldInput = (field: FieldConfig) => {
+    if (field.type === "select") {
       return (
-        <div key={field.key} className="grid gap-2">
-          <Label>{field.label}</Label>
-          <Select value={dynamicFields[field.key] || ""} onValueChange={(v) => handleDynamicField(field.key, v)}>
-            <SelectTrigger>
-              <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
-            </SelectTrigger>
-            <SelectContent>
-              {field.options.map((opt) => (
-                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <Select
+          value={dynamicFields[field.key] || ""}
+          onValueChange={(value) => handleDynamicField(field.key, value)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder={field.placeholder} />
+          </SelectTrigger>
+          <SelectContent>
+            {field.options?.map((option) => (
+              <SelectItem key={option} value={option}>
+                {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       );
     }
+
     return (
-      <div key={field.key} className="grid gap-2">
-        <Label>{field.label}</Label>
-        <Input
-          type={field.type === "number" ? "number" : "text"}
-          placeholder={field.placeholder}
-          value={dynamicFields[field.key] || ""}
-          onChange={(e) => handleDynamicField(field.key, e.target.value)}
-        />
-      </div>
+      <Input
+        placeholder={field.placeholder}
+        value={dynamicFields[field.key] || ""}
+        onChange={(e) => handleDynamicField(field.key, e.target.value)}
+      />
     );
   };
 
@@ -140,24 +189,31 @@ export default function AddStockPage() {
 
   const handleSubmit = async () => {
     if (!isValid) return;
+    
+    const selectedBrand = brands.find(b => b.id === form.brandId);
+    const selectedLocation = filteredLocations.find(l => l.id === form.locationId);
+    
     try {
       await apiPost('/api/vehicles', {
-        brand: form.brand,
+        make: selectedBrand?.brandName || "",
         model: form.model,
         variant: form.variant,
         color: form.color,
         chassisNo: form.chassisNo,
         engineNo: form.engineNo,
-        exShowroomPrice: Number(form.exShowroomPrice) || 0,
-        purchasePrice: Number(form.purchasePrice) || 0,
+        price: Number(form.exShowroomPrice) || 0,
         year: Number(form.year) || new Date().getFullYear(),
-        fuelType: form.fuelType || null,
+        fuelType: form.fuelType || "PETROL",
+        transmission: "MANUAL",
+        vehicleType: activeType,
+        brandId: form.brandId,
+        locationId: form.locationId,
         photo: photos[0] || null,
       });
-      toast.success(`${config.vehicleLabel} added successfully!`);
+      toast.success(`${activeConfig.vehicleLabel} added successfully!`);
       router.push("/stock");
     } catch (error: any) {
-      toast.error(error.message || `Failed to add ${config.vehicleLabel.toLowerCase()}`);
+      toast.error(error.message || `Failed to add ${activeConfig.vehicleLabel.toLowerCase()}`);
     }
   };
 
@@ -170,9 +226,9 @@ export default function AddStockPage() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Add {config.vehicleLabel} to Stock
+            Add {activeConfig.vehicleLabel} to Stock
           </h1>
-          <p className="text-muted-foreground">Register a new {config.vehicleLabel.toLowerCase()} in inventory</p>
+          <p className="text-muted-foreground">Register a new {activeConfig.vehicleLabel.toLowerCase()} in inventory</p>
         </div>
       </div>
 
@@ -192,17 +248,17 @@ export default function AddStockPage() {
                     key={type}
                     onClick={() => {
                       setVehicleSubType(type);
-                      setForm((prev) => ({ ...prev, fuelType: "", brand: "" }));
+                      setForm((prev) => ({ ...prev, fuelType: "", brandId: "", locationId: "" }));
                       setDynamicFields({});
                     }}
                     className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                       isActive
-                        ? "border-primary bg-primary/5 shadow-sm"
-                        : "border-muted hover:border-primary/30"
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
                     }`}
                   >
-                    <span className="text-2xl">{c.emoji}</span>
-                    <span className="text-sm font-medium">{c.vehicleLabel}</span>
+                    <c.icon className="h-8 w-8" />
+                    <span className="font-medium">{c.vehicleLabel}</span>
                   </button>
                 );
               })}
@@ -211,260 +267,344 @@ export default function AddStockPage() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" /> {activeType === "BIKE" ? "Bike" : activeType === "CAR" ? "Car" : "EV"} Details
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {/* Brand */}
-            <div className="grid gap-2">
-              <Label>Brand *</Label>
-              <Select value={form.brand} onValueChange={(v) => setForm({ ...form, brand: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select brand" />
-                </SelectTrigger>
-                <SelectContent>
-                  {brands.map((b) => (
-                    <SelectItem key={b} value={b}>{b}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Model */}
-            <div className="grid gap-2">
-              <Label>Model *</Label>
-              <Input
-                placeholder={`e.g. ${brands[0] || ""} ...`}
-                value={form.model}
-                onChange={(e) => setForm({ ...form, model: e.target.value })}
-              />
-            </div>
-
-            {/* Variant */}
-            <div className="grid gap-2">
-              <Label>Variant</Label>
-              <Select value={form.variant} onValueChange={(v) => setForm({ ...form, variant: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select variant" />
-                </SelectTrigger>
-                <SelectContent>
-                  {variantOptions.map((v) => (
-                    <SelectItem key={v} value={v}>{v}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Color */}
-            <div className="grid gap-2">
-              <Label>Color</Label>
-              <Select value={form.color} onValueChange={(v) => setForm({ ...form, color: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select color" />
-                </SelectTrigger>
-                <SelectContent>
-                  {colorOptions.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Fuel Type */}
-            <div className="grid gap-2">
-              <Label>Fuel Type</Label>
-              <Select value={form.fuelType} onValueChange={(v) => setForm({ ...form, fuelType: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select fuel type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {fuelTypes.map((ft: FuelType) => (
-                    <SelectItem key={ft} value={ft}>{ft}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Engine No */}
-            <div className="grid gap-2">
-              <Label>Engine Number *</Label>
-              <Input
-                placeholder="ENG-XXX-XXX"
-                value={form.engineNo}
-                onChange={(e) => setForm({ ...form, engineNo: e.target.value })}
-              />
-            </div>
-
-            {/* Chassis No */}
-            <div className="grid gap-2">
-              <Label>Chassis Number *</Label>
-              <Input
-                placeholder="CHS-XXX-XXX"
-                value={form.chassisNo}
-                onChange={(e) => setForm({ ...form, chassisNo: e.target.value })}
-              />
-            </div>
-
-            {/* Price */}
-            <div className="grid gap-2">
-              <Label>Ex-Showroom Price (₹) *</Label>
-              <Input
-                type="number"
-                placeholder="Enter price"
-                value={form.price}
-                onChange={(e) => setForm({ ...form, price: e.target.value })}
-              />
-            </div>
-
-            {/* Purchase Date */}
-            <div className="grid gap-2 sm:col-span-2">
-              <Label>Purchase/Receipt Date</Label>
-              <Input
-                type="date"
-                value={form.purchaseDate}
-                onChange={(e) => setForm({ ...form, purchaseDate: e.target.value })}
-                className="w-[200px]"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Dynamic Spec Fields */}
-      {specificFields.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{activeConfig.vehicleLabel} Specifications</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {specificFields.map(renderField)}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* EV Fields */}
-      {showEvFields && (
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Basic Information */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              ⚡ Electric Vehicle Specs
+              <Package className="h-5 w-5" />
+              Brand & Location
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {activeConfig.evFields.map(renderField)}
+          <CardContent className="space-y-4">
+            {/* Brand Selection */}
+            <div>
+              <Label htmlFor="brand">Brand *</Label>
+              <Select value={form.brandId} onValueChange={(value) => handleInputChange("brandId", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select your brand (KTM, Triumph, etc.)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {brands
+                    .filter(brand => showroomType === "MULTI" || brand.brandType === activeType)
+                    .map((brand) => (
+                      <SelectItem key={brand.id} value={brand.id}>
+                        {brand.brandName} ({brand.brandType})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Location Selection */}
+            <div>
+              <Label htmlFor="location">Showroom Location *</Label>
+              <Select 
+                value={form.locationId} 
+                onValueChange={(value) => handleInputChange("locationId", value)}
+                disabled={!form.brandId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={form.brandId ? "Select showroom location" : "First select a brand"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredLocations.map((location) => (
+                    <SelectItem key={location.id} value={location.id}>
+                      {location.locationName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {brands.length === 0 && (
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  <strong>No brands found!</strong> Add your brands (KTM, Triumph) in{" "}
+                  <Button 
+                    variant="link" 
+                    size="sm"
+                    className="p-0 h-auto text-primary"
+                    onClick={() => router.push("/admin/brands")}
+                  >
+                    Brand Management
+                  </Button>
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Vehicle Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{activeConfig.vehicleLabel} Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="model">Model *</Label>
+                <Input
+                  id="model"
+                  placeholder={activeConfig.modelPlaceholder}
+                  value={form.model}
+                  onChange={(e) => handleInputChange("model", e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="variant">Variant</Label>
+                <Select value={form.variant} onValueChange={(value) => handleInputChange("variant", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select variant" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {variantOptions.map((variant) => (
+                      <SelectItem key={variant} value={variant}>
+                        {variant}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="color">Color</Label>
+                <Select value={form.color} onValueChange={(value) => handleInputChange("color", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select color" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {colorOptions.map((color) => (
+                      <SelectItem key={color} value={color}>
+                        {color}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="year">Model Year</Label>
+                <Input
+                  id="year"
+                  type="number"
+                  min="2010"
+                  max="2030"
+                  value={form.year}
+                  onChange={(e) => handleInputChange("year", e.target.value)}
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
-      )}
 
-      {/* Photo Upload Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ImageIcon className="h-5 w-5" /> {config.vehicleLabel} Photos
-            <span className="text-sm font-normal text-muted-foreground ml-2">
-              ({photos.length}/{MAX_PHOTOS})
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {photos.length < MAX_PHOTOS && (
+        {/* Identification Numbers */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Identification & Pricing</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="chassisNo">Chassis Number *</Label>
+                <Input
+                  id="chassisNo"
+                  placeholder="Enter chassis number"
+                  value={form.chassisNo}
+                  onChange={(e) => handleInputChange("chassisNo", e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="engineNo">Engine Number</Label>
+                <Input
+                  id="engineNo"
+                  placeholder="Enter engine number"
+                  value={form.engineNo}
+                  onChange={(e) => handleInputChange("engineNo", e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="exShowroomPrice">Ex-Showroom Price *</Label>
+                <Input
+                  id="exShowroomPrice"
+                  type="number"
+                  placeholder="Enter selling price"
+                  value={form.exShowroomPrice}
+                  onChange={(e) => handleInputChange("exShowroomPrice", e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="purchasePrice">Purchase Price</Label>
+                <Input
+                  id="purchasePrice"
+                  type="number"
+                  placeholder="Your purchase cost"
+                  value={form.purchasePrice}
+                  onChange={(e) => handleInputChange("purchasePrice", e.target.value)}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Dynamic Fields based on vehicle type */}
+        {activeConfig.dynamicFields && activeConfig.dynamicFields.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{activeConfig.vehicleLabel} Specifications</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                {activeConfig.dynamicFields.map((field) => (
+                  <div key={field.key}>
+                    <Label htmlFor={field.key}>
+                      {field.label}
+                      {field.required && " *"}
+                    </Label>
+                    {renderFieldInput(field)}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Photos */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ImageIcon className="h-5 w-5" />
+              {activeConfig.vehicleLabel} Photos ({photos.length}/{MAX_PHOTOS})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {/* Photo Upload Area */}
             <div
-              onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-              onDragLeave={() => setDragActive(false)}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+              className={`relative border-2 border-dashed rounded-lg transition-colors ${
                 dragActive
                   ? "border-primary bg-primary/5"
-                  : "border-muted-foreground/25 hover:border-primary/50"
-              }`}
+                  : "border-gray-300 hover:border-primary/50"
+              } ${photos.length >= MAX_PHOTOS ? "opacity-50" : ""}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragActive(true);
+              }}
+              onDragLeave={() => setDragActive(false)}
+              onDrop={handleDrop}
             >
-              <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
-              <p className="font-medium">Drop photos here or click to upload</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                JPG, PNG up to 10 photos. First photo = primary display photo.
-              </p>
+              <div className="flex flex-col items-center justify-center py-12">
+                <Upload className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-lg font-medium mb-2">
+                  Drag photos here or{" "}
+                  <button
+                    type="button"
+                    className="text-primary hover:underline"
+                    disabled={photos.length >= MAX_PHOTOS}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    browse files
+                  </button>
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  JPG, PNG up to 10MB each • Maximum {MAX_PHOTOS} photos
+                </p>
+              </div>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
                 multiple
+                accept="image/*"
                 className="hidden"
+                disabled={photos.length >= MAX_PHOTOS}
                 onChange={(e) => handleFiles(e.target.files)}
               />
             </div>
-          )}
 
-          {photos.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-              {photos.map((photo, idx) => (
-                <div
-                  key={idx}
-                  className={`relative group aspect-square rounded-lg overflow-hidden border-2 ${
-                    idx === primaryIndex ? "border-primary ring-2 ring-primary/30" : "border-transparent"
-                  }`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={photo}
-                    alt={`${config.vehicleLabel} photo ${idx + 1}`}
-                    className="w-full h-full object-cover cursor-pointer"
-                    onClick={() => { setLightboxIndex(idx); setLightboxOpen(true); }}
-                  />
-                  {idx === primaryIndex && (
-                    <div className="absolute top-1 left-1 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                      <Star className="h-2.5 w-2.5" /> Primary
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    {idx !== primaryIndex && (
-                      <button
-                        onClick={() => setPrimaryIndex(idx)}
-                        className="p-1.5 rounded-full bg-white/90 text-primary hover:bg-white text-xs"
-                        title="Set as primary"
-                      >
-                        <Star className="h-4 w-4" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => removePhoto(idx)}
-                      className="p-1.5 rounded-full bg-white/90 text-red-600 hover:bg-white"
-                      title="Remove photo"
+            {/* Photo Preview Grid */}
+            {photos.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-6">
+                {photos.map((photo, index) => (
+                  <div key={index} className="relative group">
+                    <div
+                      className={`relative aspect-square rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${
+                        index === primaryIndex
+                          ? "border-primary ring-2 ring-primary/25"
+                          : "border-transparent hover:border-primary/50"
+                      }`}
+                      onClick={() => setSelectedPhotoIndex(index)}
                     >
-                      <X className="h-4 w-4" />
+                      <img
+                        src={photo}
+                        alt={`Vehicle photo ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                      {index === primaryIndex && (
+                        <div className="absolute top-1 left-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded">
+                          <Star className="h-3 w-3 inline mr-1" />
+                          Primary
+                        </div>
+                      )}
+                      <button
+                        className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removePhoto(index);
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                    <button
+                      className={`mt-2 w-full text-xs px-2 py-1 rounded transition-colors ${
+                        index === primaryIndex
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted hover:bg-primary/20"
+                      }`}
+                      onClick={() => setPrimaryIndex(index)}
+                    >
+                      {index === primaryIndex ? "Primary Photo" : "Set as Primary"}
                     </button>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Actions */}
-      <div className="flex gap-3">
-        <Button onClick={handleSubmit} disabled={!isValid}>
-          <Save className="mr-2 h-4 w-4" /> Add to Stock
-        </Button>
+      {/* Action Buttons */}
+      <div className="flex justify-end gap-3 pt-6 border-t">
         <Button variant="outline" onClick={() => router.back()}>
           Cancel
         </Button>
+        <Button onClick={handleSubmit} disabled={!isValid || isUploading}>
+          <Save className="h-4 w-4 mr-2" />
+          {isUploading ? "Adding..." : `Add ${activeConfig.vehicleLabel}`}
+        </Button>
       </div>
 
-      <ImagePreviewModal
-        images={photos}
-        initialIndex={lightboxIndex}
-        open={lightboxOpen}
-        onClose={() => setLightboxOpen(false)}
-      />
+      {/* Image Preview Modal */}
+      {selectedPhotoIndex !== null && (
+        <ImagePreviewModal
+          images={photos}
+          currentIndex={selectedPhotoIndex}
+          onClose={() => setSelectedPhotoIndex(null)}
+          onPrevious={() =>
+            setSelectedPhotoIndex((prev) =>
+              prev !== null ? (prev > 0 ? prev - 1 : photos.length - 1) : 0
+            )
+          }
+          onNext={() =>
+            setSelectedPhotoIndex((prev) =>
+              prev !== null ? (prev < photos.length - 1 ? prev + 1 : 0) : 0
+            )
+          }
+        />
+      )}
     </div>
   );
 }
