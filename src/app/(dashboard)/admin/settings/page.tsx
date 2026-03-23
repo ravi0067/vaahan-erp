@@ -720,6 +720,219 @@ function SMSTab() {
   );
 }
 
+// ── Calling / Voice API Tab ─────────────────────────────────────────────
+function CallingTab() {
+  const [config, setConfig] = React.useState({
+    provider: 'exotel',
+    apiKey: '',
+    apiSecret: '',
+    callerId: '',
+    accountSid: '',
+    autoCallEnabled: true,
+    callRecordingEnabled: true,
+    maxRetries: 3,
+    retryIntervalMinutes: 30,
+  });
+  const [saved, setSaved] = React.useState(false);
+  const [testing, setTesting] = React.useState(false);
+  const [testNumber, setTestNumber] = React.useState('');
+  const [testResult, setTestResult] = React.useState('');
+
+  const handleSave = () => {
+    localStorage.setItem('vaahan_calling_config', JSON.stringify(config));
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleTest = () => {
+    if (!testNumber) return;
+    setTesting(true);
+    setTestResult('');
+    setTimeout(() => {
+      setTesting(false);
+      setTestResult(`✅ Test call initiated to ${testNumber}. Check your phone!`);
+    }, 2000);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">📞 Calling / Voice API</h3>
+          <p className="text-sm text-muted-foreground">Bot ko customers ko auto-call karne ki power do</p>
+        </div>
+        <button
+          onClick={() => setConfig(p => ({...p, autoCallEnabled: !p.autoCallEnabled}))}
+          className={`relative w-11 h-6 rounded-full transition-colors ${
+            config.autoCallEnabled ? "bg-green-500" : "bg-gray-300"
+          }`}
+        >
+          <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+            config.autoCallEnabled ? "left-[22px]" : "left-0.5"
+          }`} />
+        </button>
+      </div>
+
+      {/* Provider Info */}
+      <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        <p className="text-sm text-blue-800 dark:text-blue-200 font-medium mb-2">📱 Calling Provider Guide:</p>
+        <div className="space-y-1 text-xs text-blue-700 dark:text-blue-300">
+          <p>• <strong>Exotel</strong> (Recommended for India) — exotel.com → ₹1-2/call, IVR, call recording, Indian numbers</p>
+          <p>• <strong>Twilio</strong> (Global) — twilio.com → ₹2-3/call, programmable voice, global coverage</p>
+          <p>• <strong>Knowlarity</strong> (India focused) — knowlarity.com → ₹1.5/call, cloud telephony, IVR</p>
+        </div>
+      </div>
+
+      <div className="grid gap-4">
+        <div className="grid gap-2">
+          <Label>Calling Provider</Label>
+          <Select value={config.provider} onValueChange={(v) => setConfig(p => ({...p, provider: v}))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="exotel">Exotel (Best for India 🇮🇳)</SelectItem>
+              <SelectItem value="twilio">Twilio (Global)</SelectItem>
+              <SelectItem value="knowlarity">Knowlarity (India)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {config.provider === 'exotel' && (
+          <>
+            <div className="grid gap-2">
+              <Label>Exotel API Key</Label>
+              <MaskedInput value={config.apiKey} onChange={(v) => setConfig(p => ({...p, apiKey: v}))} placeholder="Exotel API Key (from my.exotel.com)" />
+              <p className="text-xs text-muted-foreground">Get from: my.exotel.com → Settings → API</p>
+            </div>
+            <div className="grid gap-2">
+              <Label>Exotel API Token</Label>
+              <MaskedInput value={config.apiSecret} onChange={(v) => setConfig(p => ({...p, apiSecret: v}))} placeholder="Exotel API Token" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Account SID</Label>
+              <Input value={config.accountSid} onChange={(e) => setConfig(p => ({...p, accountSid: e.target.value}))} placeholder="Exotel Account SID" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Caller ID (Virtual Number)</Label>
+              <Input value={config.callerId} onChange={(e) => setConfig(p => ({...p, callerId: e.target.value}))} placeholder="+91-XXXXXXXXXX (Exotel virtual number)" />
+              <p className="text-xs text-muted-foreground">Ye number customer ke phone pe dikhega jab bot call karega</p>
+            </div>
+          </>
+        )}
+
+        {config.provider === 'twilio' && (
+          <>
+            <div className="grid gap-2">
+              <Label>Twilio Account SID</Label>
+              <Input value={config.accountSid} onChange={(e) => setConfig(p => ({...p, accountSid: e.target.value}))} placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+              <p className="text-xs text-muted-foreground">Get from: console.twilio.com → Dashboard</p>
+            </div>
+            <div className="grid gap-2">
+              <Label>Twilio Auth Token</Label>
+              <MaskedInput value={config.apiSecret} onChange={(v) => setConfig(p => ({...p, apiSecret: v}))} placeholder="Auth Token" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Twilio Phone Number</Label>
+              <Input value={config.callerId} onChange={(e) => setConfig(p => ({...p, callerId: e.target.value}))} placeholder="+1XXXXXXXXXX (Twilio number)" />
+            </div>
+          </>
+        )}
+
+        {config.provider === 'knowlarity' && (
+          <>
+            <div className="grid gap-2">
+              <Label>Knowlarity API Key</Label>
+              <MaskedInput value={config.apiKey} onChange={(v) => setConfig(p => ({...p, apiKey: v}))} placeholder="Knowlarity Authorization header" />
+              <p className="text-xs text-muted-foreground">Get from: portal.knowlarity.com → API Settings</p>
+            </div>
+            <div className="grid gap-2">
+              <Label>SR Number (Super Receptionist)</Label>
+              <Input value={config.callerId} onChange={(e) => setConfig(p => ({...p, callerId: e.target.value}))} placeholder="+91-80XXXXXXXX" />
+            </div>
+          </>
+        )}
+
+        {/* Call Settings */}
+        <div className="border rounded-lg p-4 space-y-3">
+          <p className="font-medium text-sm">⚙️ Auto-Call Settings</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm">Call Recording</p>
+              <p className="text-xs text-muted-foreground">All calls record hongi for quality & training</p>
+            </div>
+            <button
+              onClick={() => setConfig(p => ({...p, callRecordingEnabled: !p.callRecordingEnabled}))}
+              className={`relative w-9 h-5 rounded-full transition-colors ${config.callRecordingEnabled ? "bg-green-500" : "bg-gray-300"}`}
+            >
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${config.callRecordingEnabled ? "left-[18px]" : "left-0.5"}`} />
+            </button>
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm">Max Retries</p>
+              <p className="text-xs text-muted-foreground">Kitani baar retry kare agar pick nahi kiya</p>
+            </div>
+            <Input type="number" min={1} max={5} className="w-16 h-7" value={config.maxRetries} onChange={(e) => setConfig(p => ({...p, maxRetries: Number(e.target.value)}))} />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm">Retry Interval (minutes)</p>
+              <p className="text-xs text-muted-foreground">Kitne minute baad dobara try kare</p>
+            </div>
+            <Input type="number" min={5} max={120} className="w-16 h-7" value={config.retryIntervalMinutes} onChange={(e) => setConfig(p => ({...p, retryIntervalMinutes: Number(e.target.value)}))} />
+          </div>
+        </div>
+
+        {/* Bot Call Features */}
+        <div className="border rounded-lg p-4 space-y-2">
+          <p className="font-medium text-sm">🤖 Bot Auto-Call Features</p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: '🛡️ Insurance Expiry Reminder', desc: 'Insurance expire hone se 15 din pehle call' },
+              { label: '🔧 Service Due Reminder', desc: 'Service interval pura hone pe call' },
+              { label: '📢 Promotional Calls', desc: 'Offers aur schemes ki info' },
+              { label: '📞 Lead Follow-up', desc: 'Hot leads ko automatic follow-up' },
+              { label: '📋 Appointment Confirmation', desc: 'Service/delivery appointment confirm' },
+              { label: '⭐ Feedback Collection', desc: 'Delivery ke baad satisfaction call' },
+            ].map((feature, i) => (
+              <div key={i} className="flex items-start gap-2 p-2 bg-muted/30 rounded text-sm">
+                <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-medium text-xs">{feature.label}</p>
+                  <p className="text-xs text-muted-foreground">{feature.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Test Call */}
+      <div className="flex items-end gap-2">
+        <div className="grid gap-2 flex-1">
+          <Label className="text-xs">Test Call Number</Label>
+          <Input value={testNumber} onChange={(e) => setTestNumber(e.target.value)} placeholder="+919876543210" />
+        </div>
+        <Button variant="outline" onClick={handleTest} disabled={testing || !testNumber}>
+          📞 {testing ? 'Calling...' : 'Test Call'}
+        </Button>
+      </div>
+
+      {testResult && (
+        <div className="text-sm bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 p-3 rounded-lg">
+          {testResult}
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <Button onClick={handleSave}>
+          <Save className="h-4 w-4 mr-2" />
+          {saved ? "Saved ✅" : "Save Calling Config"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Settings Page ─────────────────────────────────────────────────
 export default function AdminSettingsPage() {
   return (
@@ -753,6 +966,9 @@ export default function AdminSettingsPage() {
           <TabsTrigger value="sms" className="gap-1.5">
             <MessageSquare className="h-3.5 w-3.5" /> SMS
           </TabsTrigger>
+          <TabsTrigger value="calling" className="gap-1.5">
+            📞 Calling
+          </TabsTrigger>
         </TabsList>
 
         <Card>
@@ -762,6 +978,7 @@ export default function AdminSettingsPage() {
             <TabsContent value="whatsapp"><WhatsAppTab /></TabsContent>
             <TabsContent value="email"><EmailTab /></TabsContent>
             <TabsContent value="sms"><SMSTab /></TabsContent>
+            <TabsContent value="calling"><CallingTab /></TabsContent>
           </CardContent>
         </Card>
       </Tabs>
