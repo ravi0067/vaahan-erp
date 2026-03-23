@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -15,8 +16,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Building2, Users, IndianRupee, Activity, Plus, Archive, RotateCcw, Settings2, Settings, RefreshCw } from "lucide-react";
-import { SimpleEnhancedDialog } from './components/SimpleEnhancedDialog';
+import { Building2, Users, IndianRupee, Activity, Plus, Archive, RotateCcw, Settings2, Settings, RefreshCw, Building, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useSettingsStore, defaultClientFeatures, type ClientFeatureConfig } from "@/store/settings-store";
 import { type ShowroomType, showroomConfig, showroomTypeDescriptions } from "@/lib/showroom-config";
@@ -34,6 +34,12 @@ interface TenantData {
   status: string;
   createdAt: string;
   _count?: { users: number; vehicles: number; bookings: number };
+}
+
+interface Brand {
+  brandName: string;
+  brandType: string;
+  locations: string[];
 }
 
 const planColor = (p: string) => {
@@ -100,54 +106,493 @@ function ClientConfigDialog({ client, open, onClose }: { client: TenantData; ope
               </div>
             ))}
           </div>
-          <div className="space-y-3 border-t pt-3">
-            <Label className="text-sm font-semibold">Plan Limits</Label>
-            <div className="grid gap-3">
-              <div className="grid gap-1"><Label className="text-xs text-muted-foreground">Max Users</Label><Input type="number" value={config.maxUsers} onChange={(e) => setNum("maxUsers", Number(e.target.value))} min={1} /></div>
-              <div className="grid gap-1"><Label className="text-xs text-muted-foreground">Max Vehicles</Label><Input type="number" value={config.maxVehicles} onChange={(e) => setNum("maxVehicles", Number(e.target.value))} min={1} /></div>
-              <div className="grid gap-1"><Label className="text-xs text-muted-foreground">Max Bookings / Month</Label><Input type="number" value={config.maxBookingsPerMonth} onChange={(e) => setNum("maxBookingsPerMonth", Number(e.target.value))} min={1} /></div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Limits & Quotas</Label>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Max Users</span>
+                <Input type="number" min={1} max={100} className="w-16 h-7" value={config.maxUsers} onChange={(e) => setNum("maxUsers", Number(e.target.value))} />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Max Vehicles</span>
+                <Input type="number" min={10} max={10000} className="w-20 h-7" value={config.maxVehicles} onChange={(e) => setNum("maxVehicles", Number(e.target.value))} />
+              </div>
             </div>
           </div>
         </div>
+
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave}>{saved ? "Saved ✅" : "Save Configuration"}</Button>
+          <Button onClick={() => { handleSave(); onClose(); }} className={saved ? "bg-green-600 hover:bg-green-700" : ""}>
+            {saved ? "✓ Saved" : "Save Configuration"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-// ── Showroom Type Card Selector ────────────────────────────────────────
-function ShowroomTypeSelector({ value, onChange }: { value: ShowroomType; onChange: (type: ShowroomType) => void }) {
-  const types: ShowroomType[] = ["BIKE", "CAR", "EV", "MULTI"];
+// ── Enhanced Add Client Dialog ─────────────────────────────────────────
+function EnhancedAddClientDialog({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
+  const currentYear = new Date().getFullYear();
+  const currentFY = `${currentYear}-${(currentYear + 1).toString().slice(-2)}`;
+
+  const [formData, setFormData] = React.useState({
+    clientName: '',
+    slug: '',
+    plan: 'FREE',
+    ownerName: '',
+    phone: '',
+    gstNumber: '',
+    emailId: '',
+    address: '',
+    firmName: '',
+    showroomType: 'BIKE',
+    currentFY,
+    logoUrl: '',
+    brands: [] as Brand[]
+  });
+
+  const [currentBrand, setCurrentBrand] = React.useState({
+    brandName: '',
+    brandType: 'BIKE',
+    locations: [] as string[]
+  });
+
+  const [newLocation, setNewLocation] = React.useState('');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  const updateFormData = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Auto-generate slug from client name
+  const handleClientNameChange = (name: string) => {
+    updateFormData('clientName', name);
+    if (!formData.slug) {
+      const slug = name.toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+      updateFormData('slug', slug);
+    }
+  };
+
+  const addLocation = () => {
+    if (!newLocation.trim()) {
+      toast.error('Location name is required');
+      return;
+    }
+
+    setCurrentBrand(prev => ({
+      ...prev,
+      locations: [...prev.locations, newLocation.trim()]
+    }));
+    setNewLocation('');
+  };
+
+  const removeLocation = (index: number) => {
+    setCurrentBrand(prev => ({
+      ...prev,
+      locations: prev.locations.filter((_, i) => i !== index)
+    }));
+  };
+
+  const addBrand = () => {
+    if (!currentBrand.brandName.trim()) {
+      toast.error('Brand name is required');
+      return;
+    }
+
+    if (currentBrand.locations.length === 0) {
+      toast.error('At least one location is required');
+      return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      brands: [...prev.brands, currentBrand]
+    }));
+
+    setCurrentBrand({
+      brandName: '',
+      brandType: 'BIKE',
+      locations: []
+    });
+
+    toast.success('Brand added successfully');
+  };
+
+  const removeBrand = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      brands: prev.brands.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSubmit = async () => {
+    // Validation
+    if (!formData.clientName || !formData.slug || !formData.ownerName) {
+      toast.error('Please fill client name, slug, and owner name');
+      return;
+    }
+
+    if (formData.brands.length === 0) {
+      toast.error('Please add at least one brand');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Transform data for API
+      const apiData = {
+        clientName: formData.clientName,
+        slug: formData.slug,
+        plan: formData.plan,
+        ownerName: formData.ownerName,
+        phone: formData.phone,
+        gstNumber: formData.gstNumber,
+        emailId: formData.emailId,
+        address: formData.address,
+        firmName: formData.firmName,
+        showroomType: formData.showroomType,
+        currentFY: formData.currentFY,
+        logoUrl: formData.logoUrl,
+        brands: formData.brands.map(brand => ({
+          brandName: brand.brandName,
+          brandType: brand.brandType,
+          locations: brand.locations.map(locationName => ({
+            locationName,
+            address: `${locationName}, ${formData.address}`,
+            phone: formData.phone,
+            managerName: ''
+          }))
+        }))
+      };
+
+      const response = await fetch('/api/tenants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(apiData)
+      });
+
+      if (response.ok) {
+        toast.success('🎉 Client onboarded successfully!');
+        onSuccess();
+        onClose();
+        resetForm();
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create client');
+      }
+    } catch (error: any) {
+      console.error('Error creating client:', error);
+      toast.error(error.message || 'Failed to create client');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      clientName: '',
+      slug: '',
+      plan: 'FREE',
+      ownerName: '',
+      phone: '',
+      gstNumber: '',
+      emailId: '',
+      address: '',
+      firmName: '',
+      showroomType: 'BIKE',
+      currentFY,
+      logoUrl: '',
+      brands: []
+    });
+    setCurrentBrand({
+      brandName: '',
+      brandType: 'BIKE',
+      locations: []
+    });
+  };
+
+  const isValid = formData.clientName && formData.slug && formData.ownerName && formData.brands.length > 0;
+
   return (
-    <div className="grid grid-cols-2 gap-3">
-      {types.map((type) => {
-        const c = showroomConfig[type];
-        const isActive = type === value;
-        return (
-          <button key={type} type="button" onClick={() => onChange(type)}
-            className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-center ${isActive ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/30" : "border-muted hover:border-primary/30 hover:bg-muted/50"}`}>
-            <span className="text-2xl">{c.emoji}</span>
-            <span className="text-xs font-semibold">{c.label}</span>
-            <span className="text-[10px] text-muted-foreground leading-tight">{showroomTypeDescriptions[type]}</span>
-          </button>
-        );
-      })}
-    </div>
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-xl">🏢 Add New Client - Complete Onboarding</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6 py-4">
+          {/* Basic Information */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold border-b pb-2">Basic Information</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="clientName">Client Name *</Label>
+                <Input
+                  id="clientName"
+                  placeholder="e.g., Honda Motors Delhi"
+                  value={formData.clientName}
+                  onChange={(e) => handleClientNameChange(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="slug">URL Slug *</Label>
+                <Input
+                  id="slug"
+                  placeholder="e.g., honda-delhi"
+                  value={formData.slug}
+                  onChange={(e) => updateFormData('slug', e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="ownerName">Owner Name *</Label>
+                <Input
+                  id="ownerName"
+                  placeholder="Dealership owner full name"
+                  value={formData.ownerName}
+                  onChange={(e) => updateFormData('ownerName', e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  placeholder="+91-9876543210"
+                  value={formData.phone}
+                  onChange={(e) => updateFormData('phone', e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Business Details */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold border-b pb-2">Business Details</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="firmName">Firm/Company Name</Label>
+                <Input
+                  id="firmName"
+                  placeholder="Legal business name"
+                  value={formData.firmName}
+                  onChange={(e) => updateFormData('firmName', e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="gstNumber">GST Number</Label>
+                <Input
+                  id="gstNumber"
+                  placeholder="e.g., 09ABCDE1234F1Z5"
+                  value={formData.gstNumber}
+                  onChange={(e) => updateFormData('gstNumber', e.target.value.toUpperCase())}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="emailId">Email ID</Label>
+              <Input
+                id="emailId"
+                type="email"
+                placeholder="business@example.com"
+                value={formData.emailId}
+                onChange={(e) => updateFormData('emailId', e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="address">Business Address</Label>
+              <Textarea
+                id="address"
+                placeholder="Complete address with pincode"
+                value={formData.address}
+                onChange={(e) => updateFormData('address', e.target.value)}
+                rows={2}
+              />
+            </div>
+          </div>
+
+          {/* System Configuration */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold border-b pb-2">System Configuration</h3>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label>Subscription Plan</Label>
+                <Select value={formData.plan} onValueChange={(value) => updateFormData('plan', value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FREE">🆓 Free (₹0/month)</SelectItem>
+                    <SelectItem value="PRO">💼 Pro (₹2999/month)</SelectItem>
+                    <SelectItem value="ENTERPRISE">🏢 Enterprise (₹9999/month)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Showroom Type</Label>
+                <Select value={formData.showroomType} onValueChange={(value) => updateFormData('showroomType', value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BIKE">🏍️ Two Wheeler</SelectItem>
+                    <SelectItem value="CAR">🚗 Four Wheeler</SelectItem>
+                    <SelectItem value="EV">⚡ Electric Vehicle</SelectItem>
+                    <SelectItem value="MULTI">🔄 Multi-Vehicle</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Financial Year</Label>
+                <Input value={formData.currentFY} disabled className="bg-muted" />
+                <p className="text-xs text-muted-foreground mt-1">Auto-selected</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Brands & Locations */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold border-b pb-2">🏷️ Brands & Locations</h3>
+            
+            {/* Current Brands Display */}
+            {formData.brands.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="font-medium">✅ Added Brands ({formData.brands.length})</h4>
+                {formData.brands.map((brand, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <Building className="h-4 w-4 text-green-600" />
+                        <span className="font-medium">{brand.brandName}</span>
+                        <Badge variant="secondary">{brand.brandType}</Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        📍 {brand.locations.join(' • ')}
+                      </div>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={() => removeBrand(index)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add New Brand Form */}
+            <div className="border border-dashed border-gray-300 rounded-lg p-4 space-y-4">
+              <h4 className="font-medium">➕ Add New Brand</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Brand Name</Label>
+                  <Input
+                    placeholder="e.g., KTM, Triumph, Hero"
+                    value={currentBrand.brandName}
+                    onChange={(e) => setCurrentBrand(prev => ({...prev, brandName: e.target.value}))}
+                  />
+                </div>
+                <div>
+                  <Label>Vehicle Type</Label>
+                  <Select 
+                    value={currentBrand.brandType}
+                    onValueChange={(value) => setCurrentBrand(prev => ({...prev, brandType: value}))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="BIKE">Two Wheeler</SelectItem>
+                      <SelectItem value="CAR">Four Wheeler</SelectItem>
+                      <SelectItem value="EV">Electric Vehicle</SelectItem>
+                      <SelectItem value="SCOOTER">Scooter</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Locations for current brand */}
+              {currentBrand.locations.length > 0 && (
+                <div>
+                  <Label className="text-sm">Locations ({currentBrand.locations.length})</Label>
+                  <div className="space-y-1 mt-2">
+                    {currentBrand.locations.map((location, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-muted/30 rounded text-sm">
+                        <span>📍 {location}</span>
+                        <Button size="sm" variant="ghost" onClick={() => removeLocation(index)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex space-x-2">
+                <Input
+                  placeholder="Location name (e.g., Chinhat Branch, Ring Road Branch)"
+                  value={newLocation}
+                  onChange={(e) => setNewLocation(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && addLocation()}
+                />
+                <Button size="sm" onClick={addLocation}>
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add
+                </Button>
+              </div>
+
+              <div className="flex justify-end">
+                <Button onClick={addBrand} disabled={!currentBrand.brandName || currentBrand.locations.length === 0} className="bg-blue-600 hover:bg-blue-700">
+                  <Building className="h-4 w-4 mr-2" />
+                  Add Brand
+                </Button>
+              </div>
+            </div>
+
+            {formData.brands.length === 0 && (
+              <div className="text-center py-8 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <Building className="h-12 w-12 mx-auto text-amber-600 mb-2" />
+                <p className="text-amber-800 dark:text-amber-200 font-medium">No brands added yet</p>
+                <p className="text-sm text-amber-700 dark:text-amber-300">Add at least one brand to continue</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter className="border-t pt-4">
+          <div className="flex items-center justify-between w-full">
+            <div className="text-sm text-muted-foreground">
+              📊 {formData.brands.length} brand(s) • {formData.brands.reduce((sum, b) => sum + b.locations.length, 0)} location(s)
+            </div>
+            <div className="flex space-x-2">
+              <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
+                Cancel
+              </Button>
+              <Button onClick={handleSubmit} disabled={!isValid || isSubmitting} className="bg-green-600 hover:bg-green-700">
+                {isSubmitting ? 'Creating Client...' : '🚀 Create Client'}
+              </Button>
+            </div>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
+// ── Main Admin Page ────────────────────────────────────────────────────
 export default function AdminPage() {
   const [tenants, setTenants] = React.useState<TenantData[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [configClient, setConfigClient] = React.useState<TenantData | null>(null);
-  const [clientName, setClientName] = React.useState("");
-  const [clientSlug, setClientSlug] = React.useState("");
-  const [clientPlan, setClientPlan] = React.useState<string>("FREE");
-  const [clientShowroomType, setClientShowroomType] = React.useState<ShowroomType>("BIKE");
 
   const fetchTenants = React.useCallback(async () => {
     setLoading(true);
@@ -164,8 +609,6 @@ export default function AdminPage() {
   }, []);
 
   React.useEffect(() => { fetchTenants(); }, [fetchTenants]);
-
-
 
   const totalClients = tenants.length;
   const activeClients = tenants.filter((c) => c.status === "ACTIVE").length;
@@ -186,15 +629,17 @@ export default function AdminPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Super Admin</h1>
-          <p className="text-muted-foreground text-sm">Multi-tenant client management</p>
+          <h1 className="text-2xl font-bold">Super Admin Panel</h1>
+          <p className="text-muted-foreground text-sm">Multi-tenant client management & onboarding</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={fetchTenants} className="gap-1">
             <RefreshCw className="h-4 w-4" /> Refresh
           </Button>
           <Link href="/admin/settings"><Button variant="outline"><Settings className="h-4 w-4 mr-2" /> Master Settings</Button></Link>
-          <Button onClick={() => setDialogOpen(true)}><Plus className="h-4 w-4 mr-2" /> Add Client</Button>
+          <Button onClick={() => setDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="h-4 w-4 mr-2" /> 🏢 Add New Client
+          </Button>
         </div>
       </div>
 
@@ -222,7 +667,7 @@ export default function AdminPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
+                <TableHead>Client Name</TableHead>
                 <TableHead className="hidden md:table-cell">Slug</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>Status</TableHead>
@@ -252,7 +697,13 @@ export default function AdminPage() {
                 </TableRow>
               ))}
               {tenants.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No tenants found (Super Admin access required)</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                  <div className="flex flex-col items-center gap-2">
+                    <Building2 className="h-12 w-12 text-muted-foreground/50" />
+                    <p>No clients found</p>
+                    <p className="text-sm">(Super Admin access required)</p>
+                  </div>
+                </TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -261,8 +712,8 @@ export default function AdminPage() {
 
       {configClient && <ClientConfigDialog client={configClient} open={!!configClient} onClose={() => setConfigClient(null)} />}
       
-      <SimpleEnhancedDialog 
-        isOpen={dialogOpen}
+      <EnhancedAddClientDialog 
+        open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         onSuccess={fetchTenants}
       />
