@@ -16,7 +16,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Building2, Users, IndianRupee, Activity, Plus, Archive, RotateCcw, Settings2, Settings, RefreshCw } from "lucide-react";
-import { EnhancedAddClientDialog } from './components/EnhancedAddClientDialog';
+import { SimpleEnhancedDialog } from './components/SimpleEnhancedDialog';
 import Link from "next/link";
 import { useSettingsStore, defaultClientFeatures, type ClientFeatureConfig } from "@/store/settings-store";
 import { type ShowroomType, showroomConfig, showroomTypeDescriptions } from "@/lib/showroom-config";
@@ -261,7 +261,7 @@ export default function AdminPage() {
 
       {configClient && <ClientConfigDialog client={configClient} open={!!configClient} onClose={() => setConfigClient(null)} />}
       
-      <EnhancedAddClientDialog 
+      <SimpleEnhancedDialog 
         isOpen={dialogOpen}
         onClose={() => setDialogOpen(false)}
         onSuccess={fetchTenants}
