@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, Upload, AlertTriangle, HelpCircle, AlertCircle } from "lucide-react";
+import { Plus, Trash2, Upload, AlertTriangle, HelpCircle, AlertCircle, Building, MapPin, Store } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -251,6 +251,123 @@ function LocationSettings() {
   );
 }
 
+// ── Brand Management ────────────────────────────────────────────────────────
+function BrandManagementSettings() {
+  const [brands, setBrands] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetchBrands();
+  }, []);
+
+  const fetchBrands = async () => {
+    try {
+      const response = await fetch('/api/brands');
+      const data = await response.json();
+      setBrands(data);
+    } catch (error) {
+      console.error('Error fetching brands:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <Card><CardContent className="p-6">Loading brands...</CardContent></Card>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">Your Dealership Brands</h3>
+          <p className="text-sm text-muted-foreground">
+            Add brands like KTM, Triumph, Hero to show only your vehicles
+          </p>
+        </div>
+        <Link href="/admin/brands">
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            Manage Brands
+          </Button>
+        </Link>
+      </div>
+
+      {brands.length === 0 ? (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <Store className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No Brands Added</h3>
+            <p className="text-muted-foreground mb-6">
+              Add your dealership brands (like KTM, Triumph) so vehicle dropdowns show only your inventory
+            </p>
+            <Link href="/admin/brands">
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Your First Brand
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {brands.map((brand) => (
+            <Card key={brand.id}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center space-x-3">
+                  <div className="h-10 w-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <Building className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">{brand.brandName}</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      {brand._count?.vehicles || 0} vehicles • {brand.showroomLocations?.length || 0} locations
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {brand.showroomLocations?.length > 0 ? (
+                  <div className="space-y-2">
+                    {brand.showroomLocations.slice(0, 2).map((location: any) => (
+                      <div key={location.id} className="flex items-center space-x-2 text-sm">
+                        <MapPin className="h-3 w-3 text-muted-foreground" />
+                        <span>{location.locationName}</span>
+                      </div>
+                    ))}
+                    {brand.showroomLocations.length > 2 && (
+                      <p className="text-xs text-muted-foreground">
+                        +{brand.showroomLocations.length - 2} more locations
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No locations added yet</p>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        <div className="flex items-start space-x-3">
+          <HelpCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+          <div className="text-sm text-blue-800 dark:text-blue-200">
+            <p className="font-medium mb-1">Why Brand Management?</p>
+            <ul className="space-y-1 text-xs">
+              <li>• Vehicle dropdowns show only YOUR brands (not global list)</li>
+              <li>• Organize inventory by showroom locations</li>
+              <li>• Better reports with brand-wise sales tracking</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Financial Year ─────────────────────────────────────────────────────────
 function FinancialYearSettings() {
   const [confirmOpen, setConfirmOpen] = React.useState(false);
@@ -304,6 +421,7 @@ export default function SettingsPage() {
         <TabsList className="flex-wrap">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="showroom-type">Showroom Type</TabsTrigger>
+          <TabsTrigger value="brands">Brands & Locations</TabsTrigger>
           <TabsTrigger value="expense-heads">Expense Heads</TabsTrigger>
           <TabsTrigger value="banks">Banks</TabsTrigger>
           <TabsTrigger value="locations">Locations</TabsTrigger>
@@ -312,6 +430,7 @@ export default function SettingsPage() {
 
         <TabsContent value="general"><GeneralSettings /></TabsContent>
         <TabsContent value="showroom-type"><ShowroomTypeSettings /></TabsContent>
+        <TabsContent value="brands"><BrandManagementSettings /></TabsContent>
         <TabsContent value="expense-heads"><ExpenseHeads /></TabsContent>
         <TabsContent value="banks"><BankSettings /></TabsContent>
         <TabsContent value="locations"><LocationSettings /></TabsContent>
