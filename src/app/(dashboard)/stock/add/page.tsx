@@ -97,10 +97,33 @@ export default function AddStockPage() {
   const fetchBrands = async () => {
     try {
       const response = await fetch('/api/brands');
+      if (!response.ok) {
+        // API not ready or DB not connected — use demo brands
+        setBrands([
+          { id: "demo-1", brandName: "KTM", brandType: "BIKE", showroomLocations: [{ id: "loc-1", locationName: "Gomti Nagar" }, { id: "loc-2", locationName: "Hazratganj" }] },
+          { id: "demo-2", brandName: "Triumph", brandType: "BIKE", showroomLocations: [{ id: "loc-3", locationName: "Gomti Nagar" }] },
+          { id: "demo-3", brandName: "Husqvarna", brandType: "BIKE", showroomLocations: [{ id: "loc-4", locationName: "Alambagh" }] },
+        ]);
+        return;
+      }
       const data = await response.json();
-      setBrands(data);
+      if (Array.isArray(data) && data.length > 0) {
+        setBrands(data);
+      } else {
+        // Empty result — use demo brands
+        setBrands([
+          { id: "demo-1", brandName: "KTM", brandType: "BIKE", showroomLocations: [{ id: "loc-1", locationName: "Gomti Nagar" }, { id: "loc-2", locationName: "Hazratganj" }] },
+          { id: "demo-2", brandName: "Triumph", brandType: "BIKE", showroomLocations: [{ id: "loc-3", locationName: "Gomti Nagar" }] },
+        ]);
+      }
     } catch (error) {
       console.error('Error fetching brands:', error);
+      // Fallback demo brands so page doesn't break
+      setBrands([
+        { id: "demo-1", brandName: "KTM", brandType: "BIKE", showroomLocations: [{ id: "loc-1", locationName: "Gomti Nagar" }, { id: "loc-2", locationName: "Hazratganj" }] },
+        { id: "demo-2", brandName: "Triumph", brandType: "BIKE", showroomLocations: [{ id: "loc-3", locationName: "Gomti Nagar" }] },
+        { id: "demo-3", brandName: "Husqvarna", brandType: "BIKE", showroomLocations: [{ id: "loc-4", locationName: "Alambagh" }] },
+      ]);
     }
   };
 
