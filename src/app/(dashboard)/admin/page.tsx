@@ -410,6 +410,26 @@ function EnhancedAddClientDialog({ open, onClose, onSuccess }: { open: boolean; 
             </div>
 
             <div>
+              <Label htmlFor="logoUrl">Business Logo</Label>
+              <div className="space-y-2">
+                <Input
+                  id="logoUrl"
+                  type="url"
+                  placeholder="https://example.com/logo.png (Optional)"
+                  value={formData.logoUrl}
+                  onChange={(e) => updateFormData('logoUrl', e.target.value)}
+                />
+                {formData.logoUrl && (
+                  <div className="flex items-center gap-2 p-2 bg-muted rounded">
+                    <img src={formData.logoUrl} alt="Logo preview" className="h-8 w-8 object-contain" />
+                    <span className="text-xs text-muted-foreground">Logo preview</span>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">Add your business logo URL (PNG, JPG, SVG)</p>
+              </div>
+            </div>
+
+            <div>
               <Label htmlFor="address">Business Address</Label>
               <Textarea
                 id="address"
