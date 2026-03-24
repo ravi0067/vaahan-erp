@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { useSidebarStore } from "@/store/sidebar-store";
 import { useShowroomStore } from "@/store/showroom-store";
+import { usePermissionsStore } from "@/store/permissions-store";
 import { showroomConfig } from "@/lib/showroom-config";
 import {
   LayoutDashboard,
@@ -88,26 +89,23 @@ function buildNavItems(bookingLabel: string, stockLabel: string, iconName: strin
   ];
 }
 
-// Role → allowed hrefs mapping
-const roleNavConfig: Record<string, string[]> = {
-  SUPER_ADMIN: ["/dashboard", "/admin", "/admin/settings", "/reports", "/settings", "/help"],
-  OWNER: [], // empty = all
-  MANAGER: [], // will filter below
-  SALES_EXEC: ["/dashboard", "/leads", "/bookings/new", "/bookings", "/stock", "/stock/add", "/sales", "/customers", "/help"],
-  ACCOUNTANT: ["/dashboard", "/cashflow", "/expenses", "/reports", "/customers", "/help"],
-  MECHANIC: ["/dashboard", "/service", "/help"],
-  VIEWER: ["/dashboard", "/reports", "/help"],
-};
-
-const managerExclude = ["/settings", "/users"];
-
-function getNavItemsForRole(role: string | undefined, allNavItems: NavItem[]): NavItem[] {
+function getNavItemsForRole(role: string | undefined, allNavItems: NavItem[], allowedHrefs: string[]): NavItem[] {
   if (!role) return allNavItems;
-  if (role === "OWNER") return allNavItems;
-  if (role === "MANAGER") return allNavItems.filter((n) => !managerExclude.includes(n.href));
-  const allowed = roleNavConfig[role];
-  if (!allowed || allowed.length === 0) return allNavItems;
-  return allNavItems.filter((item) => allowed.includes(item.href));
+
+  // Super admin sees only admin pages
+  if (role === "SUPER_ADMIN") {
+    const superAdminPaths = ["/dashboard", "/admin", "/admin/settings", "/admin/brands", "/reports", "/settings", "/help"];
+    return allNavItems.filter((n) => superAdminPaths.includes(n.href));
+  }
+
+  // Owner sees everything except admin pages
+  if (role === "OWNER") {
+    return allNavItems.filter((n) => !n.href.startsWith("/admin"));
+  }
+
+  // All other roles: use permission store's allowed hrefs
+  // Also exclude admin pages for non-admin roles
+  return allNavItems.filter((item) => !item.href.startsWith("/admin") && allowedHrefs.includes(item.href));
 }
 
 export function Sidebar() {
@@ -117,9 +115,11 @@ export function Sidebar() {
   const { showroomType } = useShowroomStore();
   const config = showroomConfig[showroomType];
 
+  const { getAllowedHrefs } = usePermissionsStore();
   const role = (session?.user as Record<string, unknown>)?.role as string | undefined;
   const allNavItems = buildNavItems(config.bookingLabel, config.stockLabel, config.icon);
-  const navItems = getNavItemsForRole(role, allNavItems);
+  const allowedHrefs = getAllowedHrefs(role || "VIEWER");
+  const navItems = getNavItemsForRole(role, allNavItems, allowedHrefs);
 
   return (
     <aside

@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { useShowroomStore } from "@/store/showroom-store";
 import { showroomConfig, showroomTypeDescriptions, type ShowroomType } from "@/lib/showroom-config";
+import { usePermissionsStore, ALL_MODULES, type ModuleKey } from "@/store/permissions-store";
 
 // ── Showroom Type Settings ──────────────────────────────────────────────────
 function ShowroomTypeSettings() {
@@ -408,6 +409,115 @@ function FinancialYearSettings() {
   );
 }
 
+// ── Permissions Settings ───────────────────────────────────────────────────
+function PermissionsSettings() {
+  const { rolePermissions, setRolePermissions, resetToDefaults } = usePermissionsStore();
+  const [selectedRole, setSelectedRole] = React.useState("MANAGER");
+  const [saved, setSaved] = React.useState(false);
+  
+  const editableRoles = ["MANAGER", "SALES_EXEC", "ACCOUNTANT", "MECHANIC", "VIEWER"];
+  
+  const currentPerms = rolePermissions[selectedRole] || [];
+  
+  const toggleModule = (moduleKey: string) => {
+    if (moduleKey === "dashboard" || moduleKey === "help") return;
+    
+    const updated = currentPerms.includes(moduleKey)
+      ? currentPerms.filter((k) => k !== moduleKey)
+      : [...currentPerms, moduleKey];
+    
+    setRolePermissions(selectedRole, updated);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+  
+  const roleLabels: Record<string, string> = {
+    MANAGER: "🧑‍💼 Manager",
+    SALES_EXEC: "💼 Sales Executive",
+    ACCOUNTANT: "🧮 Accountant", 
+    MECHANIC: "🔧 Mechanic",
+    VIEWER: "👁️ Viewer",
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>User Role Permissions</CardTitle>
+          <Button variant="outline" size="sm" onClick={() => { resetToDefaults(); setSaved(true); setTimeout(() => setSaved(false), 2000); }}>
+            Reset to Defaults
+          </Button>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Control which modules each role can access. Owner always has full access.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Role Selector */}
+        <div className="flex flex-wrap gap-2">
+          {editableRoles.map((role) => (
+            <button
+              key={role}
+              onClick={() => setSelectedRole(role)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                selectedRole === role
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-muted hover:bg-muted/80"
+              }`}
+            >
+              {roleLabels[role] || role}
+            </button>
+          ))}
+        </div>
+        
+        <Separator />
+        
+        {/* Module Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {ALL_MODULES.map((mod) => {
+            const isEnabled = currentPerms.includes(mod.key);
+            const isLocked = mod.key === "dashboard" || mod.key === "help";
+            
+            return (
+              <button
+                key={mod.key}
+                onClick={() => toggleModule(mod.key)}
+                disabled={isLocked}
+                className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${
+                  isLocked
+                    ? "bg-muted/50 border-muted cursor-not-allowed opacity-60"
+                    : isEnabled
+                    ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
+                    : "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800 opacity-70"
+                }`}
+              >
+                <span className="text-xl">{mod.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{mod.label}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">{mod.description}</p>
+                </div>
+                <span className="text-sm shrink-0">
+                  {isLocked ? "🔒" : isEnabled ? "✅" : "❌"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        
+        {saved && (
+          <p className="text-sm text-green-600 font-medium">✅ Permissions saved for {roleLabels[selectedRole]}!</p>
+        )}
+        
+        <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-3">
+          <p className="text-sm text-blue-800 dark:text-blue-200">
+            💡 <strong>Note:</strong> Dashboard and Help are always accessible. Owner has full access and cannot be restricted.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Main Settings Page ─────────────────────────────────────────────────────
 export default function SettingsPage() {
   return (
@@ -420,6 +530,7 @@ export default function SettingsPage() {
       <Tabs defaultValue="general">
         <TabsList className="flex-wrap">
           <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="permissions">Permissions</TabsTrigger>
           <TabsTrigger value="brands">Brands & Locations</TabsTrigger>
           <TabsTrigger value="expense-heads">Expense Heads</TabsTrigger>
           <TabsTrigger value="banks">Banks</TabsTrigger>
@@ -428,6 +539,7 @@ export default function SettingsPage() {
         </TabsList>
 
         <TabsContent value="general"><GeneralSettings /></TabsContent>
+        <TabsContent value="permissions"><PermissionsSettings /></TabsContent>
         <TabsContent value="brands"><BrandManagementSettings /></TabsContent>
         <TabsContent value="expense-heads"><ExpenseHeads /></TabsContent>
         <TabsContent value="banks"><BankSettings /></TabsContent>
