@@ -79,6 +79,7 @@ export default function BookingsPage() {
     } catch (error) {
       console.error('Failed to fetch bookings:', error);
       toast.error('Failed to load bookings');
+      setBookings([]);
     } finally {
       setLoading(false);
     }

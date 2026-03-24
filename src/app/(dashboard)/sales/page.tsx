@@ -32,6 +32,7 @@ export default function SalesPage() {
     } catch (error) {
       console.error('Failed to fetch sales:', error);
       toast.error('Failed to load sales');
+      setSalesData({ bookings: [], totalRevenue: 0, totalSales: 0 });
     } finally {
       setLoading(false);
     }

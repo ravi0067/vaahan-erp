@@ -82,6 +82,7 @@ export default function StockPage() {
     } catch (error) {
       console.error('Failed to fetch vehicles:', error);
       toast.error('Failed to load vehicles');
+      setVehicles([]);
     } finally {
       setLoading(false);
     }

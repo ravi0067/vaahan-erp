@@ -60,6 +60,7 @@ export default function RTOPage() {
     } catch (error) {
       console.error('Failed to fetch RTO data:', error);
       toast.error('Failed to load RTO data');
+      setRecords([]);
     } finally {
       setLoading(false);
     }

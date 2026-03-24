@@ -55,6 +55,7 @@ export default function CustomersPage() {
     } catch (error) {
       console.error('Failed to fetch customers:', error);
       toast.error('Failed to load customers');
+      setCustomers([]);
     } finally {
       setLoading(false);
     }

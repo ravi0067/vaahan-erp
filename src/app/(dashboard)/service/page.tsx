@@ -70,6 +70,7 @@ export default function ServicePage() {
     } catch (error) {
       console.error('Failed to fetch jobs:', error);
       toast.error('Failed to load service jobs');
+      setJobs([]);
     } finally {
       setLoading(false);
     }

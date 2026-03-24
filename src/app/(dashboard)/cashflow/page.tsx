@@ -48,6 +48,8 @@ export default function CashFlowPage() {
     } catch (error) {
       console.error('Failed to fetch daybook:', error);
       toast.error('Failed to load daybook');
+      setDaybook(null);
+      setTransactions([]);
     } finally {
       setLoading(false);
     }

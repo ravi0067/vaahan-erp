@@ -70,6 +70,7 @@ export default function LeadsPage() {
     } catch (error) {
       console.error('Failed to fetch leads:', error);
       toast.error('Failed to load leads');
+      setLeads([]);
     } finally {
       setLoading(false);
     }

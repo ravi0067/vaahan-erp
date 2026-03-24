@@ -67,6 +67,7 @@ export default function ExpensesPage() {
     } catch (error) {
       console.error('Failed to fetch expenses:', error);
       toast.error('Failed to load expenses');
+      setExpenses([]);
     } finally {
       setLoading(false);
     }

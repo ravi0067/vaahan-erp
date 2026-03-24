@@ -67,6 +67,7 @@ export default function UsersPage() {
     } catch (error) {
       console.error('Failed to fetch users:', error);
       toast.error('Failed to load users');
+      setUsers([]);
     } finally {
       setLoading(false);
     }
