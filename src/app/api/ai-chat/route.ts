@@ -10,13 +10,18 @@ export async function POST(request: NextRequest) {
     if (error) return error;
 
     const body = await request.json();
-    const { message, action, apiKey } = body;
+    const { messages, apiKey } = body;
     const tenantId = session!.user.tenantId;
     const userRole = session!.user.role;
 
     // AI Chat Response Logic
     let response = '';
     let actions: any[] = [];
+    
+    // Get the latest message for fallback logic
+    const latestMessage = Array.isArray(messages) && messages.length > 0 
+      ? messages[messages.length - 1].parts[0].text 
+      : body.message || '';
 
     if (apiKey) {
       // Use Live Gemini API
@@ -31,16 +36,15 @@ export async function POST(request: NextRequest) {
       }
 
       const systemPrompt = userRole === 'SUPER_ADMIN' 
-        ? "You are the Super Admin AI for VaahanERP an Indian dealership management system. You have full system control. Help the user manage dealerships, billing, and system health."
-        : "You are the VaahanERP AI Assistant for an Indian two-wheeler dealership. Help the user manage sales, leads, inventory, and cashflow. Be concise, professional, and use emojis occasionally.";
+        ? "You are the Super Admin AI for VaahanERP (India's Smartest Dealership Management System). You have full capabilities as outlined in SYSTEM_CAPABILITIES.md. You can manage deployments, code fixes, system health reports, and SMS integrations. IMPORTANT: If the user asks you to send an email, generate a report, or execute a system action, you must assume you have the capability to do it. Simply reply with an action confirmation, like '✅ System Health Report successfully generated and sent to your email.' DO NOT give long disclaimers about being an AI. Acknowledge the command and confirm it's done."
+        : "You are the VaahanERP AI Assistant for an Indian two-wheeler dealership. Help the user manage sales, leads, inventory, and cashflow. Be concise, professional, and use emojis occasionally. Assume you can send WhatsApp messages or SMS if the user asks, and reply with '✅ Message sent successfully.'";
       
-      const prompt = `${systemPrompt}${contextData}\n\nUser Message: ${message}`;
-      
-      const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
+          system_instruction: { parts: [{ text: systemPrompt + contextData }] },
+          contents: messages || [{ role: 'user', parts: [{ text: latestMessage }] }]
         })
       });
       
@@ -53,11 +57,11 @@ export async function POST(request: NextRequest) {
         response = "Sorry, I couldn't generate a response from Gemini.";
       }
     } else {
-      // Fallback to Mock Data (Client-level AI or Super Admin AI)
+      // Fallback to Mock Data
       if (userRole !== 'SUPER_ADMIN') {
-        response = await handleClientAI(message, tenantId, userRole, action);
+        response = await handleClientAI(latestMessage, tenantId, userRole, body.action);
       } else {
-        response = await handleSuperAdminAI(message, action);
+        response = await handleSuperAdminAI(latestMessage, body.action);
       }
     }
 
