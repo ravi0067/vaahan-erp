@@ -133,32 +133,22 @@ export function Sidebar() {
       {/* Brand Header */}
       <div className="flex items-center justify-between h-16 px-4 border-b">
         {isCollapsed && (
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center overflow-hidden mx-auto">
+          <div className="w-8 h-8 rounded-full overflow-hidden mx-auto">
             <img 
-              src={(session?.user as any)?.logoUrl || '/logo.png'} 
+              src={(session?.user as any)?.logoUrl || '/logo-icon.png'} 
               alt="Logo" 
-              className="w-full h-full object-contain"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-                (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
-              }}
+              className="w-full h-full object-cover"
             />
-            <span className="text-primary-foreground font-bold text-sm hidden">V</span>
           </div>
         )}
         {!isCollapsed && (
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center overflow-hidden">
+            <div className="w-9 h-9 rounded-full overflow-hidden shrink-0">
               <img 
-                src={(session?.user as any)?.logoUrl || '/logo.png'} 
+                src={(session?.user as any)?.logoUrl || '/logo-icon.png'} 
                 alt="Logo" 
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                  (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
-                }}
+                className="w-full h-full object-cover"
               />
-              <span className="text-primary-foreground font-bold text-sm hidden">V</span>
             </div>
             <div>
               <h2 className="text-sm font-semibold leading-none">
