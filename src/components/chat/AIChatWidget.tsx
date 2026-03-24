@@ -99,10 +99,14 @@ export function AIChatWidget() {
     setShowQueries(false);
 
     try {
-      // Get config from localStorage where settings page saves it
-      const savedConfig = localStorage.getItem('vaahan_ai_config');
-      const aiConfig = savedConfig ? JSON.parse(savedConfig) : {};
-      const geminiKey = aiConfig.geminiApiKey || "";
+      // Check Zustand store first, then fallback to localStorage vaahan_ai_config
+      let geminiKey = aiAssistant.apiKey;
+      
+      if (!geminiKey) {
+        const savedConfig = localStorage.getItem('vaahan_ai_config');
+        const aiConfig = savedConfig ? JSON.parse(savedConfig) : {};
+        geminiKey = aiConfig.geminiApiKey || "";
+      }
 
       const res = await fetch('/api/ai-chat', {
         method: 'POST',
