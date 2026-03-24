@@ -83,7 +83,7 @@ export function AIChatWidget() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  const sendMessage = (text: string) => {
+  const sendMessage = async (text: string) => {
     if (!text.trim()) return;
 
     const userMsg: Message = {
@@ -98,19 +98,50 @@ export function AIChatWidget() {
     setIsTyping(true);
     setShowQueries(false);
 
-    // Simulate AI response delay
-    setTimeout(() => {
-      const response = getMockResponse(text);
+    try {
+      // Get config from localStorage where settings page saves it
+      const savedConfig = localStorage.getItem('vaahan_ai_config');
+      const aiConfig = savedConfig ? JSON.parse(savedConfig) : {};
+      const geminiKey = aiConfig.geminiApiKey || "";
+
+      const res = await fetch('/api/ai-chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: text,
+          apiKey: geminiKey
+        })
+      });
+
+      const data = await res.json();
+      
+      let botResponseText = data.response;
+      if (!botResponseText) {
+        botResponseText = data.error || "Sorry, I couldn't process that request right now.";
+      }
+
       const botMsg: Message = {
         id: `bot-${Date.now()}`,
         role: "assistant",
-        text: response,
+        text: botResponseText,
         timestamp: new Date(),
       };
+      
       setMessages((prev) => [...prev, botMsg]);
+    } catch (e) {
+      const errorMsg: Message = {
+        id: `bot-${Date.now()}`,
+        role: "assistant",
+        text: "Error connecting to AI Assistant Backend.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
       setIsTyping(false);
       setShowQueries(true);
-    }, 800 + Math.random() * 700);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
