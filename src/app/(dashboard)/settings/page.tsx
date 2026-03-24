@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useShowroomStore } from "@/store/showroom-store";
 import { showroomConfig, showroomTypeDescriptions, type ShowroomType } from "@/lib/showroom-config";
 import { usePermissionsStore, ALL_MODULES, type ModuleKey } from "@/store/permissions-store";
+import { useWhatsAppBotStore, type BotContact } from "@/store/whatsapp-bot-store";
 
 // ── Showroom Type Settings ──────────────────────────────────────────────────
 function ShowroomTypeSettings() {
@@ -518,6 +519,151 @@ function PermissionsSettings() {
   );
 }
 
+// ── WhatsApp Bot Settings ──────────────────────────────────────────────────
+function WhatsAppBotSettings() {
+  const { isEnabled, setEnabled, contacts, addContact, removeContact, updateContact } = useWhatsAppBotStore();
+  const [newName, setNewName] = React.useState("");
+  const [newPhone, setNewPhone] = React.useState("");
+  const [newRole, setNewRole] = React.useState<BotContact["role"]>("MANAGER");
+  const [saved, setSaved] = React.useState(false);
+
+  const roleOptions: { value: BotContact["role"]; label: string; emoji: string; desc: string }[] = [
+    { value: "OWNER", label: "Owner", emoji: "👑", desc: "Full dealership access via bot" },
+    { value: "MANAGER", label: "Manager", emoji: "🧑‍💼", desc: "Operations, bookings, leads, reports" },
+    { value: "SERVICE_MANAGER", label: "Service Manager", emoji: "🔧", desc: "Service jobs, mechanic management" },
+    { value: "SALES_EXEC", label: "Sales Executive", emoji: "💼", desc: "Leads, bookings, stock" },
+    { value: "ACCOUNTANT", label: "Accountant", emoji: "🧮", desc: "Cashflow, expenses, reports" },
+  ];
+
+  const handleAdd = () => {
+    if (!newName.trim() || !newPhone.trim() || !newPhone.match(/^\d{10}$/)) return;
+    addContact({ phone: newPhone, name: newName.trim(), role: newRole, isActive: true });
+    setNewName("");
+    setNewPhone("");
+    setNewRole("MANAGER");
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>📱 WhatsApp Bot Configuration</CardTitle>
+          <Button
+            variant={isEnabled ? "default" : "outline"}
+            size="sm"
+            onClick={() => setEnabled(!isEnabled)}
+            className={isEnabled ? "bg-green-600 hover:bg-green-700" : ""}
+          >
+            {isEnabled ? "✅ Bot Active" : "❌ Bot Inactive"}
+          </Button>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Register phone numbers for your team. The bot identifies callers by number and responds with role-appropriate access.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* How it works */}
+        <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 space-y-2">
+          <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">💡 How WhatsApp Bot Works:</p>
+          <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1 list-disc list-inside">
+            <li><strong>Owner</strong> — Full dealership data: sales, reports, cashflow, all operations</li>
+            <li><strong>Manager</strong> — Operations data: bookings, leads, stock, service, reports</li>
+            <li><strong>Service Manager</strong> — Service jobs, mechanic status, parts inventory</li>
+            <li><strong>Sales Exec</strong> — Lead updates, booking status, stock availability</li>
+            <li><strong>Accountant</strong> — Cashflow, expenses, payment status, reports</li>
+            <li>🔒 <strong>Super Admin</strong> access is default and cannot be assigned to others</li>
+          </ul>
+        </div>
+
+        {/* Add New Contact */}
+        <div className="border rounded-lg p-4 space-y-3">
+          <p className="text-sm font-semibold">Add Team Member</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <Label className="text-xs">Name</Label>
+              <Input placeholder="e.g. Rahul Sharma" value={newName} onChange={(e) => setNewName(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">WhatsApp Number (10 digits)</Label>
+              <Input placeholder="9876543210" value={newPhone} onChange={(e) => setNewPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} maxLength={10} />
+            </div>
+            <div>
+              <Label className="text-xs">Role</Label>
+              <select 
+                className="w-full h-9 px-3 rounded-md border bg-background text-sm"
+                value={newRole} 
+                onChange={(e) => setNewRole(e.target.value as BotContact["role"])}
+              >
+                {roleOptions.map(r => (
+                  <option key={r.value} value={r.value}>{r.emoji} {r.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <Button onClick={handleAdd} size="sm" disabled={!newName.trim() || !newPhone.match(/^\d{10}$/)}>
+            <Plus className="h-4 w-4 mr-1" /> Add Contact
+          </Button>
+        </div>
+
+        {/* Registered Contacts */}
+        {contacts.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-sm font-semibold">Registered Team ({contacts.length})</p>
+            {contacts.map((contact) => {
+              const roleInfo = roleOptions.find(r => r.value === contact.role);
+              return (
+                <div key={contact.phone} className="flex items-center justify-between p-3 rounded-lg border">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">{roleInfo?.emoji || "👤"}</span>
+                    <div>
+                      <p className="text-sm font-medium">{contact.name}</p>
+                      <p className="text-xs text-muted-foreground">+91 {contact.phone} • {roleInfo?.label || contact.role}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => updateContact(contact.phone, { isActive: !contact.isActive })}
+                      className={contact.isActive ? "text-green-600" : "text-red-600"}
+                    >
+                      {contact.isActive ? "Active" : "Inactive"}
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => removeContact(contact.phone)}>
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {contacts.length === 0 && (
+          <div className="text-center py-8 text-muted-foreground">
+            <p className="text-sm">No team members registered yet.</p>
+            <p className="text-xs">Add your Owner, Manager, and Service Manager numbers above.</p>
+          </div>
+        )}
+
+        {saved && (
+          <p className="text-sm text-green-600 font-medium">✅ WhatsApp Bot settings saved!</p>
+        )}
+
+        {/* Security Notice */}
+        <div className="bg-amber-50 dark:bg-amber-950 rounded-lg p-3 flex gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+          <div className="text-sm text-amber-800 dark:text-amber-200">
+            <strong>Security:</strong> The bot will ONLY respond to registered numbers. Unknown numbers get a generic &quot;Contact your dealership&quot; message. Super Admin features are never exposed to any client role.
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Main Settings Page ─────────────────────────────────────────────────────
 export default function SettingsPage() {
   return (
@@ -536,6 +682,7 @@ export default function SettingsPage() {
           <TabsTrigger value="banks">Banks</TabsTrigger>
           <TabsTrigger value="locations">Locations</TabsTrigger>
           <TabsTrigger value="financial-year">Financial Year</TabsTrigger>
+          <TabsTrigger value="whatsapp-bot">WhatsApp Bot</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general"><GeneralSettings /></TabsContent>
@@ -545,6 +692,7 @@ export default function SettingsPage() {
         <TabsContent value="banks"><BankSettings /></TabsContent>
         <TabsContent value="locations"><LocationSettings /></TabsContent>
         <TabsContent value="financial-year"><FinancialYearSettings /></TabsContent>
+        <TabsContent value="whatsapp-bot"><WhatsAppBotSettings /></TabsContent>
       </Tabs>
     </div>
   );
