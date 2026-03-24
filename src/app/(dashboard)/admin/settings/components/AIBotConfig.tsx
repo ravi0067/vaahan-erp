@@ -58,8 +58,8 @@ export function AIBotConfig() {
                 <SelectItem value="claude-opus-4">Claude Opus 4 (Most Powerful - Higher Cost)</SelectItem>
                 <SelectItem value="gpt-4o">GPT-4o (OpenAI)</SelectItem>
                 <SelectItem value="gpt-4o-mini">GPT-4o Mini (Budget Friendly)</SelectItem>
-                <SelectItem value="gemini-pro">Gemini Pro (Google)</SelectItem>
-                <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash (Google - Fast & Efficient)</SelectItem>
+                <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash (Google - Latest & Fast)</SelectItem>
+                <SelectItem value="gemini-2.5-pro">Gemini 2.5 Pro (Google - Most Powerful)</SelectItem>
               </SelectContent>
             </Select>
           </div>

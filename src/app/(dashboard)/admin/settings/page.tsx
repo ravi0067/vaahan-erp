@@ -242,8 +242,8 @@ function AIAssistantTab() {
                 </>
               ) : aiAssistant.provider === "gemini" ? (
                 <>
-                  <SelectItem value="gemini-pro">Gemini Pro</SelectItem>
-                  <SelectItem value="gemini-pro-vision">Gemini Pro Vision</SelectItem>
+                  <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
+                  <SelectItem value="gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
                 </>
               ) : (
                 <SelectItem value="custom">Custom Model</SelectItem>
