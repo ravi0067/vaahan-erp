@@ -102,11 +102,18 @@ export function AIChatWidget() {
     try {
       // Check Zustand store first, then fallback to localStorage vaahan_ai_config
       let geminiKey = aiAssistant.apiKey;
+      let callingConfig = null;
       
-      if (!geminiKey) {
-        const savedConfig = localStorage.getItem('vaahan_ai_config');
-        const aiConfig = savedConfig ? JSON.parse(savedConfig) : {};
-        geminiKey = aiConfig.geminiApiKey || "";
+      if (typeof window !== 'undefined') {
+        if (!geminiKey) {
+          const savedConfig = localStorage.getItem('vaahan_ai_config');
+          const aiConfig = savedConfig ? JSON.parse(savedConfig) : {};
+          geminiKey = aiConfig.geminiApiKey || "";
+        }
+
+        // Read calling configuration
+        const callingConfigStr = localStorage.getItem('vaahan_calling_config');
+        callingConfig = callingConfigStr ? JSON.parse(callingConfigStr) : null;
       }
 
       // Format history for Gemini API: { role: 'user' | 'model', parts: [{ text: string }] }
@@ -122,7 +129,8 @@ export function AIChatWidget() {
         },
         body: JSON.stringify({
           messages: chatHistory,
-          apiKey: geminiKey
+          apiKey: geminiKey,
+          callingConfig: callingConfig
         })
       });
 

@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     if (error) return error;
 
     const body = await request.json();
-    const { messages, apiKey } = body;
+    const { messages, apiKey, callingConfig } = body;
     const tenantId = session!.user.tenantId;
     const userRole = session!.user.role;
 
@@ -36,10 +36,10 @@ export async function POST(request: NextRequest) {
       }
 
       const systemPrompt = userRole === 'SUPER_ADMIN' 
-        ? "You are the Super Admin AI for VaahanERP (India's Smartest Dealership Management System). You have full capabilities as outlined in SYSTEM_CAPABILITIES.md. You can manage deployments, code fixes, system health reports, and SMS integrations. IMPORTANT: If the user asks you to send an email, generate a report, or execute a system action, you must assume you have the capability to do it. Simply reply with an action confirmation, like '✅ System Health Report successfully generated and sent to your email.' DO NOT give long disclaimers about being an AI. Acknowledge the command and confirm it's done. You also oversee the AI Voice Calling system. If commanded to make a call, reply that the AI Voice Agent has been dispatched."
+        ? "You are the Super Admin AI for VaahanERP (India's Smartest Dealership Management System). You have full capabilities as outlined in SYSTEM_CAPABILITIES.md. You can manage deployments, code fixes, system health reports, and SMS integrations. IMPORTANT: If the user asks you to send an email, generate a report, or execute a system action, you must assume you have the capability to do it. Simply reply with an action confirmation, like '✅ System Health Report successfully generated and sent to your email.' DO NOT give long disclaimers about being an AI. Acknowledge the command and confirm it's done. You also oversee the AI Voice Calling system. If commanded to make a call, reply with '📞 Initiated AI Voice Call to the customer.'"
         : "You are the VaahanERP AI Assistant for an Indian two-wheeler dealership. Help the user manage sales, leads, inventory, and cashflow. Be concise, professional, and use emojis occasionally. \n*VOICE CALLING CAPABILITY*: You have a built-in Human-like Voice AI. If the owner/manager asks you to 'call the customer for insurance expiry', 'call for service appointment', or 'call for offers', you MUST reply confirming: '📞 Initiated AI Voice Call to the customer. I will talk to them like a human. If they agree, I will automatically send the payment link/appointment details to their WhatsApp and notify the manager.' DO NOT say 'I am a text AI and cannot make calls'. ALways assume you are triggering the backend Voice Bot to do this.";
       
-      const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -53,6 +53,48 @@ export async function POST(request: NextRequest) {
         response = "Gemini API Error: " + data.error.message;
       } else if (data.candidates && data.candidates[0] && data.candidates[0].content) {
         response = data.candidates[0].content.parts[0].text;
+        
+        // INTERCEPT CALL INTENT AND TRIGGER EXOTEL
+        if (response.includes("📞 Initiated AI Voice Call") || response.includes("Voice Agent has been dispatched")) {
+          if (callingConfig && callingConfig.provider === 'exotel' && callingConfig.apiKey) {
+            // Find a 10 digit number in the user's message
+            const phoneMatch = latestMessage.match(/\b\d{10}\b/);
+            const targetPhone = phoneMatch ? phoneMatch[0] : null;
+            
+            if (targetPhone) {
+              try {
+                // Trigger Exotel API
+                const exotelUrl = `https://api.exotel.com/v1/Accounts/${callingConfig.accountSid}/Calls/connect.json`;
+                const basicAuth = btoa(`${callingConfig.apiKey}:${callingConfig.apiSecret}`);
+                
+                const formData = new URLSearchParams();
+                formData.append('From', targetPhone);
+                // Connect to the virtual number which usually routes to the flow
+                formData.append('To', callingConfig.callerId || targetPhone);
+                formData.append('CallerId', callingConfig.callerId);
+                
+                // Do not await the fetch to not block the chat response, or await it if we want to confirm
+                fetch(exotelUrl, {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Basic ${basicAuth}`,
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                  },
+                  body: formData.toString()
+                }).catch(e => console.error("Exotel Call Error:", e));
+                
+                response += `\n\n*(System Note: Successfully triggered Live Exotel call to ${targetPhone}! Your Exotel Caller ID ${callingConfig.callerId} is dialing.)*`;
+              } catch (e) {
+                response += `\n\n*(System Note: Failed to trigger Exotel API. Please check your credentials.)*`;
+              }
+            } else {
+              response += `\n\n*(System Note: I am ready to call, but please provide a valid 10-digit mobile number in your message!)*`;
+            }
+          } else {
+            response += `\n\n*(System Note: AI Voice Call intended, but Exotel configuration is missing from Settings.)*`;
+          }
+        }
+        
       } else {
         response = "Sorry, I couldn't generate a response from Gemini.";
       }
