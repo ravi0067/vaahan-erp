@@ -420,7 +420,6 @@ export default function SettingsPage() {
       <Tabs defaultValue="general">
         <TabsList className="flex-wrap">
           <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="showroom-type">Showroom Type</TabsTrigger>
           <TabsTrigger value="brands">Brands & Locations</TabsTrigger>
           <TabsTrigger value="expense-heads">Expense Heads</TabsTrigger>
           <TabsTrigger value="banks">Banks</TabsTrigger>
@@ -429,7 +428,6 @@ export default function SettingsPage() {
         </TabsList>
 
         <TabsContent value="general"><GeneralSettings /></TabsContent>
-        <TabsContent value="showroom-type"><ShowroomTypeSettings /></TabsContent>
         <TabsContent value="brands"><BrandManagementSettings /></TabsContent>
         <TabsContent value="expense-heads"><ExpenseHeads /></TabsContent>
         <TabsContent value="banks"><BankSettings /></TabsContent>

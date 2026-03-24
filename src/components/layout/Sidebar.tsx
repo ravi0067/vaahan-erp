@@ -30,7 +30,6 @@ import {
   FileCheck,
   ShieldCheck,
   HelpCircle,
-  BookOpen,
   Megaphone,
   Phone,
   Brain,
@@ -64,7 +63,6 @@ function buildNavItems(bookingLabel: string, stockLabel: string, iconName: strin
   const VehicleIcon = getVehicleIcon(iconName);
   return [
     { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-    { label: "Quick Guide", icon: BookOpen, href: "/guide" },
     { label: "Leads CRM", icon: UserPlus, href: "/leads" },
     { label: "Advanced CRM", icon: Brain, href: "/leads/advanced" },
     { label: "Marketing Hub", icon: Megaphone, href: "/marketing" },
@@ -92,13 +90,13 @@ function buildNavItems(bookingLabel: string, stockLabel: string, iconName: strin
 
 // Role → allowed hrefs mapping
 const roleNavConfig: Record<string, string[]> = {
-  SUPER_ADMIN: ["/dashboard", "/guide", "/admin", "/admin/settings", "/reports", "/settings", "/help"],
+  SUPER_ADMIN: ["/dashboard", "/admin", "/admin/settings", "/reports", "/settings", "/help"],
   OWNER: [], // empty = all
   MANAGER: [], // will filter below
-  SALES_EXEC: ["/dashboard", "/guide", "/leads", "/bookings/new", "/bookings", "/stock", "/stock/add", "/sales", "/customers", "/help"],
-  ACCOUNTANT: ["/dashboard", "/guide", "/cashflow", "/expenses", "/reports", "/customers", "/help"],
-  MECHANIC: ["/dashboard", "/guide", "/service", "/help"],
-  VIEWER: ["/dashboard", "/guide", "/reports", "/help"],
+  SALES_EXEC: ["/dashboard", "/leads", "/bookings/new", "/bookings", "/stock", "/stock/add", "/sales", "/customers", "/help"],
+  ACCOUNTANT: ["/dashboard", "/cashflow", "/expenses", "/reports", "/customers", "/help"],
+  MECHANIC: ["/dashboard", "/service", "/help"],
+  VIEWER: ["/dashboard", "/reports", "/help"],
 };
 
 const managerExclude = ["/settings", "/users"];
