@@ -93,7 +93,8 @@ export function AIChatWidget() {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
     setInput("");
     setIsTyping(true);
     setShowQueries(false);
@@ -108,13 +109,19 @@ export function AIChatWidget() {
         geminiKey = aiConfig.geminiApiKey || "";
       }
 
+      // Format history for Gemini API: { role: 'user' | 'model', parts: [{ text: string }] }
+      const chatHistory = updatedMessages.slice(1).map(m => ({
+        role: m.role === "user" ? "user" : "model",
+        parts: [{ text: m.text }]
+      }));
+
       const res = await fetch('/api/ai-chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          message: text,
+          messages: chatHistory,
           apiKey: geminiKey
         })
       });
