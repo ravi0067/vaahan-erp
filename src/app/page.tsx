@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useState } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -13,9 +16,13 @@ import {
   BarChart3,
   ArrowRight,
   Bike,
+  Car,
   Shield,
   Smartphone,
+  Play,
+  Loader2,
 } from "lucide-react";
+import { PublicChatWidget } from "@/components/chat/PublicChatWidget";
 
 const features = [
   {
@@ -69,6 +76,28 @@ const highlights = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
+  const [demoLoading, setDemoLoading] = useState<string | null>(null);
+
+  const handleDemoLogin = async (email: string, password: string, type: string) => {
+    setDemoLoading(type);
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+      if (!result?.error) {
+        router.push("/dashboard");
+        router.refresh();
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setDemoLoading(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30">
       {/* Navbar */}
@@ -81,9 +110,6 @@ export default function HomePage() {
             <Image src="/logo.png" alt="VaahanERP" width={140} height={40} className="h-9 w-auto" />
           </div>
           <div className="flex gap-2">
-            <Link href="/demo">
-              <Button variant="outline">📖 Quick Guide</Button>
-            </Link>
             <Link href="/login">
               <Button>Login to Dashboard</Button>
             </Link>
@@ -95,7 +121,7 @@ export default function HomePage() {
       <section className="max-w-6xl mx-auto px-4 pt-20 pb-16 text-center">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
           <Bike className="h-4 w-4" />
-          Built for Two-Wheeler Dealerships
+          Built for Indian Vehicle Dealerships
         </div>
         <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-4">
           VaahanERP
@@ -104,18 +130,13 @@ export default function HomePage() {
           Smart Dealership Management
         </p>
         <p className="text-base text-muted-foreground max-w-2xl mx-auto mb-8">
-          Complete ERP solution for Indian two-wheeler dealerships. Manage leads,
-          bookings, inventory, cashflow, service, and more — all in one place.
+          Complete ERP solution for Indian vehicle dealerships — Bikes, Cars & EVs.
+          Manage leads, bookings, inventory, cashflow, service, and more — all in one place.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link href="/login">
             <Button size="lg" className="gap-2 text-base px-8">
               Get Started <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-          <Link href="/login">
-            <Button size="lg" variant="outline" className="text-base px-8">
-              View Demo
             </Button>
           </Link>
         </div>
@@ -128,6 +149,71 @@ export default function HomePage() {
               {h.text}
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ── LIVE DEMO SECTION ──────────────────────────────────────────── */}
+      <section className="max-w-6xl mx-auto px-4 pb-16">
+        <h2 className="text-2xl md:text-3xl font-bold text-center mb-3">
+          🎯 See It In Action — Live Demo
+        </h2>
+        <p className="text-center text-muted-foreground mb-8">
+          Click to explore a fully working dealership dashboard with real data
+        </p>
+        <div className="grid gap-6 sm:grid-cols-2 max-w-3xl mx-auto">
+          {/* Bike Demo */}
+          <Card className="hover:shadow-xl transition-all border-2 hover:border-orange-300 cursor-pointer group"
+            onClick={() => handleDemoLogin("owner@bajrangmotors.com", "owner123", "bike")}
+          >
+            <CardContent className="p-6 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-orange-50 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
+                <Bike className="h-8 w-8 text-orange-600" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold">🏍️ Bike Dealership</h3>
+                <p className="text-sm text-muted-foreground mt-1">Shri Bajrang Motors, Lucknow</p>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>✅ 8 Bikes (Hero + Bajaj) • 3 Branches</p>
+                <p>✅ 5 Customers • 3 Bookings • 6 Leads</p>
+                <p>✅ Service Jobs • Expenses • Reports</p>
+              </div>
+              <Button className="w-full bg-orange-600 hover:bg-orange-700 gap-2" disabled={demoLoading === "bike"}>
+                {demoLoading === "bike" ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Loading...</>
+                ) : (
+                  <><Play className="h-4 w-4" /> Explore Bike Demo</>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Car Demo */}
+          <Card className="hover:shadow-xl transition-all border-2 hover:border-blue-300 cursor-pointer group"
+            onClick={() => handleDemoLogin("owner@sharmacars.com", "owner123", "car")}
+          >
+            <CardContent className="p-6 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
+                <Car className="h-8 w-8 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold">🚗 Car Dealership</h3>
+                <p className="text-sm text-muted-foreground mt-1">Sharma Cars, Lucknow</p>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>✅ 6 Cars (Maruti + Hyundai) • 2 Showrooms</p>
+                <p>✅ 3 Customers • 2 Bookings • 3 Leads</p>
+                <p>✅ Loan Tracking • Expenses • Reports</p>
+              </div>
+              <Button className="w-full bg-blue-600 hover:bg-blue-700 gap-2" disabled={demoLoading === "car"}>
+                {demoLoading === "car" ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Loading...</>
+                ) : (
+                  <><Play className="h-4 w-4" /> Explore Car Demo</>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
@@ -219,6 +305,9 @@ export default function HomePage() {
           </p>
         </div>
       </footer>
+
+      {/* Public Chat Widget — Lead Capture */}
+      <PublicChatWidget />
     </div>
   );
 }
