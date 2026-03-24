@@ -36,10 +36,15 @@ export default function BrandsManagement() {
   const fetchBrands = async () => {
     try {
       const response = await fetch('/api/brands');
+      if (!response.ok) {
+        setBrands([]);
+        return;
+      }
       const data = await response.json();
-      setBrands(data);
+      setBrands(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching brands:', error);
+      setBrands([]);
     } finally {
       setLoading(false);
     }

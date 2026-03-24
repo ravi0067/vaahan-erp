@@ -257,6 +257,9 @@ function LocationSettings() {
 function BrandManagementSettings() {
   const [brands, setBrands] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [showAddDialog, setShowAddDialog] = React.useState(false);
+  const [newBrand, setNewBrand] = React.useState({ brandName: '', brandType: 'BIKE', logoUrl: '' });
+  const [submitting, setSubmitting] = React.useState(false);
 
   React.useEffect(() => {
     fetchBrands();
@@ -266,7 +269,6 @@ function BrandManagementSettings() {
     try {
       const response = await fetch('/api/brands');
       if (!response.ok) {
-        console.error('Brands API error:', response.status);
         setBrands([]);
         return;
       }
@@ -280,98 +282,125 @@ function BrandManagementSettings() {
     }
   };
 
+  const handleAddBrand = async () => {
+    if (!newBrand.brandName.trim()) return;
+    setSubmitting(true);
+    try {
+      const response = await fetch('/api/brands', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newBrand)
+      });
+      if (response.ok) {
+        await fetchBrands();
+        setNewBrand({ brandName: '', brandType: 'BIKE', logoUrl: '' });
+        setShowAddDialog(false);
+      }
+    } catch (error) {
+      console.error('Error adding brand:', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteBrand = async (brandId: string) => {
+    if (!confirm('Are you sure you want to delete this brand?')) return;
+    try {
+      await fetch(`/api/brands?id=${brandId}`, { method: 'DELETE' });
+      await fetchBrands();
+    } catch (error) {
+      console.error('Error deleting brand:', error);
+    }
+  };
+
   if (loading) {
     return <Card><CardContent className="p-6 text-center text-muted-foreground">Loading brands...</CardContent></Card>;
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">Your Dealership Brands</h3>
-          <p className="text-sm text-muted-foreground">
-            Add brands like KTM, Triumph, Hero to show only your vehicles
-          </p>
+          <p className="text-sm text-muted-foreground">Add brands like KTM, Hero, Triumph to organize your inventory</p>
         </div>
-        <Link href="/admin/brands">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Manage Brands
-          </Button>
-        </Link>
+        <Button onClick={() => setShowAddDialog(true)}>
+          <Plus className="h-4 w-4 mr-2" /> Add Brand
+        </Button>
       </div>
 
+      {/* Add Brand Inline Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Brand</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-2">
+              <Label>Brand Name *</Label>
+              <Input placeholder="e.g. KTM, Triumph, Hero" value={newBrand.brandName} onChange={(e) => setNewBrand({...newBrand, brandName: e.target.value})} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Vehicle Type</Label>
+              <select className="w-full h-9 px-3 rounded-md border bg-background text-sm" value={newBrand.brandType} onChange={(e) => setNewBrand({...newBrand, brandType: e.target.value})}>
+                <option value="BIKE">🏍️ Two Wheeler (Bike)</option>
+                <option value="CAR">🚗 Four Wheeler (Car)</option>
+                <option value="EV">⚡ Electric Vehicle</option>
+                <option value="SCOOTER">🛵 Scooter</option>
+              </select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Logo URL (Optional)</Label>
+              <Input placeholder="https://example.com/logo.png" value={newBrand.logoUrl} onChange={(e) => setNewBrand({...newBrand, logoUrl: e.target.value})} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
+            <Button onClick={handleAddBrand} disabled={submitting || !newBrand.brandName.trim()}>
+              {submitting ? 'Adding...' : 'Add Brand'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Brand List */}
       {brands.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
-            <Store className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+            <Store className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No Brands Added</h3>
-            <p className="text-muted-foreground mb-6">
-              Add your dealership brands (like KTM, Triumph) so vehicle dropdowns show only your inventory
-            </p>
-            <Link href="/admin/brands">
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Your First Brand
-              </Button>
-            </Link>
+            <p className="text-muted-foreground mb-4 text-sm">Add your dealership brands so vehicle dropdowns show only your inventory</p>
+            <Button onClick={() => setShowAddDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" /> Add Your First Brand
+            </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2">
           {brands.map((brand) => (
             <Card key={brand.id}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center space-x-3">
-                  <div className="h-10 w-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <Building className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-base">{brand.brandName}</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      {brand._count?.vehicles || 0} vehicles • {brand.showroomLocations?.length || 0} locations
-                    </p>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {brand.showroomLocations?.length > 0 ? (
-                  <div className="space-y-2">
-                    {brand.showroomLocations.slice(0, 2).map((location: any) => (
-                      <div key={location.id} className="flex items-center space-x-2 text-sm">
-                        <MapPin className="h-3 w-3 text-muted-foreground" />
-                        <span>{location.locationName}</span>
-                      </div>
-                    ))}
-                    {brand.showroomLocations.length > 2 && (
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <Building className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm">{brand.brandName}</p>
                       <p className="text-xs text-muted-foreground">
-                        +{brand.showroomLocations.length - 2} more locations
+                        {brand.brandType} • {brand._count?.vehicles || 0} vehicles • {brand.showroomLocations?.length || 0} locations
                       </p>
-                    )}
+                    </div>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No locations added yet</p>
-                )}
+                  <Button variant="ghost" size="icon" onClick={() => handleDeleteBrand(brand.id)} className="text-red-500 h-8 w-8">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
-
-      <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-        <div className="flex items-start space-x-3">
-          <HelpCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
-          <div className="text-sm text-blue-800 dark:text-blue-200">
-            <p className="font-medium mb-1">Why Brand Management?</p>
-            <ul className="space-y-1 text-xs">
-              <li>• Vehicle dropdowns show only YOUR brands (not global list)</li>
-              <li>• Organize inventory by showroom locations</li>
-              <li>• Better reports with brand-wise sales tracking</li>
-            </ul>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
