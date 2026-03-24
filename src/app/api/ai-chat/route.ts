@@ -54,26 +54,28 @@ export async function POST(request: NextRequest) {
       } else if (data.candidates && data.candidates[0] && data.candidates[0].content) {
         response = data.candidates[0].content.parts[0].text;
         
-        // INTERCEPT CALL INTENT AND TRIGGER EXOTEL
+        // INTERCEPT CALL INTENT AND TRIGGER EXOTEL (server-side credentials)
         if (response.includes("📞 Initiated AI Voice Call") || response.includes("Voice Agent has been dispatched")) {
-          if (callingConfig && callingConfig.provider === 'exotel' && callingConfig.apiKey) {
+          const EXOTEL_API_KEY = process.env.EXOTEL_API_KEY || '';
+          const EXOTEL_API_TOKEN = process.env.EXOTEL_API_TOKEN || '';
+          const EXOTEL_ACCOUNT_SID = process.env.EXOTEL_ACCOUNT_SID || '';
+          const EXOTEL_CALLER_ID = process.env.EXOTEL_CALLER_ID || '';
+
+          if (EXOTEL_API_KEY && EXOTEL_ACCOUNT_SID && EXOTEL_CALLER_ID) {
             // Find a 10 digit number in the user's message
             const phoneMatch = latestMessage.match(/\b\d{10}\b/);
             const targetPhone = phoneMatch ? phoneMatch[0] : null;
             
             if (targetPhone) {
               try {
-                // Trigger Exotel API
-                const exotelUrl = `https://api.exotel.com/v1/Accounts/${callingConfig.accountSid}/Calls/connect.json`;
-                const basicAuth = btoa(`${callingConfig.apiKey}:${callingConfig.apiSecret}`);
+                const exotelUrl = `https://api.exotel.com/v1/Accounts/${EXOTEL_ACCOUNT_SID}/Calls/connect.json`;
+                const basicAuth = Buffer.from(`${EXOTEL_API_KEY}:${EXOTEL_API_TOKEN}`).toString('base64');
                 
                 const formData = new URLSearchParams();
                 formData.append('From', targetPhone);
-                // Connect to the virtual number which usually routes to the flow
-                formData.append('To', callingConfig.callerId || targetPhone);
-                formData.append('CallerId', callingConfig.callerId);
+                formData.append('To', EXOTEL_CALLER_ID);
+                formData.append('CallerId', EXOTEL_CALLER_ID);
                 
-                // Do not await the fetch to not block the chat response, or await it if we want to confirm
                 fetch(exotelUrl, {
                   method: 'POST',
                   headers: {
@@ -83,15 +85,15 @@ export async function POST(request: NextRequest) {
                   body: formData.toString()
                 }).catch(e => console.error("Exotel Call Error:", e));
                 
-                response += `\n\n*(System Note: Successfully triggered Live Exotel call to ${targetPhone}! Your Exotel Caller ID ${callingConfig.callerId} is dialing.)*`;
+                response += `\n\n✅ *Call triggered to ${targetPhone} via Exotel!*`;
               } catch (e) {
-                response += `\n\n*(System Note: Failed to trigger Exotel API. Please check your credentials.)*`;
+                response += `\n\n⚠️ *Failed to trigger call. Please check Exotel configuration.*`;
               }
             } else {
-              response += `\n\n*(System Note: I am ready to call, but please provide a valid 10-digit mobile number in your message!)*`;
+              response += `\n\n📱 *Please provide a valid 10-digit mobile number to make the call!*`;
             }
           } else {
-            response += `\n\n*(System Note: AI Voice Call intended, but Exotel configuration is missing from Settings.)*`;
+            response += `\n\n⚠️ *Exotel not configured on server. Ask admin to set EXOTEL env variables.*`;
           }
         }
         
