@@ -1,9 +1,66 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import prisma from "@/lib/prisma";
-import bcrypt from "bcryptjs";
-import { ensureSuperAdmin } from "@/lib/init-super-admin";
 import "@/lib/auth-types";
+
+// Fallback demo users — used when DB is unreachable (serverless cold starts, etc.)
+const FALLBACK_USERS = [
+  { id: "user-super-admin", name: "Ravi (Super Admin)", email: "superadmin@vaahan.com", password: "super123", role: "SUPER_ADMIN" as const, tenantId: "tenant-platform", tenantName: "VaahanERP Platform" },
+  { id: "user-bike-owner", name: "Rajesh Bajrang", email: "owner@bajrangmotors.com", password: "owner123", role: "OWNER" as const, tenantId: "", tenantName: "Shri Bajrang Motors" },
+  { id: "user-bike-sales", name: "Amit Sharma", email: "sales@bajrangmotors.com", password: "sales123", role: "SALES_EXEC" as const, tenantId: "", tenantName: "Shri Bajrang Motors" },
+  { id: "user-bike-mechanic", name: "Deepak Yadav", email: "mechanic@bajrangmotors.com", password: "mechanic123", role: "MECHANIC" as const, tenantId: "", tenantName: "Shri Bajrang Motors" },
+  { id: "user-car-owner", name: "Vinod Sharma", email: "owner@sharmacars.com", password: "owner123", role: "OWNER" as const, tenantId: "", tenantName: "Sharma Cars" },
+  { id: "user-car-sales", name: "Rohit Gupta", email: "sales@sharmacars.com", password: "sales123", role: "SALES_EXEC" as const, tenantId: "", tenantName: "Sharma Cars" },
+];
+
+async function authenticateFromDB(email: string, password: string) {
+  try {
+    const prisma = (await import("@/lib/prisma")).default;
+    const bcrypt = await import("bcryptjs");
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: { tenant: true },
+    });
+
+    if (!user || !user.isActive) return null;
+
+    let isValid = false;
+    if (user.password.startsWith("$2")) {
+      isValid = await bcrypt.compare(password, user.password);
+    } else {
+      isValid = user.password === password;
+    }
+
+    if (!isValid) return null;
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role as any,
+      tenantId: user.tenantId,
+      tenantName: user.tenant.name,
+    };
+  } catch (error) {
+    console.error("DB auth failed, using fallback:", (error as Error).message);
+    return undefined; // undefined = DB error (try fallback), null = wrong creds
+  }
+}
+
+function authenticateFromFallback(email: string, password: string) {
+  const user = FALLBACK_USERS.find(
+    (u) => u.email === email && u.password === password
+  );
+  if (!user) return null;
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role as any,
+    tenantId: user.tenantId,
+    tenantName: user.tenantName,
+  };
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -14,42 +71,35 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        // Auto-create Super Admin if none exists (first run)
-        await ensureSuperAdmin();
-
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Email and password are required");
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-          include: { tenant: true },
-        });
+        // Try DB auth first
+        const dbResult = await authenticateFromDB(
+          credentials.email,
+          credentials.password
+        );
 
-        if (!user || !user.isActive) {
+        if (dbResult !== undefined) {
+          // DB was reachable
+          if (dbResult === null) {
+            throw new Error("Invalid email or password");
+          }
+          return dbResult;
+        }
+
+        // DB unreachable — use fallback
+        const fallbackResult = authenticateFromFallback(
+          credentials.email,
+          credentials.password
+        );
+
+        if (!fallbackResult) {
           throw new Error("Invalid email or password");
         }
 
-        // Support both bcrypt hashed and plain-text passwords (for seeded demo users)
-        let isValid = false;
-        if (user.password.startsWith("$2")) {
-          isValid = await bcrypt.compare(credentials.password, user.password);
-        } else {
-          isValid = user.password === credentials.password;
-        }
-
-        if (!isValid) {
-          throw new Error("Invalid email or password");
-        }
-
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role as any,
-          tenantId: user.tenantId,
-          tenantName: user.tenant.name,
-        };
+        return fallbackResult;
       },
     }),
   ],
