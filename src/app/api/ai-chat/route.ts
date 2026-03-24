@@ -54,20 +54,39 @@ export async function POST(request: NextRequest) {
       } else if (data.candidates && data.candidates[0] && data.candidates[0].content) {
         response = data.candidates[0].content.parts[0].text;
         
-        // INTERCEPT CALL INTENT AND TRIGGER EXOTEL (server-side credentials)
+        // INTERCEPT CALL INTENT AND TRIGGER EXOTEL with AI Voice Flow
         if (response.includes("📞 Initiated AI Voice Call") || response.includes("Voice Agent has been dispatched")) {
           const EXOTEL_API_KEY = process.env.EXOTEL_API_KEY || '';
           const EXOTEL_API_TOKEN = process.env.EXOTEL_API_TOKEN || '';
           const EXOTEL_ACCOUNT_SID = process.env.EXOTEL_ACCOUNT_SID || '';
           const EXOTEL_CALLER_ID = process.env.EXOTEL_CALLER_ID || '';
+          const APP_URL = process.env.NEXTAUTH_URL || 'https://vaahan-erp.vercel.app';
 
           if (EXOTEL_API_KEY && EXOTEL_ACCOUNT_SID && EXOTEL_CALLER_ID) {
-            // Find a 10 digit number in the user's message
             const phoneMatch = latestMessage.match(/\b\d{10}\b/);
             const targetPhone = phoneMatch ? phoneMatch[0] : null;
             
             if (targetPhone) {
               try {
+                // Detect call purpose from message
+                const lm = latestMessage.toLowerCase();
+                let purpose = 'offer';
+                if (lm.includes('insurance')) purpose = 'insurance_expiry';
+                else if (lm.includes('service')) purpose = 'service_due';
+                else if (lm.includes('delivery')) purpose = 'delivery';
+                else if (lm.includes('payment')) purpose = 'payment_reminder';
+                else if (lm.includes('follow')) purpose = 'followup';
+                else if (lm.includes('birthday')) purpose = 'birthday';
+                else if (lm.includes('offer') || lm.includes('promotion')) purpose = 'promotion';
+
+                // Build flow URL for AI voice script
+                const flowParams = new URLSearchParams();
+                flowParams.set('company', 'VaahanERP');
+                flowParams.set('purpose', purpose);
+                flowParams.set('name', 'Sir');
+                flowParams.set('lang', 'hi-IN');
+                const flowUrl = `${APP_URL}/api/calls/flow?${flowParams.toString()}`;
+
                 const exotelUrl = `https://api.exotel.com/v1/Accounts/${EXOTEL_ACCOUNT_SID}/Calls/connect.json`;
                 const basicAuth = Buffer.from(`${EXOTEL_API_KEY}:${EXOTEL_API_TOKEN}`).toString('base64');
                 
@@ -75,6 +94,7 @@ export async function POST(request: NextRequest) {
                 formData.append('From', targetPhone);
                 formData.append('To', EXOTEL_CALLER_ID);
                 formData.append('CallerId', EXOTEL_CALLER_ID);
+                formData.append('Url', flowUrl);
                 
                 fetch(exotelUrl, {
                   method: 'POST',
@@ -85,15 +105,15 @@ export async function POST(request: NextRequest) {
                   body: formData.toString()
                 }).catch(e => console.error("Exotel Call Error:", e));
                 
-                response += `\n\n✅ *Call triggered to ${targetPhone} via Exotel!*`;
+                response += `\n\n✅ *AI Voice Agent calling ${targetPhone} now! Purpose: ${purpose}*`;
               } catch (e) {
                 response += `\n\n⚠️ *Failed to trigger call. Please check Exotel configuration.*`;
               }
             } else {
-              response += `\n\n📱 *Please provide a valid 10-digit mobile number to make the call!*`;
+              response += `\n\n📱 *Please provide a 10-digit mobile number to make the call!*`;
             }
           } else {
-            response += `\n\n⚠️ *Exotel not configured on server. Ask admin to set EXOTEL env variables.*`;
+            response += `\n\n⚠️ *Exotel not configured. Ask admin to set EXOTEL env variables.*`;
           }
         }
         

@@ -8,6 +8,7 @@ const EXOTEL_API_KEY = process.env.EXOTEL_API_KEY || '';
 const EXOTEL_API_TOKEN = process.env.EXOTEL_API_TOKEN || '';
 const EXOTEL_ACCOUNT_SID = process.env.EXOTEL_ACCOUNT_SID || '';
 const EXOTEL_CALLER_ID = process.env.EXOTEL_CALLER_ID || '';
+const APP_URL = process.env.NEXTAUTH_URL || 'https://vaahan-erp.vercel.app';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,14 +21,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized: Only owners and managers can make calls' }, { status: 403 });
     }
 
-    const { customerPhone, agentPhone, action } = await request.json();
+    const body = await request.json();
+    const { customerPhone, action, purpose, customerName, companyName, offerDetails, lang } = body;
 
     // Test connection
     if (action === 'test') {
       if (!EXOTEL_API_KEY || !EXOTEL_ACCOUNT_SID) {
         return NextResponse.json({ 
           connected: false, 
-          error: 'Exotel credentials not configured. Add EXOTEL_API_KEY, EXOTEL_API_TOKEN, EXOTEL_ACCOUNT_SID, EXOTEL_CALLER_ID to environment variables.' 
+          error: 'Exotel credentials not configured.' 
         });
       }
 
@@ -39,25 +41,34 @@ export async function POST(request: NextRequest) {
           }
         }
       );
-      const ok = res.status === 200;
-      return NextResponse.json({ connected: ok, status: res.status });
+      return NextResponse.json({ connected: res.status === 200, status: res.status });
     }
 
-    // Make a call
+    // Validate phone
     if (!customerPhone || !customerPhone.match(/^\d{10}$/)) {
-      return NextResponse.json({ error: 'Invalid customer phone number. Must be 10 digits.' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid phone number. Must be 10 digits.' }, { status: 400 });
     }
 
     if (!EXOTEL_API_KEY || !EXOTEL_ACCOUNT_SID || !EXOTEL_CALLER_ID) {
       return NextResponse.json({ error: 'Exotel not configured on server.' }, { status: 500 });
     }
 
-    const connectTo = agentPhone || session!.user.phone || customerPhone;
+    // Build the flow webhook URL with parameters
+    const flowParams = new URLSearchParams();
+    flowParams.set('company', companyName || 'VaahanERP');
+    flowParams.set('purpose', purpose || 'offer');
+    flowParams.set('name', customerName || 'Sir');
+    if (offerDetails) flowParams.set('offer', offerDetails);
+    flowParams.set('lang', lang || 'hi-IN');
 
+    const flowUrl = `${APP_URL}/api/calls/flow?${flowParams.toString()}`;
+
+    // Exotel call with voice flow
     const formData = new URLSearchParams();
     formData.append('From', customerPhone);
-    formData.append('To', connectTo);
+    formData.append('To', EXOTEL_CALLER_ID); // Exotel virtual number handles the flow
     formData.append('CallerId', EXOTEL_CALLER_ID);
+    formData.append('Url', flowUrl); // This webhook returns ExoML with the AI voice script
 
     const exotelRes = await fetch(
       `https://api.exotel.com/v1/Accounts/${EXOTEL_ACCOUNT_SID}/Calls/connect.json`,
@@ -80,6 +91,8 @@ export async function POST(request: NextRequest) {
         status: data.Call.Status,
         from: data.Call.From,
         to: data.Call.To,
+        purpose: purpose || 'offer',
+        script: 'AI Voice Agent will speak to customer in Hindi',
       });
     } else {
       return NextResponse.json({ error: 'Exotel API error', details: data }, { status: 500 });
