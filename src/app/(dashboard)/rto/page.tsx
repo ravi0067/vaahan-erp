@@ -43,7 +43,8 @@ export default function RTOPage() {
   const fetchRTO = React.useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiGet<any[]>('/api/rto');
+      const raw = await apiGet<any[]>('/api/rto');
+      const data = Array.isArray(raw) ? raw : [];
       const mapped: RTORecord[] = data.map((r: any) => ({
         id: r.id,
         bookingNo: r.booking?.bookingNumber || '',

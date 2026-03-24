@@ -28,7 +28,7 @@ export default function SalesPage() {
     setLoading(true);
     try {
       const data = await apiGet<any>(`/api/sales?period=${range}`);
-      setSalesData(data);
+      setSalesData(data && typeof data === 'object' && !('error' in data) ? data : { bookings: [], totalRevenue: 0, totalSales: 0 });
     } catch (error) {
       console.error('Failed to fetch sales:', error);
       toast.error('Failed to load sales');

@@ -49,7 +49,8 @@ export default function ServicePage() {
   const fetchJobs = React.useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiGet<any[]>('/api/service/jobs');
+      const raw = await apiGet<any[]>('/api/service/jobs');
+      const data = Array.isArray(raw) ? raw : [];
       const mapped: JobCard[] = data.map((j: any) => ({
         id: j.id,
         jobNo: j.id.slice(0, 8).toUpperCase(),

@@ -31,10 +31,11 @@ export default function CashFlowPage() {
   const fetchData = React.useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiGet<any>(`/api/cashflow/daybook?date=${selectedDate}`);
+      const raw = await apiGet<any>(`/api/cashflow/daybook?date=${selectedDate}`);
+      const data = raw && typeof raw === 'object' && !('error' in raw) ? raw : null;
       setDaybook(data);
       // Map API transactions to display format
-      const txns: Transaction[] = (data.transactions || []).map((t: any) => ({
+      const txns: Transaction[] = (data?.transactions || []).map((t: any) => ({
         id: t.id,
         time: new Date(t.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
         type: t.type === 'INFLOW' ? 'Inflow' : 'Outflow',

@@ -53,7 +53,7 @@ export default function ReportsPage() {
     setSelectedType(type);
     try {
       const data = await apiGet<any>(`/api/reports?type=${type}&from=${fromDate}&to=${toDate}`);
-      setReportData(data);
+      setReportData(data && typeof data === 'object' && !('error' in data) ? data : null);
       toast.success(`${title} generated!`);
     } catch (error) {
       console.error('Failed to generate report:', error);

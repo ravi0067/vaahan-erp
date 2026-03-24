@@ -63,7 +63,7 @@ export default function ExpensesPage() {
       if (catFilter !== 'all') params.set('category', catFilter);
       if (deptFilter !== 'all') params.set('department', deptFilter);
       const data = await apiGet<ExpenseData[]>(`/api/expenses?${params}`);
-      setExpenses(data);
+      setExpenses(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to fetch expenses:', error);
       toast.error('Failed to load expenses');

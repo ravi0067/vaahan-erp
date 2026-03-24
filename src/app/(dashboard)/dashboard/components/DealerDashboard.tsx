@@ -80,11 +80,14 @@ export function DealerDashboard() {
         apiGet<any[]>('/api/bookings?status=all'),
         apiGet<any[]>('/api/leads?dealHealth=HOT'),
       ]);
-      setStats(statsData);
-      setRecentBookings(bookingsData.slice(0, 8));
-      setHotLeads(leadsData.slice(0, 5));
+      setStats(statsData && typeof statsData === 'object' && !('error' in statsData) ? statsData : null);
+      setRecentBookings(Array.isArray(bookingsData) ? bookingsData.slice(0, 8) : []);
+      setHotLeads(Array.isArray(leadsData) ? leadsData.slice(0, 5) : []);
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
+      setStats(null);
+      setRecentBookings([]);
+      setHotLeads([]);
     } finally {
       setLoading(false);
     }

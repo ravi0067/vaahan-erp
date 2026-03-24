@@ -27,7 +27,8 @@ export default function CustomersPage() {
   const fetchCustomers = React.useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiGet<any[]>('/api/customers');
+      const raw = await apiGet<any[]>('/api/customers');
+      const data = Array.isArray(raw) ? raw : [];
       // Map API data to Customer format
       const mapped: Customer[] = data.map((c: any) => {
         const totalPaid = c.bookings?.reduce((sum: number, b: any) => sum + (b.paidAmount || 0), 0) || 0;
