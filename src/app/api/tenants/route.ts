@@ -100,7 +100,8 @@ export async function POST(req: NextRequest) {
 
     // Create default owner user
     const bcrypt = await import('bcryptjs');
-    const hashedPassword = await bcrypt.hash('admin123', 10);
+    const ownerPassword = body.password || body.ownerPassword || `${slug}@2026`;
+    const hashedPassword = await bcrypt.hash(ownerPassword, 10);
     
     await prisma.user.create({
       data: {

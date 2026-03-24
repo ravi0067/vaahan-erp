@@ -143,6 +143,7 @@ function EnhancedAddClientDialog({ open, onClose, onSuccess }: { open: boolean; 
     slug: '',
     plan: 'FREE',
     ownerName: '',
+    ownerPassword: '',
     phone: '',
     gstNumber: '',
     emailId: '',
@@ -253,6 +254,7 @@ function EnhancedAddClientDialog({ open, onClose, onSuccess }: { open: boolean; 
         slug: formData.slug,
         plan: formData.plan,
         ownerName: formData.ownerName,
+        ownerPassword: formData.ownerPassword,
         phone: formData.phone,
         gstNumber: formData.gstNumber,
         emailId: formData.emailId,
@@ -302,6 +304,7 @@ function EnhancedAddClientDialog({ open, onClose, onSuccess }: { open: boolean; 
       slug: '',
       plan: 'FREE',
       ownerName: '',
+      ownerPassword: '',
       phone: '',
       gstNumber: '',
       emailId: '',
@@ -363,6 +366,19 @@ function EnhancedAddClientDialog({ open, onClose, onSuccess }: { open: boolean; 
                   onChange={(e) => updateFormData('ownerName', e.target.value)}
                 />
               </div>
+              <div>
+                <Label htmlFor="ownerPassword">Owner Password *</Label>
+                <Input
+                  id="ownerPassword"
+                  type="password"
+                  placeholder="Set initial login password"
+                  value={formData.ownerPassword}
+                  onChange={(e) => updateFormData('ownerPassword', e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="phone">Phone Number</Label>
                 <Input
