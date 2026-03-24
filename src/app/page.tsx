@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -77,7 +78,7 @@ export default function HomePage() {
             <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-lg">V</span>
             </div>
-            <span className="text-xl font-bold">VaahanERP</span>
+            <Image src="/logo.png" alt="VaahanERP" width={140} height={40} className="h-9 w-auto" />
           </div>
           <div className="flex gap-2">
             <Link href="/demo">

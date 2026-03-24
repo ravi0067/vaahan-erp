@@ -128,8 +128,8 @@ export default function LoginPage() {
 
         <Card>
           <CardHeader className="text-center space-y-2">
-            <div className="mx-auto w-12 h-12 rounded-xl bg-primary flex items-center justify-center mb-2">
-              <span className="text-primary-foreground font-bold text-xl">V</span>
+            <div className="mx-auto mb-2">
+              <img src="/logo.png" alt="VaahanERP" className="h-14 w-auto mx-auto" />
             </div>
             <CardTitle className="text-2xl font-bold">VaahanERP</CardTitle>
             <CardDescription>

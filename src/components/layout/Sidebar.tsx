@@ -134,9 +134,23 @@ export function Sidebar() {
       <div className="flex items-center justify-between h-16 px-4 border-b">
         {isCollapsed && (
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center overflow-hidden mx-auto">
-            {(session?.user as any)?.logoUrl ? (
+            <img 
+              src={(session?.user as any)?.logoUrl || '/logo.png'} 
+              alt="Logo" 
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+                (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
+              }}
+            />
+            <span className="text-primary-foreground font-bold text-sm hidden">V</span>
+          </div>
+        )}
+        {!isCollapsed && (
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center overflow-hidden">
               <img 
-                src={(session?.user as any)?.logoUrl} 
+                src={(session?.user as any)?.logoUrl || '/logo.png'} 
                 alt="Logo" 
                 className="w-full h-full object-contain"
                 onError={(e) => {
@@ -144,25 +158,7 @@ export function Sidebar() {
                   (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
                 }}
               />
-            ) : null}
-            <span className={`text-primary-foreground font-bold text-sm ${(session?.user as any)?.logoUrl ? 'hidden' : ''}`}>V</span>
-          </div>
-        )}
-        {!isCollapsed && (
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center overflow-hidden">
-              {(session?.user as any)?.logoUrl ? (
-                <img 
-                  src={(session?.user as any)?.logoUrl} 
-                  alt="Logo" 
-                  className="w-full h-full object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                    (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
-                  }}
-                />
-              ) : null}
-              <span className={`text-primary-foreground font-bold text-sm ${(session?.user as any)?.logoUrl ? 'hidden' : ''}`}>V</span>
+              <span className="text-primary-foreground font-bold text-sm hidden">V</span>
             </div>
             <div>
               <h2 className="text-sm font-semibold leading-none">
