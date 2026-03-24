@@ -20,9 +20,9 @@ import { showroomConfig, type ShowroomType, type FuelType, type FieldConfig } fr
 import { apiPost } from "@/lib/api";
 import { toast } from "sonner";
 
-const variantOptions = ["STD", "DLX", "Drum", "Disc", "BS6", "ABS", "CBS", "Base", "Mid", "Top"];
+const DEFAULT_VARIANTS = ["STD", "DLX", "Drum", "Disc", "BS6", "ABS", "CBS", "Base", "Mid", "Top"];
 
-const colorOptions = [
+const DEFAULT_COLORS = [
   "Pearl White", "Rebel Red", "Matte Black", "Athletic Blue", "Pearl Spartan Red",
   "Imperial Red", "Vibrant Orange", "Matte Axis Gray", "Pearl Siren Blue",
   "Midnight Black", "Racing Red", "Phantom Black", "Silver", "Deep Forest",
@@ -77,6 +77,14 @@ export default function AddStockPage() {
   const [isUploading, setIsUploading] = React.useState(false);
   const [primaryIndex, setPrimaryIndex] = React.useState(0);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = React.useState<number | null>(null);
+
+  // Editable dropdown options
+  const [variants, setVariants] = React.useState<string[]>(DEFAULT_VARIANTS);
+  const [colors, setColors] = React.useState<string[]>(DEFAULT_COLORS);
+  const [newVariant, setNewVariant] = React.useState("");
+  const [newColor, setNewColor] = React.useState("");
+  const [showVariantManager, setShowVariantManager] = React.useState(false);
+  const [showColorManager, setShowColorManager] = React.useState(false);
 
   // Fetch brands on component mount
   React.useEffect(() => {
@@ -309,7 +317,7 @@ export default function AddStockPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {brands
-                    .filter(brand => showroomType === "MULTI" || brand.brandType === activeType)
+                    .filter(brand => showroomType === "MULTI" || brand.brandType?.toUpperCase() === activeType?.toUpperCase() || !brand.brandType)
                     .map((brand) => (
                       <SelectItem key={brand.id} value={brand.id}>
                         {brand.brandName} ({brand.brandType})
@@ -348,9 +356,9 @@ export default function AddStockPage() {
                     variant="link" 
                     size="sm"
                     className="p-0 h-auto text-primary"
-                    onClick={() => router.push("/admin/brands")}
+                    onClick={() => router.push("/settings")}
                   >
-                    Brand Management
+                    Settings → Brands &amp; Locations
                   </Button>
                 </p>
               </div>
@@ -369,43 +377,83 @@ export default function AddStockPage() {
                 <Label htmlFor="model">Model *</Label>
                 <Input
                   id="model"
-                  placeholder={activeConfig.modelPlaceholder}
+                  placeholder={`e.g. ${activeConfig.vehicleLabel} model name`}
                   value={form.model}
                   onChange={(e) => handleInputChange("model", e.target.value)}
                 />
               </div>
               <div>
-                <Label htmlFor="variant">Variant</Label>
-                <Select value={form.variant} onValueChange={(value) => handleInputChange("variant", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select variant" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {variantOptions.map((variant) => (
-                      <SelectItem key={variant} value={variant}>
-                        {variant}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center justify-between mb-1">
+                  <Label htmlFor="variant">Variant</Label>
+                  <button type="button" onClick={() => setShowVariantManager(!showVariantManager)} className="text-xs text-primary hover:underline">
+                    {showVariantManager ? "Done" : "✏️ Edit"}
+                  </button>
+                </div>
+                {showVariantManager ? (
+                  <div className="border rounded-lg p-3 space-y-2 bg-muted/30">
+                    <div className="flex gap-2">
+                      <Input placeholder="New variant..." value={newVariant} onChange={(e) => setNewVariant(e.target.value)} className="h-8 text-sm" onKeyDown={(e) => { if (e.key === 'Enter' && newVariant.trim()) { setVariants(prev => [...prev, newVariant.trim()]); setNewVariant(""); }}} />
+                      <Button size="sm" variant="outline" className="h-8 shrink-0" onClick={() => { if (newVariant.trim()) { setVariants(prev => [...prev, newVariant.trim()]); setNewVariant(""); }}}>Add</Button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                      {variants.map((v) => (
+                        <span key={v} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-background border text-xs">
+                          {v}
+                          <button type="button" onClick={() => { setVariants(prev => prev.filter(x => x !== v)); if (form.variant === v) handleInputChange("variant", ""); }} className="text-red-500 hover:text-red-700 ml-0.5">×</button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <Select value={form.variant} onValueChange={(value) => handleInputChange("variant", value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select variant" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {variants.map((variant) => (
+                        <SelectItem key={variant} value={variant}>{variant}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="color">Color</Label>
-                <Select value={form.color} onValueChange={(value) => handleInputChange("color", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select color" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {colorOptions.map((color) => (
-                      <SelectItem key={color} value={color}>
-                        {color}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center justify-between mb-1">
+                  <Label htmlFor="color">Color</Label>
+                  <button type="button" onClick={() => setShowColorManager(!showColorManager)} className="text-xs text-primary hover:underline">
+                    {showColorManager ? "Done" : "✏️ Edit"}
+                  </button>
+                </div>
+                {showColorManager ? (
+                  <div className="border rounded-lg p-3 space-y-2 bg-muted/30">
+                    <div className="flex gap-2">
+                      <Input placeholder="New color..." value={newColor} onChange={(e) => setNewColor(e.target.value)} className="h-8 text-sm" onKeyDown={(e) => { if (e.key === 'Enter' && newColor.trim()) { setColors(prev => [...prev, newColor.trim()]); setNewColor(""); }}} />
+                      <Button size="sm" variant="outline" className="h-8 shrink-0" onClick={() => { if (newColor.trim()) { setColors(prev => [...prev, newColor.trim()]); setNewColor(""); }}}>Add</Button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                      {colors.map((c) => (
+                        <span key={c} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-background border text-xs">
+                          {c}
+                          <button type="button" onClick={() => { setColors(prev => prev.filter(x => x !== c)); if (form.color === c) handleInputChange("color", ""); }} className="text-red-500 hover:text-red-700 ml-0.5">×</button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <Select value={form.color} onValueChange={(value) => handleInputChange("color", value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select color" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {colors.map((color) => (
+                        <SelectItem key={color} value={color}>{color}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div>
                 <Label htmlFor="year">Model Year</Label>
@@ -475,14 +523,14 @@ export default function AddStockPage() {
         </Card>
 
         {/* Dynamic Fields based on vehicle type */}
-        {activeConfig.dynamicFields && activeConfig.dynamicFields.length > 0 && (
+        {(activeConfig.specificFields?.length > 0 || (form.fuelType === 'ELECTRIC' && activeConfig.evFields?.length > 0)) && (
           <Card>
             <CardHeader>
               <CardTitle>{activeConfig.vehicleLabel} Specifications</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                {activeConfig.dynamicFields.map((field) => (
+                {[...(activeConfig.specificFields || []), ...(form.fuelType === 'ELECTRIC' ? (activeConfig.evFields || []) : [])].map((field) => (
                   <div key={field.key}>
                     <Label htmlFor={field.key}>
                       {field.label}
