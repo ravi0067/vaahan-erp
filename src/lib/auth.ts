@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { ensureSuperAdmin } from "@/lib/init-super-admin";
 import "@/lib/auth-types";
 
 export const authOptions: NextAuthOptions = {
@@ -13,6 +14,9 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        // Auto-create Super Admin if none exists (first run)
+        await ensureSuperAdmin();
+
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Email and password are required");
         }
