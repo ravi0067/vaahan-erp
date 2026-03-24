@@ -9,21 +9,56 @@ export async function POST(request: NextRequest) {
     const { session, error } = await getAuthSession();
     if (error) return error;
 
-    const { message, action } = await request.json();
+    const body = await request.json();
+    const { message, action, apiKey } = body;
     const tenantId = session!.user.tenantId;
     const userRole = session!.user.role;
 
     // AI Chat Response Logic
     let response = '';
-    let actions = [];
+    let actions: any[] = [];
 
-    // Client-level AI (Regular Operations)
-    if (userRole !== 'SUPER_ADMIN') {
-      response = await handleClientAI(message, tenantId, userRole, action);
-    } 
-    // Super Admin AI (Code fixes, GitHub integration)
-    else {
-      response = await handleSuperAdminAI(message, action);
+    if (apiKey) {
+      // Use Live Gemini API
+      let contextData = "";
+      if (userRole !== 'SUPER_ADMIN') {
+        try {
+          const stats = await getTodayStats(tenantId);
+          contextData = `\nCurrent Dealership Stats (Today): Bookings: ${stats.bookings}, Leads: ${stats.leads}, Cash In: ₹${stats.cashIn}, Cash Out: ₹${stats.cashOut}, Service Jobs: ${stats.serviceJobs}, Est Revenue: ₹${stats.revenue}.`;
+        } catch (e) {
+          console.error("Failed to fetch stats for context:", e);
+        }
+      }
+
+      const systemPrompt = userRole === 'SUPER_ADMIN' 
+        ? "You are the Super Admin AI for VaahanERP an Indian dealership management system. You have full system control. Help the user manage dealerships, billing, and system health."
+        : "You are the VaahanERP AI Assistant for an Indian two-wheeler dealership. Help the user manage sales, leads, inventory, and cashflow. Be concise, professional, and use emojis occasionally.";
+      
+      const prompt = `${systemPrompt}${contextData}\n\nUser Message: ${message}`;
+      
+      const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
+      
+      const data = await geminiRes.json();
+      if (data.error) {
+        response = "Gemini API Error: " + data.error.message;
+      } else if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+        response = data.candidates[0].content.parts[0].text;
+      } else {
+        response = "Sorry, I couldn't generate a response from Gemini.";
+      }
+    } else {
+      // Fallback to Mock Data (Client-level AI or Super Admin AI)
+      if (userRole !== 'SUPER_ADMIN') {
+        response = await handleClientAI(message, tenantId, userRole, action);
+      } else {
+        response = await handleSuperAdminAI(message, action);
+      }
     }
 
     return NextResponse.json({ 
@@ -32,9 +67,9 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString()
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('AI Chat Error:', error);
-    return errorResponse('AI chat failed');
+    return NextResponse.json({ error: error.message || 'AI chat failed' }, { status: 500 });
   }
 }
 
