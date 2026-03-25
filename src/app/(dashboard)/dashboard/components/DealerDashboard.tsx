@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { CarDashboard } from "./CarDashboard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -94,6 +95,11 @@ export function DealerDashboard() {
   }, []);
 
   React.useEffect(() => { fetchData(); }, [fetchData]);
+
+  // ── Car showroom gets its own dedicated dashboard ──
+  if (showroomType === "CAR") {
+    return <CarDashboard />;
+  }
 
   const statCards = stats ? [
     { title: "Total Revenue", value: formatCurrency(stats.totalRevenue), change: `${stats.todaySales} sold today`, icon: IndianRupee, color: "text-green-600", bg: "bg-green-50" },
