@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,38 +13,84 @@ import {
   Server,
   Activity,
   ArrowRight,
+  Loader2,
+  Building2,
 } from "lucide-react";
-import {
-  RevenueByClientChart,
-  PlanDistributionChart,
-  ClientGrowthChart,
-  SuperOwnerRevenueTrendChart,
-} from "@/components/charts/ChartComponents";
 
-const stats = [
-  { title: "Total Clients", value: "24", change: "+3 this month", icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
-  { title: "Total Revenue", value: "₹18,45,000", change: "+8.2% MoM", icon: IndianRupee, color: "text-green-600", bg: "bg-green-50" },
-  { title: "Active Plans", value: "21", change: "3 expiring soon", icon: ShieldCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
-  { title: "Expired Plans", value: "3", change: "Renewal pending", icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50" },
-];
+interface TenantData {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  status: string;
+  address?: string;
+  phone?: string;
+  createdAt: string;
+  _count?: { users: number; vehicles: number; bookings: number };
+}
 
-const clients = [
-  { name: "Vaahan Motors", plan: "Pro", revenue: "₹4,56,000", status: "Active", location: "Lucknow" },
-  { name: "Sharma Honda", plan: "Business", revenue: "₹3,28,000", status: "Active", location: "Kanpur" },
-  { name: "City Bikes", plan: "Starter", revenue: "₹1,12,000", status: "Active", location: "Agra" },
-  { name: "Royal Riders", plan: "Pro", revenue: "₹5,67,000", status: "Active", location: "Delhi" },
-  { name: "Moto Hub", plan: "Starter", revenue: "₹89,000", status: "Expired", location: "Noida" },
-  { name: "Speed Zone", plan: "Business", revenue: "₹2,34,000", status: "Active", location: "Jaipur" },
-];
+const planColor = (p: string) => {
+  const c: Record<string, string> = {
+    FREE: "bg-gray-50 text-gray-700 border-gray-200",
+    STARTER: "bg-blue-50 text-blue-700 border-blue-200",
+    PROFESSIONAL: "bg-purple-50 text-purple-700 border-purple-200",
+    ENTERPRISE: "bg-amber-50 text-amber-700 border-amber-200",
+  };
+  return c[p] || "bg-gray-50 text-gray-700 border-gray-200";
+};
 
-const systemHealth = [
-  { label: "API Response", value: "45ms", status: "healthy" },
-  { label: "Database", value: "Connected", status: "healthy" },
-  { label: "Storage", value: "62% used", status: "warning" },
-  { label: "Uptime", value: "99.9%", status: "healthy" },
-];
+const statusColor = (s: string) =>
+  s === "ACTIVE"
+    ? "bg-green-50 text-green-700 border-green-200"
+    : s === "SUSPENDED"
+    ? "bg-red-50 text-red-700 border-red-200"
+    : "bg-yellow-50 text-yellow-700 border-yellow-200";
 
 export function SuperOwnerDashboard() {
+  const [tenants, setTenants] = useState<TenantData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetch("/api/tenants");
+        if (res.ok) {
+          const data = await res.json();
+          setTenants(Array.isArray(data) ? data : []);
+        }
+      } catch {
+        // API error — empty state
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  // Compute real stats from tenants (exclude platform tenant)
+  const clientTenants = tenants.filter((t) => t.slug !== "vaahan-platform");
+  const totalClients = clientTenants.length;
+  const activeClients = clientTenants.filter((t) => t.status === "ACTIVE").length;
+  const expiredClients = clientTenants.filter((t) => t.status !== "ACTIVE").length;
+  const totalUsers = clientTenants.reduce((sum, t) => sum + (t._count?.users || 0), 0);
+  const totalBookings = clientTenants.reduce((sum, t) => sum + (t._count?.bookings || 0), 0);
+
+  const stats = [
+    { title: "Total Clients", value: totalClients.toString(), change: `${totalUsers} total users`, icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
+    { title: "Total Bookings", value: totalBookings.toString(), change: "Across all clients", icon: IndianRupee, color: "text-green-600", bg: "bg-green-50" },
+    { title: "Active Clients", value: activeClients.toString(), change: "Currently active", icon: ShieldCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { title: "Inactive/Expired", value: expiredClients.toString(), change: expiredClients > 0 ? "Renewal pending" : "All good!", icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50" },
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-3 text-muted-foreground">Loading dashboard...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -84,33 +131,42 @@ export function SuperOwnerDashboard() {
             </Link>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {clients.map((c) => (
-                <div key={c.name} className="flex items-center justify-between p-3 rounded-lg border">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <span className="font-bold text-primary text-sm">{c.name.charAt(0)}</span>
+            {clientTenants.length === 0 ? (
+              <div className="text-center py-12">
+                <Building2 className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Clients Onboarded Yet</h3>
+                <p className="text-muted-foreground text-sm mb-4">
+                  Start by adding your first dealership client from the Admin panel.
+                </p>
+                <Link href="/admin">
+                  <Button>
+                    <Users className="h-4 w-4 mr-2" /> Add First Client
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {clientTenants.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <span className="font-bold text-primary text-sm">{c.name.charAt(0)}</span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{c.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {c._count?.users || 0} users • {c._count?.bookings || 0} bookings • {c._count?.vehicles || 0} vehicles
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-sm">{c.name}</p>
-                      <p className="text-xs text-muted-foreground">{c.location}</p>
+                    <div className="text-right flex items-center gap-3">
+                      <Badge variant="outline" className={planColor(c.plan)}>{c.plan}</Badge>
+                      <Badge variant="outline" className={statusColor(c.status)}>{c.status}</Badge>
                     </div>
                   </div>
-                  <div className="text-right flex items-center gap-3">
-                    <div>
-                      <p className="text-sm font-semibold">{c.revenue}</p>
-                      <Badge variant="outline" className="text-[10px]">{c.plan}</Badge>
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className={c.status === "Active" ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"}
-                    >
-                      {c.status}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -122,7 +178,12 @@ export function SuperOwnerDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {systemHealth.map((h) => (
+            {[
+              { label: "Database", value: "Connected", status: "healthy" },
+              { label: "Platform", value: "Vercel", status: "healthy" },
+              { label: "Region", value: "AP South 1 (Mumbai)", status: "healthy" },
+              { label: "Total Tenants", value: tenants.length.toString(), status: "healthy" },
+            ].map((h) => (
               <div key={h.label} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Activity className={`h-4 w-4 ${h.status === "healthy" ? "text-green-500" : "text-amber-500"}`} />
@@ -133,29 +194,7 @@ export function SuperOwnerDashboard() {
                 </span>
               </div>
             ))}
-
-            {/* Revenue Trend */}
-            <div className="mt-6 border-t pt-4">
-              <p className="text-sm font-medium mb-3">Revenue Trend (All Clients)</p>
-              <SuperOwnerRevenueTrendChart />
-            </div>
           </CardContent>
-        </Card>
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
-        <Card>
-          <CardHeader><CardTitle className="text-lg">Revenue by Client</CardTitle></CardHeader>
-          <CardContent><RevenueByClientChart /></CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle className="text-lg">Plan Distribution</CardTitle></CardHeader>
-          <CardContent><PlanDistributionChart /></CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle className="text-lg">Client Growth</CardTitle></CardHeader>
-          <CardContent><ClientGrowthChart /></CardContent>
         </Card>
       </div>
     </div>
