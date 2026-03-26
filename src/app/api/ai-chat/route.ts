@@ -290,11 +290,11 @@ async function getTodayStats(tenantId: string) {
     prisma.booking.count({ where: { tenantId, createdAt: { gte: today } } }),
     prisma.lead.count({ where: { tenantId, createdAt: { gte: today } } }),
     prisma.cashTransaction.aggregate({ 
-      where: { tenantId, type: 'INCOME', date: { gte: today } },
+      where: { tenantId, type: 'INFLOW', createdAt: { gte: today } },
       _sum: { amount: true }
     }),
     prisma.cashTransaction.aggregate({
-      where: { tenantId, type: 'EXPENSE', date: { gte: today } },
+      where: { tenantId, type: 'OUTFLOW', createdAt: { gte: today } },
       _sum: { amount: true }
     }),
     prisma.jobCard.count({ 

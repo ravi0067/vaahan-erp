@@ -162,58 +162,50 @@ export default function HomePage() {
         </p>
         <div className="grid gap-6 sm:grid-cols-2 max-w-3xl mx-auto">
           {/* Bike Demo */}
-          <Card className="hover:shadow-xl transition-all border-2 hover:border-orange-300 cursor-pointer group"
-            onClick={() => handleDemoLogin("owner@bajrangmotors.com", "owner123", "bike")}
-          >
-            <CardContent className="p-6 text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-orange-50 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
-                <Bike className="h-8 w-8 text-orange-600" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold">🏍️ Bike Dealership</h3>
-                <p className="text-sm text-muted-foreground mt-1">Shri Bajrang Motors, Lucknow</p>
-              </div>
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p>✅ 8 Bikes (Hero + Bajaj) • 3 Branches</p>
-                <p>✅ 5 Customers • 3 Bookings • 6 Leads</p>
-                <p>✅ Service Jobs • Expenses • Reports</p>
-              </div>
-              <Button className="w-full bg-orange-600 hover:bg-orange-700 gap-2" disabled={demoLoading === "bike"}>
-                {demoLoading === "bike" ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Loading...</>
-                ) : (
-                  <><Play className="h-4 w-4" /> Explore Bike Demo</>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
+          <Link href="/demo?tab=bike">
+            <Card className="hover:shadow-xl transition-all border-2 hover:border-orange-300 cursor-pointer group">
+              <CardContent className="p-6 text-center space-y-4">
+                <div className="w-16 h-16 rounded-2xl bg-orange-50 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
+                  <Bike className="h-8 w-8 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold">🏍️ Bike Dealership</h3>
+                  <p className="text-sm text-muted-foreground mt-1">Complete Bike Showroom Demo</p>
+                </div>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>✅ Dashboard • Bookings • Leads • Stock</p>
+                  <p>✅ Service Jobs • CashFlow • Reports</p>
+                  <p>✅ Full dummy data — no login required</p>
+                </div>
+                <Button className="w-full bg-orange-600 hover:bg-orange-700 gap-2">
+                  <Play className="h-4 w-4" /> Explore Bike Demo
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
 
           {/* Car Demo */}
-          <Card className="hover:shadow-xl transition-all border-2 hover:border-blue-300 cursor-pointer group"
-            onClick={() => handleDemoLogin("owner@sharmacars.com", "owner123", "car")}
-          >
-            <CardContent className="p-6 text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
-                <Car className="h-8 w-8 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold">🚗 Car Dealership</h3>
-                <p className="text-sm text-muted-foreground mt-1">Sharma Cars, Lucknow</p>
-              </div>
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p>✅ 6 Cars (Maruti + Hyundai) • 2 Showrooms</p>
-                <p>✅ 3 Customers • 2 Bookings • 3 Leads</p>
-                <p>✅ Loan Tracking • Expenses • Reports</p>
-              </div>
-              <Button className="w-full bg-blue-600 hover:bg-blue-700 gap-2" disabled={demoLoading === "car"}>
-                {demoLoading === "car" ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Loading...</>
-                ) : (
-                  <><Play className="h-4 w-4" /> Explore Car Demo</>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
+          <Link href="/demo?tab=car">
+            <Card className="hover:shadow-xl transition-all border-2 hover:border-blue-300 cursor-pointer group">
+              <CardContent className="p-6 text-center space-y-4">
+                <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
+                  <Car className="h-8 w-8 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold">🚗 Car Dealership</h3>
+                  <p className="text-sm text-muted-foreground mt-1">Complete Car Showroom Demo</p>
+                </div>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>✅ Dashboard • Bookings • Test Drives • Finance</p>
+                  <p>✅ Exchange • CashFlow • Reports</p>
+                  <p>✅ Full dummy data — no login required</p>
+                </div>
+                <Button className="w-full bg-blue-600 hover:bg-blue-700 gap-2">
+                  <Play className="h-4 w-4" /> Explore Car Demo
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
       </section>
 
