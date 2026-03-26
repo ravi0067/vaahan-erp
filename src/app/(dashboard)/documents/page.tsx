@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,7 @@ import {
 import {
   FileText, Upload, Download, Eye, Trash2, Search,
   Plus, Filter, CheckCircle, Clock, AlertTriangle,
-  User, X, Edit
+  User, X, Edit, Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -56,41 +56,9 @@ interface CustomerDoc {
   documents: DocFile[];
 }
 
-const mockCustomerDocs: CustomerDoc[] = [
-  {
-    id: "1", customerName: "Rahul Kumar", customerMobile: "9876543210",
-    vehicleModel: "KTM Duke 200", bookingId: "BK-001",
-    documents: [
-      { id: "d1", type: "AADHAR", fileName: "rahul_aadhar.pdf", fileSize: "1.2 MB", uploadedAt: "2026-03-20", status: "VERIFIED", notes: "" },
-      { id: "d2", type: "PAN", fileName: "rahul_pan.jpg", fileSize: "450 KB", uploadedAt: "2026-03-20", status: "VERIFIED", notes: "" },
-      { id: "d3", type: "INSURANCE", fileName: "insurance_policy.pdf", fileSize: "2.1 MB", uploadedAt: "2026-03-21", status: "VERIFIED", notes: "" },
-      { id: "d4", type: "RC", fileName: "", fileSize: "", uploadedAt: "", status: "PENDING", notes: "RTO se aana baaki hai" },
-    ]
-  },
-  {
-    id: "2", customerName: "Priya Sharma", customerMobile: "9876543211",
-    vehicleModel: "Triumph Speed 400", bookingId: "BK-002",
-    documents: [
-      { id: "d5", type: "AADHAR", fileName: "priya_aadhar.pdf", fileSize: "980 KB", uploadedAt: "2026-03-19", status: "VERIFIED", notes: "" },
-      { id: "d6", type: "DL", fileName: "priya_dl.jpg", fileSize: "320 KB", uploadedAt: "2026-03-19", status: "REJECTED", notes: "Blurry image, reupload needed" },
-      { id: "d7", type: "FORM_20", fileName: "form20_priya.pdf", fileSize: "1.5 MB", uploadedAt: "2026-03-22", status: "PENDING", notes: "Verification pending" },
-    ]
-  },
-  {
-    id: "3", customerName: "Amit Verma", customerMobile: "9876543212",
-    vehicleModel: "KTM RC 390", bookingId: "BK-003",
-    documents: [
-      { id: "d8", type: "AADHAR", fileName: "amit_aadhar.pdf", fileSize: "1.1 MB", uploadedAt: "2026-03-18", status: "VERIFIED", notes: "" },
-      { id: "d9", type: "PAN", fileName: "amit_pan.pdf", fileSize: "550 KB", uploadedAt: "2026-03-18", status: "VERIFIED", notes: "" },
-      { id: "d10", type: "RC", fileName: "rc_amit.pdf", fileSize: "2.8 MB", uploadedAt: "2026-03-23", status: "VERIFIED", notes: "RTO approved ✅" },
-      { id: "d11", type: "INSURANCE", fileName: "insurance_amit.pdf", fileSize: "1.9 MB", uploadedAt: "2026-03-17", status: "VERIFIED", notes: "" },
-      { id: "d12", type: "INVOICE", fileName: "invoice_amit.pdf", fileSize: "780 KB", uploadedAt: "2026-03-17", status: "VERIFIED", notes: "" },
-    ]
-  },
-];
-
 export default function DocumentsPage() {
-  const [customerDocs, setCustomerDocs] = useState<CustomerDoc[]>(mockCustomerDocs);
+  const [customerDocs, setCustomerDocs] = useState<CustomerDoc[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
 
@@ -114,6 +82,48 @@ export default function DocumentsPage() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [viewDoc, setViewDoc] = useState<DocFile | null>(null);
   const [viewCustomer, setViewCustomer] = useState<CustomerDoc | null>(null);
+
+  const fetchDocuments = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/bookings?status=all");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const mapped: CustomerDoc[] = data
+          .filter((b: Record<string, unknown>) => b.customer)
+          .map((b: Record<string, unknown>) => {
+            const customer = b.customer as Record<string, unknown>;
+            const vehicle = b.vehicle as Record<string, unknown> | null;
+            const docs = (b.documents as Array<Record<string, unknown>>) || [];
+            return {
+              id: b.id as string,
+              customerName: (customer?.name as string) || "N/A",
+              customerMobile: (customer?.mobile as string) || "",
+              vehicleModel: vehicle ? `${vehicle.model || ""} ${vehicle.variant || ""}`.trim() : "N/A",
+              bookingId: (b.bookingNumber as string) || b.id as string,
+              documents: docs.map((d) => ({
+                id: d.id as string,
+                type: (d.type as string) || "OTHER",
+                fileName: (d.fileName as string) || (d.name as string) || "",
+                fileSize: (d.fileSize as string) || "",
+                uploadedAt: d.createdAt ? new Date(d.createdAt as string).toLocaleDateString("en-IN") : "",
+                status: ((d.status as string) || "PENDING") as DocFile["status"],
+                notes: (d.notes as string) || "",
+              })),
+            };
+          });
+        setCustomerDocs(mapped);
+      }
+    } catch {
+      toast.error("Failed to load documents");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
 
   // Filter customers
   const filteredDocs = customerDocs.filter(c => {
@@ -175,7 +185,7 @@ export default function DocumentsPage() {
 
     setIsUploading(true);
 
-    // Simulate upload delay
+    // Simulate upload delay (real upload would POST to /api/bookings/[id]/documents)
     setTimeout(() => {
       const newDoc: DocFile = {
         id: `d_${Date.now()}`,
@@ -191,7 +201,6 @@ export default function DocumentsPage() {
 
       setCustomerDocs(prev => prev.map(c => {
         if (c.id === uploadCustomerId) {
-          // Check if replacing existing doc of same type
           const existingIdx = c.documents.findIndex(d => d.type === uploadDocType);
           if (existingIdx >= 0) {
             const updatedDocs = [...c.documents];
@@ -286,6 +295,17 @@ export default function DocumentsPage() {
     toast.success(`📥 Downloading ${doc.fileName}...`);
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-6 flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-3">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="text-muted-foreground text-sm">Loading documents...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -335,136 +355,17 @@ export default function DocumentsPage() {
 
       {/* Customer Document Cards */}
       <div className="space-y-4">
-        {filteredDocs.map((customer) => (
-          <Card key={customer.id}>
-            <CardHeader className="pb-3">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
-                    <User className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-base">{customer.customerName}</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      📱 {customer.customerMobile} • 🏍️ {customer.vehicleModel} • 📋 {customer.bookingId}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => handleSendToCustomer(customer)}>
-                    📱 WhatsApp
-                  </Button>
-                  <Button size="sm" onClick={() => openUploadDialog(customer.id, "OTHER")}>
-                    <Upload className="h-3 w-3 mr-1" /> Upload New
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Document</TableHead>
-                      <TableHead>File</TableHead>
-                      <TableHead>Size</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Notes</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {customer.documents.map((doc) => (
-                      <TableRow key={doc.id}>
-                        <TableCell className="font-medium whitespace-nowrap">
-                          <span className="mr-2">{getDocIcon(doc.type)}</span>
-                          {getDocLabel(doc.type)}
-                        </TableCell>
-                        <TableCell>
-                          {doc.fileName ? (
-                            <span className="text-sm text-blue-600 hover:underline cursor-pointer" onClick={() => openViewDialog(customer, doc)}>
-                              {doc.fileName}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-muted-foreground italic">Not uploaded yet</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-sm">{doc.fileSize || "—"}</TableCell>
-                        <TableCell className="text-sm">{doc.uploadedAt || "—"}</TableCell>
-                        <TableCell>{getStatusBadge(doc.status)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground max-w-[180px] truncate">{doc.notes || "—"}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1 flex-wrap">
-                            {/* View */}
-                            {doc.fileName && (
-                              <Button size="sm" variant="ghost" title="View" onClick={() => openViewDialog(customer, doc)}>
-                                <Eye className="h-3 w-3" />
-                              </Button>
-                            )}
-                            {/* Download */}
-                            {doc.fileName && (
-                              <Button size="sm" variant="ghost" title="Download" onClick={() => handleDownload(doc)}>
-                                <Download className="h-3 w-3" />
-                              </Button>
-                            )}
-                            {/* Edit */}
-                            <Button size="sm" variant="ghost" title="Edit Notes/Status" onClick={() => openEditDialog(customer.id, doc)}>
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            {/* Upload / Reupload */}
-                            <Button size="sm" variant="ghost" title={doc.fileName ? "Reupload" : "Upload"} onClick={() => openUploadDialog(customer.id, doc.type)}>
-                              <Upload className="h-3 w-3" />
-                            </Button>
-                            {/* Verify (only for pending) */}
-                            {doc.status === "PENDING" && doc.fileName && (
-                              <Button size="sm" variant="ghost" className="text-green-600" title="Verify" onClick={() => handleVerify(customer.id, doc.id)}>
-                                <CheckCircle className="h-3 w-3" />
-                              </Button>
-                            )}
-                            {/* Reject (only for pending) */}
-                            {doc.status === "PENDING" && doc.fileName && (
-                              <Button size="sm" variant="ghost" className="text-red-600" title="Reject" onClick={() => handleReject(customer.id, doc.id)}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            )}
-                            {/* Delete */}
-                            <Button size="sm" variant="ghost" className="text-red-500" title="Delete" onClick={() => handleDelete(customer.id, doc.id)}>
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {/* Add missing documents */}
-                    <TableRow>
-                      <TableCell colSpan={7}>
-                        <div className="flex flex-wrap gap-2 py-2">
-                          {documentTypes
-                            .filter(dt => !customer.documents.some(d => d.type === dt.value))
-                            .slice(0, 5)
-                            .map(dt => (
-                              <Button key={dt.value} size="sm" variant="outline" className="text-xs" onClick={() => openUploadDialog(customer.id, dt.value)}>
-                                <Plus className="h-3 w-3 mr-1" /> {dt.icon} {dt.label}
-                              </Button>
-                            ))
-                          }
-                          {documentTypes.filter(dt => !customer.documents.some(d => d.type === dt.value)).length > 5 && (
-                            <span className="text-xs text-muted-foreground self-center">
-                              +{documentTypes.filter(dt => !customer.documents.some(d => d.type === dt.value)).length - 5} more types available
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
+        {filteredDocs.length === 0 && customerDocs.length === 0 ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4 opacity-30" />
+              <h3 className="text-lg font-semibold mb-2">No Documents Yet</h3>
+              <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                Customer documents will appear here once bookings are created. Go to Bookings to create a new booking, then upload documents like Aadhar, PAN, Insurance, and more.
+              </p>
             </CardContent>
           </Card>
-        ))}
-
-        {filteredDocs.length === 0 && (
+        ) : filteredDocs.length === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">
               <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
@@ -472,6 +373,137 @@ export default function DocumentsPage() {
               <p className="text-muted-foreground">Search ya filter change karo</p>
             </CardContent>
           </Card>
+        ) : (
+          filteredDocs.map((customer) => (
+            <Card key={customer.id}>
+              <CardHeader className="pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
+                      <User className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">{customer.customerName}</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        📱 {customer.customerMobile} • 🏍️ {customer.vehicleModel} • 📋 {customer.bookingId}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => handleSendToCustomer(customer)}>
+                      📱 WhatsApp
+                    </Button>
+                    <Button size="sm" onClick={() => openUploadDialog(customer.id, "OTHER")}>
+                      <Upload className="h-3 w-3 mr-1" /> Upload New
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {customer.documents.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <FileText className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">No documents uploaded yet for this booking.</p>
+                    <Button size="sm" className="mt-2" onClick={() => openUploadDialog(customer.id, "AADHAR")}>
+                      <Upload className="h-3 w-3 mr-1" /> Upload First Document
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Document</TableHead>
+                          <TableHead>File</TableHead>
+                          <TableHead>Size</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Notes</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {customer.documents.map((doc) => (
+                          <TableRow key={doc.id}>
+                            <TableCell className="font-medium whitespace-nowrap">
+                              <span className="mr-2">{getDocIcon(doc.type)}</span>
+                              {getDocLabel(doc.type)}
+                            </TableCell>
+                            <TableCell>
+                              {doc.fileName ? (
+                                <span className="text-sm text-blue-600 hover:underline cursor-pointer" onClick={() => openViewDialog(customer, doc)}>
+                                  {doc.fileName}
+                                </span>
+                              ) : (
+                                <span className="text-sm text-muted-foreground italic">Not uploaded yet</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm">{doc.fileSize || "—"}</TableCell>
+                            <TableCell className="text-sm">{doc.uploadedAt || "—"}</TableCell>
+                            <TableCell>{getStatusBadge(doc.status)}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground max-w-[180px] truncate">{doc.notes || "—"}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1 flex-wrap">
+                                {doc.fileName && (
+                                  <Button size="sm" variant="ghost" title="View" onClick={() => openViewDialog(customer, doc)}>
+                                    <Eye className="h-3 w-3" />
+                                  </Button>
+                                )}
+                                {doc.fileName && (
+                                  <Button size="sm" variant="ghost" title="Download" onClick={() => handleDownload(doc)}>
+                                    <Download className="h-3 w-3" />
+                                  </Button>
+                                )}
+                                <Button size="sm" variant="ghost" title="Edit Notes/Status" onClick={() => openEditDialog(customer.id, doc)}>
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                                <Button size="sm" variant="ghost" title={doc.fileName ? "Reupload" : "Upload"} onClick={() => openUploadDialog(customer.id, doc.type)}>
+                                  <Upload className="h-3 w-3" />
+                                </Button>
+                                {doc.status === "PENDING" && doc.fileName && (
+                                  <Button size="sm" variant="ghost" className="text-green-600" title="Verify" onClick={() => handleVerify(customer.id, doc.id)}>
+                                    <CheckCircle className="h-3 w-3" />
+                                  </Button>
+                                )}
+                                {doc.status === "PENDING" && doc.fileName && (
+                                  <Button size="sm" variant="ghost" className="text-red-600" title="Reject" onClick={() => handleReject(customer.id, doc.id)}>
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                )}
+                                <Button size="sm" variant="ghost" className="text-red-500" title="Delete" onClick={() => handleDelete(customer.id, doc.id)}>
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow>
+                          <TableCell colSpan={7}>
+                            <div className="flex flex-wrap gap-2 py-2">
+                              {documentTypes
+                                .filter(dt => !customer.documents.some(d => d.type === dt.value))
+                                .slice(0, 5)
+                                .map(dt => (
+                                  <Button key={dt.value} size="sm" variant="outline" className="text-xs" onClick={() => openUploadDialog(customer.id, dt.value)}>
+                                    <Plus className="h-3 w-3 mr-1" /> {dt.icon} {dt.label}
+                                  </Button>
+                                ))
+                              }
+                              {documentTypes.filter(dt => !customer.documents.some(d => d.type === dt.value)).length > 5 && (
+                                <span className="text-xs text-muted-foreground self-center">
+                                  +{documentTypes.filter(dt => !customer.documents.some(d => d.type === dt.value)).length - 5} more types available
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))
         )}
       </div>
 
@@ -638,11 +670,10 @@ export default function DocumentsPage() {
                 {viewDoc.notes && <div className="text-sm">Notes: {viewDoc.notes}</div>}
               </div>
 
-              {/* Preview area */}
               <div className="border rounded-lg p-8 text-center bg-muted/30">
                 <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-2" />
                 <p className="text-sm font-medium">{viewDoc.fileName}</p>
-                <p className="text-xs text-muted-foreground mt-1">Preview available after Supabase Storage setup</p>
+                <p className="text-xs text-muted-foreground mt-1">Preview available after storage setup</p>
               </div>
 
               <div className="flex gap-2">

@@ -76,58 +76,18 @@ function CarTooltip({
   return null;
 }
 
-// ── Mock Data ───────────────────────────────────────────────────────────────
-const bodyTypeSalesData = [
-  { name: "SUV", value: 42 },
-  { name: "Sedan", value: 28 },
-  { name: "Hatchback", value: 35 },
-  { name: "MPV", value: 15 },
-  { name: "Coupe", value: 8 },
-  { name: "Other", value: 5 },
-];
+// ── Chart Data (fetched from API when available) ─────────────────────────────
+const bodyTypeSalesData: { name: string; value: number }[] = [];
 
-const fuelTypeData = [
-  { name: "Petrol", value: 38 },
-  { name: "Diesel", value: 32 },
-  { name: "CNG", value: 12 },
-  { name: "Electric", value: 10 },
-  { name: "Hybrid", value: 8 },
-];
+const fuelTypeData: { name: string; value: number }[] = [];
 
-const carRevenueTrendData = [
-  { month: "Oct", revenue: 4800000, target: 5000000 },
-  { month: "Nov", revenue: 5600000, target: 5200000 },
-  { month: "Dec", revenue: 7200000, target: 6000000 },
-  { month: "Jan", revenue: 6400000, target: 6500000 },
-  { month: "Feb", revenue: 8100000, target: 7000000 },
-  { month: "Mar", revenue: 7600000, target: 7500000 },
-];
+const carRevenueTrendData: { month: string; revenue: number; target: number }[] = [];
 
-const topSellingCarsData = [
-  { model: "Hyundai Creta", units: 22 },
-  { model: "Tata Nexon", units: 19 },
-  { model: "Maruti Swift", units: 18 },
-  { model: "Kia Seltos", units: 15 },
-  { model: "Mahindra XUV700", units: 12 },
-  { model: "Tata Punch EV", units: 10 },
-];
+const topSellingCarsData: { model: string; units: number }[] = [];
 
-const financeVsCashData = [
-  { month: "Oct", Finance: 2800000, Cash: 2000000 },
-  { month: "Nov", Finance: 3200000, Cash: 2400000 },
-  { month: "Dec", Finance: 4100000, Cash: 3100000 },
-  { month: "Jan", Finance: 3600000, Cash: 2800000 },
-  { month: "Feb", Finance: 4800000, Cash: 3300000 },
-  { month: "Mar", Finance: 4200000, Cash: 3400000 },
-];
+const financeVsCashData: { month: string; Finance: number; Cash: number }[] = [];
 
-const testDriveConversionData = [
-  { stage: "Leads", count: 120 },
-  { stage: "Test Drives", count: 74 },
-  { stage: "Follow-up", count: 52 },
-  { stage: "Bookings", count: 31 },
-  { stage: "Deliveries", count: 24 },
-];
+const testDriveConversionData: { stage: string; count: number }[] = [];
 
 // ── Chart Components ─────────────────────────────────────────────────────────
 

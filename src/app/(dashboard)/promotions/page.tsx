@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Megaphone, Plus, Send, Edit2, Trash2, Calendar, Percent, Tag,
   MessageSquare, Mail, Phone, Users, UserPlus, UserCheck, Sparkles,
-  Copy, CheckCircle2,
+  Copy, CheckCircle2, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -48,15 +48,6 @@ const defaultPromo: Omit<Promotion, "id" | "status"> = {
   applicableBrands: "", applicableVehicles: "", type: "Festival",
 };
 
-function getStatus(from: string, to: string): "Active" | "Upcoming" | "Expired" {
-  const now = new Date();
-  const f = new Date(from);
-  const t = new Date(to);
-  if (now > t) return "Expired";
-  if (now < f) return "Upcoming";
-  return "Active";
-}
-
 const statusColor: Record<string, string> = {
   Active: "bg-green-600",
   Upcoming: "bg-blue-600",
@@ -64,19 +55,8 @@ const statusColor: Record<string, string> = {
 };
 
 export default function PromotionsPage() {
-  const [promotions, setPromotions] = useState<Promotion[]>([
-    {
-      id: "P001", title: "🪔 Diwali Dhamaka Sale", description: "Sabhi Honda vehicles par 15% tak discount!",
-      discountPercent: 15, validFrom: "2026-10-15", validTo: "2026-11-05",
-      applicableBrands: "Honda, TVS", applicableVehicles: "All Two-Wheelers", type: "Festival", status: "Upcoming",
-    },
-    {
-      id: "P002", title: "🔧 Free Service Camp", description: "Free multi-point checkup + spare parts par 20% off",
-      discountPercent: 20, validFrom: "2026-03-01", validTo: "2026-03-31",
-      applicableBrands: "All Brands", applicableVehicles: "All Vehicles", type: "Service", status: "Active",
-    },
-  ]);
-
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -85,19 +65,72 @@ export default function PromotionsPage() {
   const [sendChannel, setSendChannel] = useState("whatsapp");
   const [selectedPromo, setSelectedPromo] = useState<Promotion | null>(null);
 
-  const handleSave = () => {
+  const fetchPromotions = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/promotions");
+      const data = await res.json();
+      if (data.success && data.promotions) {
+        const mapped: Promotion[] = data.promotions.map((p: Record<string, unknown>) => ({
+          id: p.id as string,
+          title: (p.title as string) || "",
+          description: (p.description as string) || "",
+          discountPercent: (p.discountPercent as number) || 0,
+          validFrom: p.validFrom ? new Date(p.validFrom as string).toISOString().split("T")[0] : "",
+          validTo: p.validTo ? new Date(p.validTo as string).toISOString().split("T")[0] : "",
+          applicableBrands: (p.applicableBrands as string) || "",
+          applicableVehicles: (p.applicableVehicles as string) || "",
+          type: (p.type as string) || "Festival",
+          status: (p.status as "Active" | "Upcoming" | "Expired") || "Active",
+        }));
+        setPromotions(mapped);
+      }
+    } catch {
+      toast.error("Failed to load promotions");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPromotions();
+  }, [fetchPromotions]);
+
+  const handleSave = async () => {
     if (!form.title || !form.validFrom || !form.validTo) {
       toast.error("Title aur dates required hain!");
       return;
     }
-    const status = getStatus(form.validFrom, form.validTo);
-    if (editingId) {
-      setPromotions((prev) => prev.map((p) => p.id === editingId ? { ...p, ...form, status } : p));
-      toast.success("Promotion updated successfully! ✅");
-    } else {
-      const newPromo: Promotion = { ...form, id: `P${String(Date.now()).slice(-4)}`, status };
-      setPromotions((prev) => [...prev, newPromo]);
-      toast.success("Naya promotion create ho gaya! 🎉");
+    try {
+      if (editingId) {
+        const res = await fetch("/api/promotions", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: editingId, ...form }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast.success("Promotion updated successfully! ✅");
+          fetchPromotions();
+        } else {
+          toast.error(data.error || "Failed to update");
+        }
+      } else {
+        const res = await fetch("/api/promotions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast.success("Naya promotion create ho gaya! 🎉");
+          fetchPromotions();
+        } else {
+          toast.error(data.error || "Failed to create");
+        }
+      }
+    } catch {
+      toast.error("Failed to save promotion");
     }
     setDialogOpen(false);
     setEditingId(null);
@@ -110,9 +143,19 @@ export default function PromotionsPage() {
     setDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    setPromotions((prev) => prev.filter((p) => p.id !== id));
-    toast.success("Promotion delete ho gaya!");
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`/api/promotions?id=${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        setPromotions((prev) => prev.filter((p) => p.id !== id));
+        toast.success("Promotion delete ho gaya!");
+      } else {
+        toast.error(data.error || "Failed to delete");
+      }
+    } catch {
+      toast.error("Failed to delete promotion");
+    }
   };
 
   const handleUseTemplate = (t: typeof promotionTemplates[0]) => {
@@ -124,6 +167,17 @@ export default function PromotionsPage() {
     toast.success(`Promotion "${selectedPromo?.title}" ${sendTarget} customers ko ${sendChannel} se bhej di gayi! 📨`);
     setSendDialogOpen(false);
   };
+
+  if (loading) {
+    return (
+      <div className="p-4 md:p-6 flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-3">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="text-muted-foreground text-sm">Loading promotions...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -227,49 +281,61 @@ export default function PromotionsPage() {
       </div>
 
       {/* Promotion Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {promotions.map((promo) => (
-          <Card key={promo.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-base">{promo.title}</CardTitle>
-                  <p className="text-xs text-muted-foreground mt-1">{promo.id} • {promo.type}</p>
+      {promotions.length === 0 ? (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <Megaphone className="h-16 w-16 mx-auto text-muted-foreground mb-4 opacity-30" />
+            <h3 className="text-lg font-semibold mb-2">No Promotions Yet</h3>
+            <p className="text-muted-foreground text-sm max-w-md mx-auto">
+              Create promotional campaigns to attract customers. Offer festival discounts, service camp specials, insurance packages, and more. Click &quot;Naya Promotion&quot; to get started or use a quick template below.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {promotions.map((promo) => (
+            <Card key={promo.id} className="hover:shadow-lg transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-base">{promo.title}</CardTitle>
+                    <p className="text-xs text-muted-foreground mt-1">{promo.type}</p>
+                  </div>
+                  <Badge className={statusColor[promo.status] || "bg-gray-500"}>{promo.status}</Badge>
                 </div>
-                <Badge className={statusColor[promo.status]}>{promo.status}</Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">{promo.description}</p>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="bg-muted rounded p-2">
-                  <span className="text-muted-foreground">Discount</span>
-                  <p className="font-bold text-primary">{promo.discountPercent}% OFF</p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">{promo.description}</p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-muted rounded p-2">
+                    <span className="text-muted-foreground">Discount</span>
+                    <p className="font-bold text-primary">{promo.discountPercent}% OFF</p>
+                  </div>
+                  <div className="bg-muted rounded p-2">
+                    <span className="text-muted-foreground">Duration</span>
+                    <p className="font-medium">{promo.validFrom} → {promo.validTo}</p>
+                  </div>
                 </div>
-                <div className="bg-muted rounded p-2">
-                  <span className="text-muted-foreground">Duration</span>
-                  <p className="font-medium">{promo.validFrom} → {promo.validTo}</p>
+                {promo.applicableBrands && (
+                  <p className="text-xs"><span className="text-muted-foreground">Brands:</span> {promo.applicableBrands}</p>
+                )}
+                <Separator />
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="flex-1" onClick={() => handleEdit(promo)}>
+                    <Edit2 className="h-3 w-3 mr-1" /> Edit
+                  </Button>
+                  <Button size="sm" variant="outline" className="flex-1" onClick={() => { setSelectedPromo(promo); setSendDialogOpen(true); }}>
+                    <Send className="h-3 w-3 mr-1" /> Send
+                  </Button>
+                  <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700" onClick={() => handleDelete(promo.id)}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
                 </div>
-              </div>
-              {promo.applicableBrands && (
-                <p className="text-xs"><span className="text-muted-foreground">Brands:</span> {promo.applicableBrands}</p>
-              )}
-              <Separator />
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="flex-1" onClick={() => handleEdit(promo)}>
-                  <Edit2 className="h-3 w-3 mr-1" /> Edit
-                </Button>
-                <Button size="sm" variant="outline" className="flex-1" onClick={() => { setSelectedPromo(promo); setSendDialogOpen(true); }}>
-                  <Send className="h-3 w-3 mr-1" /> Send
-                </Button>
-                <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700" onClick={() => handleDelete(promo.id)}>
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Send Dialog */}
       <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>

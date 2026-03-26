@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,8 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -18,50 +16,51 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
   UserPlus, Phone, Mail, MessageSquare, Calendar, TrendingUp,
-  Target, Zap, Brain, MoreHorizontal, Star, Clock, AlertCircle,
-  DollarSign, Users, Activity, PieChart, BarChart3, LineChart,
-  Filter, Search, Download, Share, Eye, Edit, Trash2, Plus,
-  CheckCircle, XCircle, ArrowUp, ArrowDown, ArrowRight,
-  Smartphone, Globe, MapPin, Heart, ThumbsUp, Send, Bot,
-  Lightbulb, Rocket, Trophy, Flame
+  Target, Zap, Brain, MoreHorizontal,
+  DollarSign, Users, Activity,
+  Search, Download, Eye, Edit, Trash2,
+  ArrowUp, ArrowDown,
+  Rocket, Flame, Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 
 // Enhanced lead scoring algorithm
-const calculateLeadScore = (lead: any) => {
+const calculateLeadScore = (lead: EnhancedLead) => {
   let score = 0;
   
-  // Demographics (20 points)
-  if (lead.age >= 25 && lead.age <= 45) score += 10;
-  if (lead.income >= 500000) score += 10;
+  // Status-based scoring
+  if (lead.status === "hot") score += 40;
+  else if (lead.status === "warm") score += 25;
+  else score += 10;
   
-  // Engagement (30 points)
-  score += Math.min(lead.touchpoints * 2, 15);
-  if (lead.responseTime <= 2) score += 10;
-  if (lead.lastContact <= 3) score += 5;
-  
-  // Intent (25 points)
-  if (lead.budgetConfirmed) score += 10;
-  if (lead.timeframe <= 30) score += 10;
-  if (lead.testRideBooked) score += 5;
-  
-  // Behavioral (25 points)
-  if (lead.websiteVisits >= 3) score += 5;
-  if (lead.brochureDownloaded) score += 5;
-  if (lead.compareVehicles) score += 5;
-  if (lead.financingInquiry) score += 5;
-  if (lead.referralSource === 'Friend') score += 5;
+  // Has phone
+  if (lead.phone) score += 10;
+  // Has vehicle interest
+  if (lead.vehicle) score += 15;
+  // Has email
+  if (lead.email) score += 5;
+  // Recent lead (within 7 days)
+  if (lead.createdAt) {
+    const daysSinceCreation = Math.floor((Date.now() - new Date(lead.createdAt).getTime()) / 86400000);
+    if (daysSinceCreation <= 7) score += 15;
+    else if (daysSinceCreation <= 14) score += 10;
+    else if (daysSinceCreation <= 30) score += 5;
+  }
+  // Has source
+  if (lead.source) score += 5;
+  // Notes present
+  if (lead.notes) score += 5;
   
   return Math.min(Math.round(score), 100);
 };
 
 // AI-powered lead insights
-const generateLeadInsights = (lead: any) => {
-  const insights = [];
+const generateLeadInsights = (lead: EnhancedLead) => {
+  const insights: Array<{ type: string; title: string; message: string; action: string; priority: string }> = [];
   const score = lead.score;
   
   if (score >= 80) {
@@ -98,184 +97,102 @@ const generateLeadInsights = (lead: any) => {
     });
   }
   
-  // Behavioral insights
-  if (lead.budgetMismatch) {
-    insights.push({
-      type: 'warning',
-      title: '💰 Budget Concern',
-      message: 'Budget might be lower than vehicle price',
-      action: 'Show EMI Options',
-      priority: 'medium'
-    });
-  }
-  
-  if (lead.competitorMention) {
-    insights.push({
-      type: 'info',
-      title: '⚔️ Competition Alert',
-      message: `Also considering ${lead.competitorMention}`,
-      action: 'Send Comparison',
-      priority: 'high'
-    });
-  }
-  
-  if (lead.lastContact > 7) {
-    insights.push({
-      type: 'warning',
-      title: '🚨 Follow-up Overdue',
-      message: `No contact since ${lead.lastContact} days`,
-      action: 'Follow Up Now',
-      priority: 'urgent'
-    });
-  }
-  
   return insights;
 };
 
-// Mock enhanced lead data
-const mockLeads = [
-  {
-    id: "1",
-    name: "Rahul Kumar",
-    phone: "+91-9876543210",
-    email: "rahul@email.com",
-    source: "Website",
-    status: "hot",
-    interestedVehicle: "KTM Duke 390",
-    budget: 350000,
-    age: 28,
-    income: 800000,
-    location: "Gomti Nagar, Lucknow",
-    touchpoints: 8,
-    responseTime: 1, // hours
-    lastContact: 1, // days ago
-    budgetConfirmed: true,
-    timeframe: 15, // days
-    testRideBooked: true,
-    websiteVisits: 5,
-    brochureDownloaded: true,
-    compareVehicles: true,
-    financingInquiry: true,
-    referralSource: "Google Ads",
-    competitorMention: "Yamaha R15",
-    budgetMismatch: false,
-    notes: "Very interested, comparing with Yamaha R15. Budget confirmed. Test ride scheduled for tomorrow.",
-    createdAt: "2026-03-22",
-    nextFollowUp: "2026-03-24",
-    assignedTo: "Priya Sharma",
-    tags: ["Hot Lead", "Test Ride", "Budget Confirmed"],
-    socialMedia: {
-      facebook: "rahul.kumar.12345",
-      instagram: "@rahul_bikes",
-      linkedin: null
-    },
-    preferences: {
-      communication: "WhatsApp",
-      callTime: "Evening",
-      language: "Hindi"
-    }
-  },
-  {
-    id: "2", 
-    name: "Priya Singh",
-    phone: "+91-9876543211",
-    email: "priya@email.com",
-    source: "Referral",
-    status: "warm",
-    interestedVehicle: "Triumph Scrambler 400X",
-    budget: 280000,
-    age: 32,
-    income: 1200000,
-    location: "Hazratganj, Lucknow",
-    touchpoints: 4,
-    responseTime: 3,
-    lastContact: 5,
-    budgetConfirmed: false,
-    timeframe: 45,
-    testRideBooked: false,
-    websiteVisits: 2,
-    brochureDownloaded: true,
-    compareVehicles: false,
-    financingInquiry: false,
-    referralSource: "Friend",
-    competitorMention: null,
-    budgetMismatch: true,
-    notes: "Interested but budget seems tight. Suggested EMI options. Needs to discuss with husband.",
-    createdAt: "2026-03-20",
-    nextFollowUp: "2026-03-25",
-    assignedTo: "Amit Verma",
-    tags: ["Budget Concern", "Family Decision"],
-    socialMedia: {
-      facebook: "priya.singh.789",
-      instagram: "@priya_adventure",
-      linkedin: "priya-singh-marketing"
-    },
-    preferences: {
-      communication: "Phone Call",
-      callTime: "Morning",
-      language: "English"
-    }
-  },
-  {
-    id: "3",
-    name: "Arjun Patel",
-    phone: "+91-9876543212", 
-    email: "arjun@email.com",
-    source: "Walk-in",
-    status: "cold",
-    interestedVehicle: "KTM RC 200",
-    budget: 200000,
-    age: 22,
-    income: 300000,
-    location: "Alambagh, Lucknow",
-    touchpoints: 2,
-    responseTime: 8,
-    lastContact: 12,
-    budgetConfirmed: false,
-    timeframe: 90,
-    testRideBooked: false,
-    websiteVisits: 1,
-    brochureDownloaded: false,
-    compareVehicles: true,
-    financingInquiry: true,
-    referralSource: "Walk-in",
-    competitorMention: "Honda CBR150R",
-    budgetMismatch: true,
-    notes: "Student, first bike purchase. Needs financing. Not responding to calls.",
-    createdAt: "2026-03-15",
-    nextFollowUp: "2026-03-26",
-    assignedTo: "Rohit Singh",
-    tags: ["Student", "First Bike", "Financing Needed"],
-    socialMedia: {
-      facebook: null,
-      instagram: "@arjun_rides",
-      linkedin: null
-    },
-    preferences: {
-      communication: "WhatsApp",
-      callTime: "Anytime",
-      language: "Hindi"
-    }
+// AI recommendation generator
+const generateAIRecommendation = (lead: EnhancedLead) => {
+  const recommendations: string[] = [];
+  
+  if (lead.score >= 80) {
+    recommendations.push("🚀 URGENT: Call immediately and offer special discount");
+    recommendations.push("📋 Schedule test ride within next 24 hours");
+    recommendations.push("💰 Prepare financing options and trade-in quotes");
+  } else if (lead.score >= 60) {
+    recommendations.push("📞 Call within next 2 days with vehicle comparison");
+    recommendations.push("📱 Send WhatsApp with EMI calculator and offers");
+    recommendations.push("🎯 Invite for upcoming vehicle showcase event");
+  } else {
+    recommendations.push("📧 Send informational email about vehicle features");
+    recommendations.push("📱 Add to WhatsApp broadcast for monthly updates");
+    recommendations.push("🔄 Re-engage after 2 weeks with new approach");
   }
-];
+  
+  return recommendations;
+};
 
-// Assign dynamic scores
-mockLeads.forEach(lead => {
-  lead.score = calculateLeadScore(lead);
-  lead.insights = generateLeadInsights(lead);
-});
+interface EnhancedLead {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  source: string;
+  status: "hot" | "warm" | "cold";
+  vehicle: string;
+  location: string;
+  notes: string;
+  createdAt: string;
+  assignedTo: string;
+  tags: string[];
+  score: number;
+  insights: Array<{ type: string; title: string; message: string; action: string; priority: string }>;
+}
 
 export default function AdvancedCRMPage() {
-  const [leads, setLeads] = useState(mockLeads);
-  const [filteredLeads, setFilteredLeads] = useState(mockLeads);
-  const [selectedLead, setSelectedLead] = useState(null);
+  const [leads, setLeads] = useState<EnhancedLead[]>([]);
+  const [filteredLeads, setFilteredLeads] = useState<EnhancedLead[]>([]);
+  const [selectedLead, setSelectedLead] = useState<EnhancedLead | null>(null);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [scoreFilter, setScoreFilter] = useState([0, 100]);
   const [sourceFilter, setSourceFilter] = useState("all");
   const [sortBy, setSortBy] = useState("score");
   const [sortOrder, setSortOrder] = useState("desc");
-  const [viewMode, setViewMode] = useState("table"); // table, cards, pipeline
+  const [viewMode, setViewMode] = useState("table");
+
+  const fetchLeads = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/leads");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const mapped: EnhancedLead[] = data.map((l: Record<string, unknown>) => {
+          const dealHealth = ((l.dealHealth as string) || "").toUpperCase();
+          const status: "hot" | "warm" | "cold" = dealHealth === "HOT" ? "hot" : dealHealth === "WARM" ? "warm" : "cold";
+          const lead: EnhancedLead = {
+            id: l.id as string,
+            name: (l.customerName as string) || "Unknown",
+            phone: (l.mobile as string) || "",
+            email: (l.email as string) || "",
+            source: (l.source as string) || "Walk-in",
+            status,
+            vehicle: (l.interestedModel as string) || "",
+            location: "",
+            notes: (l.notes as string) || "",
+            createdAt: (l.createdAt as string) || "",
+            assignedTo: "",
+            tags: [],
+            score: 0,
+            insights: [],
+          };
+          // Compute score and insights
+          lead.score = calculateLeadScore(lead);
+          lead.insights = generateLeadInsights(lead);
+          return lead;
+        });
+        setLeads(mapped);
+      }
+    } catch {
+      toast.error("Failed to load leads");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLeads();
+  }, [fetchLeads]);
 
   // Filter and sort leads
   useEffect(() => {
@@ -283,7 +200,7 @@ export default function AdvancedCRMPage() {
       const matchesSearch = lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            lead.phone.includes(searchQuery) ||
                            lead.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           lead.interestedVehicle.toLowerCase().includes(searchQuery.toLowerCase());
+                           lead.vehicle.toLowerCase().includes(searchQuery.toLowerCase());
       
       const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
       const matchesScore = lead.score >= scoreFilter[0] && lead.score <= scoreFilter[1];
@@ -292,21 +209,23 @@ export default function AdvancedCRMPage() {
       return matchesSearch && matchesStatus && matchesScore && matchesSource;
     });
 
-    // Sort leads
     filtered.sort((a, b) => {
-      let aVal = a[sortBy];
-      let bVal = b[sortBy];
+      const key = sortBy as keyof EnhancedLead;
+      let aVal = a[key];
+      let bVal = b[key];
       
-      if (sortBy === "score" || sortBy === "budget" || sortBy === "touchpoints") {
-        aVal = Number(aVal);
-        bVal = Number(bVal);
+      if (sortBy === "score") {
+        aVal = a.score;
+        bVal = b.score;
       }
       
-      if (sortOrder === "asc") {
-        return aVal > bVal ? 1 : -1;
-      } else {
-        return aVal < bVal ? 1 : -1;
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
       }
+      
+      const aStr = String(aVal || "");
+      const bStr = String(bVal || "");
+      return sortOrder === "asc" ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
     });
 
     setFilteredLeads(filtered);
@@ -317,18 +236,17 @@ export default function AdvancedCRMPage() {
   const hotLeads = leads.filter(l => l.status === "hot").length;
   const warmLeads = leads.filter(l => l.status === "warm").length;
   const coldLeads = leads.filter(l => l.status === "cold").length;
-  const avgScore = Math.round(leads.reduce((sum, l) => sum + l.score, 0) / leads.length);
-  const conversionRate = Math.round((hotLeads / totalLeads) * 100);
-  const totalBudget = leads.reduce((sum, l) => sum + l.budget, 0);
+  const avgScore = totalLeads > 0 ? Math.round(leads.reduce((sum, l) => sum + l.score, 0) / totalLeads) : 0;
+  const conversionRate = totalLeads > 0 ? Math.round((hotLeads / totalLeads) * 100) : 0;
 
-  const getScoreBadge = (score) => {
+  const getScoreBadge = (score: number) => {
     if (score >= 80) return <Badge className="bg-red-100 text-red-700"><Flame className="h-3 w-3 mr-1" />HOT {score}</Badge>;
     if (score >= 60) return <Badge className="bg-yellow-100 text-yellow-700"><Zap className="h-3 w-3 mr-1" />WARM {score}</Badge>;
     if (score >= 40) return <Badge className="bg-blue-100 text-blue-700"><Activity className="h-3 w-3 mr-1" />COLD {score}</Badge>;
     return <Badge className="bg-gray-100 text-gray-700">INACTIVE {score}</Badge>;
   };
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: string) => {
     switch(status) {
       case "hot": return "text-red-600 bg-red-50";
       case "warm": return "text-yellow-600 bg-yellow-50";
@@ -337,7 +255,7 @@ export default function AdvancedCRMPage() {
     }
   };
 
-  const handleAction = (leadId, action) => {
+  const handleAction = (leadId: string, action: string) => {
     switch(action) {
       case "call":
         toast.success("📞 Calling lead...");
@@ -356,33 +274,16 @@ export default function AdvancedCRMPage() {
     }
   };
 
-  const generateAIRecommendation = (lead) => {
-    const recommendations = [];
-    
-    if (lead.score >= 80) {
-      recommendations.push("🚀 URGENT: Call immediately and offer special discount");
-      recommendations.push("📋 Schedule test ride within next 24 hours");
-      recommendations.push("💰 Prepare financing options and trade-in quotes");
-    } else if (lead.score >= 60) {
-      recommendations.push("📞 Call within next 2 days with vehicle comparison");
-      recommendations.push("📱 Send WhatsApp with EMI calculator and offers");
-      recommendations.push("🎯 Invite for upcoming vehicle showcase event");
-    } else {
-      recommendations.push("📧 Send informational email about vehicle features");
-      recommendations.push("📱 Add to WhatsApp broadcast for monthly updates");
-      recommendations.push("🔄 Re-engage after 2 weeks with new approach");
-    }
-    
-    if (lead.competitorMention) {
-      recommendations.push(`⚔️ Send comparison sheet vs ${lead.competitorMention}`);
-    }
-    
-    if (lead.budgetMismatch) {
-      recommendations.push("💳 Share EMI options and down payment schemes");
-    }
-    
-    return recommendations;
-  };
+  if (loading) {
+    return (
+      <div className="space-y-6 flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-3">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="text-muted-foreground text-sm">Loading leads with AI scoring...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -479,12 +380,12 @@ export default function AdvancedCRMPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                <DollarSign className="h-5 w-5 text-indigo-600" />
+              <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Activity className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Pipeline</p>
-                <p className="text-2xl font-bold text-indigo-600">₹{(totalBudget/100000).toFixed(1)}L</p>
+                <p className="text-sm text-muted-foreground">Cold Leads</p>
+                <p className="text-2xl font-bold text-blue-600">{coldLeads}</p>
               </div>
             </div>
           </CardContent>
@@ -540,8 +441,6 @@ export default function AdvancedCRMPage() {
               <SelectContent>
                 <SelectItem value="score">🎯 Lead Score</SelectItem>
                 <SelectItem value="name">👤 Name</SelectItem>
-                <SelectItem value="budget">💰 Budget</SelectItem>
-                <SelectItem value="lastContact">📞 Last Contact</SelectItem>
                 <SelectItem value="createdAt">📅 Date Added</SelectItem>
               </SelectContent>
             </Select>
@@ -578,13 +477,6 @@ export default function AdvancedCRMPage() {
           >
             Card View
           </Button>
-          <Button 
-            variant={viewMode === "pipeline" ? "default" : "outline"} 
-            size="sm"
-            onClick={() => setViewMode("pipeline")}
-          >
-            Pipeline View
-          </Button>
         </div>
         
         <div className="flex items-center gap-2">
@@ -599,8 +491,26 @@ export default function AdvancedCRMPage() {
         </div>
       </div>
 
-      {/* Enhanced Lead Table */}
-      {viewMode === "table" && (
+      {/* Empty State */}
+      {leads.length === 0 ? (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <UserPlus className="h-16 w-16 mx-auto text-muted-foreground mb-4 opacity-30" />
+            <h3 className="text-lg font-semibold mb-2">No Leads Yet</h3>
+            <p className="text-muted-foreground text-sm max-w-md mx-auto">
+              Leads will appear here once customers enquire about vehicles. Add leads manually or they&apos;ll be captured from walk-ins, website forms, and phone enquiries. AI scoring will automatically rank them.
+            </p>
+          </CardContent>
+        </Card>
+      ) : filteredLeads.length === 0 ? (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <Search className="h-12 w-12 mx-auto text-muted-foreground mb-3 opacity-30" />
+            <h3 className="text-lg font-semibold mb-1">No matching leads</h3>
+            <p className="text-muted-foreground text-sm">Try adjusting your search or filters</p>
+          </CardContent>
+        </Card>
+      ) : viewMode === "table" ? (
         <Card>
           <CardContent className="p-0">
             <Table>
@@ -609,9 +519,8 @@ export default function AdvancedCRMPage() {
                   <TableHead>Lead Details</TableHead>
                   <TableHead>Score & Status</TableHead>
                   <TableHead>Vehicle Interest</TableHead>
-                  <TableHead>Budget & Timeline</TableHead>
                   <TableHead>AI Insights</TableHead>
-                  <TableHead>Last Contact</TableHead>
+                  <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -622,12 +531,7 @@ export default function AdvancedCRMPage() {
                       <div className="space-y-1">
                         <div className="font-medium">{lead.name}</div>
                         <div className="text-sm text-muted-foreground">📱 {lead.phone}</div>
-                        <div className="text-sm text-muted-foreground">📍 {lead.location}</div>
-                        <div className="flex gap-1 mt-1">
-                          {lead.tags.slice(0, 2).map((tag, i) => (
-                            <Badge key={i} variant="secondary" className="text-xs">{tag}</Badge>
-                          ))}
-                        </div>
+                        {lead.email && <div className="text-sm text-muted-foreground">✉️ {lead.email}</div>}
                       </div>
                     </TableCell>
                     
@@ -637,31 +541,13 @@ export default function AdvancedCRMPage() {
                         <div className={`text-xs px-2 py-1 rounded-full ${getStatusColor(lead.status)}`}>
                           {lead.status.toUpperCase()}
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {lead.touchpoints} touchpoints
-                        </div>
                       </div>
                     </TableCell>
                     
                     <TableCell>
                       <div className="space-y-1">
-                        <div className="font-medium text-sm">{lead.interestedVehicle}</div>
+                        <div className="font-medium text-sm">{lead.vehicle || "Not specified"}</div>
                         <div className="text-xs text-muted-foreground">via {lead.source}</div>
-                        {lead.competitorMention && (
-                          <div className="text-xs text-orange-600">vs {lead.competitorMention}</div>
-                        )}
-                      </div>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="font-medium">₹{(lead.budget/100000).toFixed(1)}L</div>
-                        <div className="text-xs text-muted-foreground">
-                          {lead.budgetConfirmed ? "✅ Confirmed" : "❓ Unconfirmed"}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {lead.timeframe} days timeline
-                        </div>
                       </div>
                     </TableCell>
                     
@@ -682,12 +568,8 @@ export default function AdvancedCRMPage() {
                     </TableCell>
                     
                     <TableCell>
-                      <div className="space-y-1">
-                        <div className="text-sm">{lead.lastContact} days ago</div>
-                        <div className="text-xs text-muted-foreground">by {lead.assignedTo}</div>
-                        <div className="text-xs text-muted-foreground">
-                          Next: {lead.nextFollowUp}
-                        </div>
+                      <div className="text-sm">
+                        {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString("en-IN") : "—"}
                       </div>
                     </TableCell>
                     
@@ -731,6 +613,47 @@ export default function AdvancedCRMPage() {
             </Table>
           </CardContent>
         </Card>
+      ) : (
+        /* Card View */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredLeads.map((lead) => (
+            <Card key={lead.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedLead(lead)}>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-semibold">{lead.name}</p>
+                    <p className="text-sm text-muted-foreground">{lead.phone}</p>
+                  </div>
+                  {getScoreBadge(lead.score)}
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">{lead.vehicle || "No vehicle specified"}</span>
+                  <span className="text-muted-foreground ml-2">via {lead.source}</span>
+                </div>
+                {lead.insights[0] && (
+                  <div className={`text-xs p-2 rounded ${
+                    lead.insights[0].type === 'success' ? 'bg-green-50 text-green-700' :
+                    lead.insights[0].type === 'warning' ? 'bg-yellow-50 text-yellow-700' :
+                    'bg-blue-50 text-blue-700'
+                  }`}>
+                    {lead.insights[0].title} — {lead.insights[0].message}
+                  </div>
+                )}
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); handleAction(lead.id, "call"); }}>
+                    <Phone className="h-3 w-3" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); handleAction(lead.id, "whatsapp"); }}>
+                    <MessageSquare className="h-3 w-3" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); handleAction(lead.id, "email"); }}>
+                    <Mail className="h-3 w-3" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
 
       {/* Lead Detail Modal */}
@@ -744,7 +667,7 @@ export default function AdvancedCRMPage() {
                 </div>
                 <div>
                   <div className="text-xl font-bold">{selectedLead.name}</div>
-                  <div className="text-sm text-muted-foreground">{selectedLead.interestedVehicle}</div>
+                  <div className="text-sm text-muted-foreground">{selectedLead.vehicle || "No vehicle specified"}</div>
                 </div>
                 <div className="ml-auto">
                   {getScoreBadge(selectedLead.score)}
@@ -756,7 +679,6 @@ export default function AdvancedCRMPage() {
               <TabsList>
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="insights">AI Insights</TabsTrigger>
-                <TabsTrigger value="timeline">Timeline</TabsTrigger>
                 <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
               </TabsList>
               
@@ -766,38 +688,18 @@ export default function AdvancedCRMPage() {
                     <h3 className="font-semibold">📞 Contact Information</h3>
                     <div className="space-y-2 text-sm">
                       <div>Phone: {selectedLead.phone}</div>
-                      <div>Email: {selectedLead.email}</div>
-                      <div>Location: {selectedLead.location}</div>
-                      <div>Preferred Communication: {selectedLead.preferences.communication}</div>
-                      <div>Best Call Time: {selectedLead.preferences.callTime}</div>
-                      <div>Language: {selectedLead.preferences.language}</div>
-                    </div>
-                    
-                    <h3 className="font-semibold">💰 Financial Details</h3>
-                    <div className="space-y-2 text-sm">
-                      <div>Budget: ₹{(selectedLead.budget/100000).toFixed(1)}L</div>
-                      <div>Income: ₹{(selectedLead.income/100000).toFixed(1)}L/year</div>
-                      <div>Budget Status: {selectedLead.budgetConfirmed ? "✅ Confirmed" : "❓ Unconfirmed"}</div>
-                      <div>Financing Interest: {selectedLead.financingInquiry ? "Yes" : "No"}</div>
+                      <div>Email: {selectedLead.email || "Not provided"}</div>
+                      <div>Source: {selectedLead.source}</div>
                     </div>
                   </div>
                   
                   <div className="space-y-4">
-                    <h3 className="font-semibold">🎯 Engagement Metrics</h3>
+                    <h3 className="font-semibold">🎯 Lead Details</h3>
                     <div className="space-y-2 text-sm">
-                      <div>Total Touchpoints: {selectedLead.touchpoints}</div>
-                      <div>Website Visits: {selectedLead.websiteVisits}</div>
-                      <div>Response Time: {selectedLead.responseTime} hours</div>
-                      <div>Last Contact: {selectedLead.lastContact} days ago</div>
-                      <div>Next Follow-up: {selectedLead.nextFollowUp}</div>
-                    </div>
-                    
-                    <h3 className="font-semibold">🔍 Behavioral Data</h3>
-                    <div className="space-y-2 text-sm">
-                      <div>Brochure Downloaded: {selectedLead.brochureDownloaded ? "✅" : "❌"}</div>
-                      <div>Test Ride Booked: {selectedLead.testRideBooked ? "✅" : "❌"}</div>
-                      <div>Vehicle Comparison: {selectedLead.compareVehicles ? "✅" : "❌"}</div>
-                      <div>Competitor Interest: {selectedLead.competitorMention || "None"}</div>
+                      <div>Vehicle Interest: {selectedLead.vehicle || "Not specified"}</div>
+                      <div>Status: {selectedLead.status.toUpperCase()}</div>
+                      <div>Created: {selectedLead.createdAt ? new Date(selectedLead.createdAt).toLocaleDateString("en-IN") : "—"}</div>
+                      {selectedLead.notes && <div>Notes: {selectedLead.notes}</div>}
                     </div>
                   </div>
                 </div>

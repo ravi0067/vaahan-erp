@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,7 @@ import {
   Phone, MessageSquare, Mail, Bell, Send, Plus, Calendar, Clock,
   CheckCircle2, XCircle, AlertTriangle, PhoneCall, PhoneForwarded,
   PhoneMissed, Shield, Wrench, Megaphone, Users, Settings, Trash2,
-  Volume2,
+  Volume2, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -34,28 +34,10 @@ interface CallEntry {
 interface NotificationEntry {
   id: string;
   message: string;
-  type: "insurance" | "service" | "promo" | "general";
+  type: string;
   time: string;
   read: boolean;
 }
-
-// --- Mock Data ---
-const mockCalls: CallEntry[] = [
-  { id: "C001", customerName: "Rajesh Kumar", phone: "+91 98765 43210", purpose: "Insurance Expiry Reminder", status: "Completed", scheduledAt: "2026-03-23 10:00", notes: "Customer ne renewal confirm kiya" },
-  { id: "C002", customerName: "Priya Sharma", phone: "+91 87654 32109", purpose: "Service Due Reminder", status: "Scheduled", scheduledAt: "2026-03-24 11:00", notes: "3 month service due" },
-  { id: "C003", customerName: "Amit Verma", phone: "+91 76543 21098", purpose: "Promotional Call", status: "Missed", scheduledAt: "2026-03-22 14:00", notes: "Diwali offer ke baare mein" },
-  { id: "C004", customerName: "Sunita Devi", phone: "+91 65432 10987", purpose: "Follow-up Call", status: "Rescheduled", scheduledAt: "2026-03-25 09:30", notes: "Booking follow-up - interested in Activa" },
-  { id: "C005", customerName: "Vikram Singh", phone: "+91 54321 09876", purpose: "Insurance Expiry Reminder", status: "Scheduled", scheduledAt: "2026-03-23 15:00", notes: "Insurance 5 din mein expire" },
-];
-
-const mockNotifications: NotificationEntry[] = [
-  { id: "N001", message: "🔴 Rajesh Kumar ka insurance 5 din mein expire ho raha hai!", type: "insurance", time: "2 min ago", read: false },
-  { id: "N002", message: "🔧 Priya Sharma service booking chahti hai - 3 month service due", type: "service", time: "15 min ago", read: false },
-  { id: "N003", message: "📞 Promotion call complete: 45/50 customers contacted", type: "promo", time: "1 hour ago", read: true },
-  { id: "N004", message: "🔴 Amit Verma ka insurance kal expire ho raha hai - urgent call karein!", type: "insurance", time: "2 hours ago", read: false },
-  { id: "N005", message: "✅ Service camp promotion 200 customers ko send ho gayi", type: "promo", time: "3 hours ago", read: true },
-  { id: "N006", message: "🔧 Vikram Singh ki gaadi ka 6-month service due hai", type: "service", time: "5 hours ago", read: true },
-];
 
 const callTemplates = [
   { name: "Insurance Expiry Reminder", icon: Shield, script: "Namaste {name} ji, main {dealership} se bol raha hoon. Aapki {vehicle} ka insurance {date} ko expire ho raha hai. Kya aap renewal karwana chahenge? Hamare paas special rates hain." },
@@ -76,11 +58,16 @@ const notifTypeConfig: Record<string, { color: string; icon: typeof Shield }> = 
   service: { color: "bg-blue-100 text-blue-700", icon: Wrench },
   promo: { color: "bg-green-100 text-green-700", icon: Megaphone },
   general: { color: "bg-gray-100 text-gray-700", icon: Bell },
+  call: { color: "bg-blue-100 text-blue-700", icon: PhoneCall },
+  whatsapp: { color: "bg-green-100 text-green-700", icon: MessageSquare },
+  email: { color: "bg-purple-100 text-purple-700", icon: Mail },
+  sms: { color: "bg-gray-100 text-gray-700", icon: Send },
 };
 
 export default function CommunicationsPage() {
-  const [calls, setCalls] = useState<CallEntry[]>(mockCalls);
-  const [notifications, setNotifications] = useState<NotificationEntry[]>(mockNotifications);
+  const [calls, setCalls] = useState<CallEntry[]>([]);
+  const [notifications, setNotifications] = useState<NotificationEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<typeof callTemplates[0] | null>(null);
@@ -91,32 +78,126 @@ export default function CommunicationsPage() {
     whatsapp: true, email: true, sms: false, push: true,
   });
 
-  const handleScheduleCall = () => {
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [callsRes, notifsRes] = await Promise.all([
+        fetch("/api/communications"),
+        fetch("/api/communications?type=notifications"),
+      ]);
+      const callsData = await callsRes.json();
+      const notifsData = await notifsRes.json();
+
+      if (callsData.success && callsData.calls) {
+        const mapped: CallEntry[] = callsData.calls.map((c: Record<string, unknown>) => ({
+          id: c.id as string,
+          customerName: c.customerName as string,
+          phone: (c.phone as string) || "",
+          purpose: (c.purpose as string) || "",
+          status: (c.status as string) || "Scheduled",
+          scheduledAt: c.scheduledAt ? new Date(c.scheduledAt as string).toLocaleString("en-IN") : "",
+          notes: (c.notes as string) || "",
+        }));
+        setCalls(mapped);
+      }
+
+      if (notifsData.success && notifsData.notifications) {
+        setNotifications(notifsData.notifications.map((n: Record<string, unknown>) => ({
+          id: n.id as string,
+          message: n.message as string,
+          type: (n.type as string) || "general",
+          time: n.time ? new Date(n.time as string).toLocaleString("en-IN") : "",
+          read: n.read as boolean,
+        })));
+      }
+    } catch {
+      toast.error("Failed to load communications data");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleScheduleCall = async () => {
     if (!newCall.customerName || !newCall.phone || !newCall.scheduledAt) {
       toast.error("Customer name, phone aur time required hai!");
       return;
     }
-    const entry: CallEntry = {
-      id: `C${String(Date.now()).slice(-4)}`,
-      ...newCall,
-      status: "Scheduled",
-    };
-    setCalls((prev) => [entry, ...prev]);
-    toast.success(`Call scheduled for ${newCall.customerName}! 📞`);
-    setScheduleOpen(false);
-    setNewCall({ customerName: "", phone: "", purpose: "Insurance Expiry Reminder", scheduledAt: "", notes: "" });
+    try {
+      const res = await fetch("/api/communications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "schedule-call",
+          customerName: newCall.customerName,
+          phone: newCall.phone,
+          purpose: newCall.purpose,
+          scheduledAt: newCall.scheduledAt,
+          notes: newCall.notes,
+          channel: "call",
+          direction: "outbound",
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Call scheduled for ${newCall.customerName}! 📞`);
+        setScheduleOpen(false);
+        setNewCall({ customerName: "", phone: "", purpose: "Insurance Expiry Reminder", scheduledAt: "", notes: "" });
+        fetchData();
+      } else {
+        toast.error(data.error || "Failed to schedule call");
+      }
+    } catch {
+      toast.error("Failed to schedule call");
+    }
   };
 
-  const handleDeleteCall = (id: string) => {
-    setCalls((prev) => prev.filter((c) => c.id !== id));
-    toast.success("Call entry delete ho gayi!");
+  const handleDeleteCall = async (id: string) => {
+    try {
+      const res = await fetch(`/api/communications?id=${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        setCalls((prev) => prev.filter((c) => c.id !== id));
+        toast.success("Call entry delete ho gayi!");
+      } else {
+        toast.error(data.error || "Failed to delete");
+      }
+    } catch {
+      toast.error("Failed to delete call");
+    }
   };
 
-  const markNotifRead = (id: string) => {
-    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+  const markNotifRead = async (id: string) => {
+    try {
+      const res = await fetch("/api/communications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mark-read", id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+      }
+    } catch {
+      // silently fail for mark-read
+    }
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  if (loading) {
+    return (
+      <div className="p-4 md:p-6 flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-3">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="text-muted-foreground text-sm">Loading communications...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -245,44 +326,52 @@ export default function CommunicationsPage() {
               <CardTitle className="text-base">📞 Call Log</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Purpose</TableHead>
-                    <TableHead>Scheduled</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Notes</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {calls.map((call) => {
-                    const cfg = callStatusConfig[call.status];
-                    const StatusIcon = cfg.icon;
-                    return (
-                      <TableRow key={call.id}>
-                        <TableCell className="font-medium">{call.customerName}</TableCell>
-                        <TableCell className="text-xs">{call.phone}</TableCell>
-                        <TableCell><Badge variant="secondary" className="text-xs">{call.purpose}</Badge></TableCell>
-                        <TableCell className="text-xs">{call.scheduledAt}</TableCell>
-                        <TableCell>
-                          <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${cfg.bg} ${cfg.color}`}>
-                            <StatusIcon className="h-3 w-3" /> {call.status}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">{call.notes}</TableCell>
-                        <TableCell>
-                          <Button size="sm" variant="ghost" onClick={() => handleDeleteCall(call.id)}>
-                            <Trash2 className="h-3 w-3 text-red-500" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+              {calls.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <PhoneCall className="h-12 w-12 mb-3 opacity-30" />
+                  <h3 className="text-lg font-semibold mb-1">No calls scheduled yet</h3>
+                  <p className="text-sm text-center max-w-md">Schedule calls to follow up with customers about insurance renewals, service reminders, or promotions. Click &quot;Schedule New Call&quot; to get started.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Purpose</TableHead>
+                      <TableHead>Scheduled</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Notes</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {calls.map((call) => {
+                      const cfg = callStatusConfig[call.status] || callStatusConfig["Scheduled"];
+                      const StatusIcon = cfg.icon;
+                      return (
+                        <TableRow key={call.id}>
+                          <TableCell className="font-medium">{call.customerName}</TableCell>
+                          <TableCell className="text-xs">{call.phone}</TableCell>
+                          <TableCell><Badge variant="secondary" className="text-xs">{call.purpose}</Badge></TableCell>
+                          <TableCell className="text-xs">{call.scheduledAt}</TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${cfg.bg} ${cfg.color}`}>
+                              <StatusIcon className="h-3 w-3" /> {call.status}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">{call.notes}</TableCell>
+                          <TableCell>
+                            <Button size="sm" variant="ghost" onClick={() => handleDeleteCall(call.id)}>
+                              <Trash2 className="h-3 w-3 text-red-500" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -381,28 +470,44 @@ export default function CommunicationsPage() {
             <div className="lg:col-span-2 space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">🔔 Manager / Owner Notifications</h3>
-                <Button size="sm" variant="outline" onClick={() => { setNotifications((prev) => prev.map((n) => ({ ...n, read: true }))); toast.success("Sab notifications read mark ho gaye!"); }}>
-                  Sab Read Karein
-                </Button>
+                {notifications.some((n) => !n.read) && (
+                  <Button size="sm" variant="outline" onClick={() => {
+                    notifications.filter((n) => !n.read).forEach((n) => markNotifRead(n.id));
+                    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+                    toast.success("Sab notifications read mark ho gaye!");
+                  }}>
+                    Sab Read Karein
+                  </Button>
+                )}
               </div>
-              {notifications.map((notif) => {
-                const cfg = notifTypeConfig[notif.type];
-                const NIcon = cfg.icon;
-                return (
-                  <Card key={notif.id} className={`cursor-pointer transition-all ${!notif.read ? "border-l-4 border-l-primary shadow-md" : "opacity-75"}`} onClick={() => markNotifRead(notif.id)}>
-                    <CardContent className="p-4 flex items-start gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${cfg.color}`}>
-                        <NIcon className="h-4 w-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${!notif.read ? "font-medium" : ""}`}>{notif.message}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{notif.time}</p>
-                      </div>
-                      {!notif.read && <span className="w-2 h-2 bg-primary rounded-full shrink-0 mt-2" />}
-                    </CardContent>
-                  </Card>
-                );
-              })}
+              {notifications.length === 0 ? (
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <Bell className="h-12 w-12 mx-auto text-muted-foreground mb-3 opacity-30" />
+                    <h3 className="text-lg font-semibold mb-1">No notifications</h3>
+                    <p className="text-sm text-muted-foreground">Notifications will appear here as communication activities happen — calls scheduled, completed, or missed.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                notifications.map((notif) => {
+                  const cfg = notifTypeConfig[notif.type] || notifTypeConfig["general"];
+                  const NIcon = cfg.icon;
+                  return (
+                    <Card key={notif.id} className={`cursor-pointer transition-all ${!notif.read ? "border-l-4 border-l-primary shadow-md" : "opacity-75"}`} onClick={() => markNotifRead(notif.id)}>
+                      <CardContent className="p-4 flex items-start gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${cfg.color}`}>
+                          <NIcon className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm ${!notif.read ? "font-medium" : ""}`}>{notif.message}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{notif.time}</p>
+                        </div>
+                        {!notif.read && <span className="w-2 h-2 bg-primary rounded-full shrink-0 mt-2" />}
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
             </div>
 
             {/* Notification Preferences */}

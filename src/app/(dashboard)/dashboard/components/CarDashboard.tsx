@@ -108,227 +108,28 @@ interface HotLead {
   dealHealth: "HOT" | "WARM" | "COLD";
 }
 
-// ── Mock/Fallback Data ────────────────────────────────────────────────────────
+// ── Default Empty Data ────────────────────────────────────────────────────────
 
-const MOCK_STATS: CarDashboardStats = {
-  totalRevenue: 34500000,
-  carsSoldThisMonth: 28,
-  activeBookings: 14,
-  testDrivesScheduled: 9,
-  pendingDeliveries: 6,
-  availableStock: 47,
-  financeApplications: 11,
-  exchangeRequests: 5,
+const EMPTY_STATS: CarDashboardStats = {
+  totalRevenue: 0,
+  carsSoldThisMonth: 0,
+  activeBookings: 0,
+  testDrivesScheduled: 0,
+  pendingDeliveries: 0,
+  availableStock: 0,
+  financeApplications: 0,
+  exchangeRequests: 0,
 };
 
-const MOCK_BOOKINGS: CarBooking[] = [
-  {
-    id: "1",
-    bookingNumber: "BK-2024-001",
-    customerName: "Rajesh Sharma",
-    model: "Hyundai Creta",
-    variant: "SX(O)",
-    fuelType: "Diesel",
-    transmission: "Automatic",
-    color: "Phantom Black",
-    amount: 1850000,
-    status: "CONFIRMED",
-    date: "2024-03-18",
-  },
-  {
-    id: "2",
-    bookingNumber: "BK-2024-002",
-    customerName: "Priya Mehta",
-    model: "Tata Nexon EV",
-    variant: "Empowered+",
-    fuelType: "Electric",
-    transmission: "Automatic",
-    color: "Pristine White",
-    amount: 1560000,
-    status: "RTO_PENDING",
-    date: "2024-03-17",
-  },
-  {
-    id: "3",
-    bookingNumber: "BK-2024-003",
-    customerName: "Amit Patel",
-    model: "Kia Seltos",
-    variant: "HTX+",
-    fuelType: "Diesel",
-    transmission: "Automatic",
-    color: "Gravity Grey",
-    amount: 1740000,
-    status: "READY",
-    date: "2024-03-16",
-  },
-  {
-    id: "4",
-    bookingNumber: "BK-2024-004",
-    customerName: "Sunita Gupta",
-    model: "Maruti Swift",
-    variant: "ZXI+",
-    fuelType: "Petrol",
-    transmission: "AMT",
-    color: "Pearl Arctic White",
-    amount: 920000,
-    status: "DELIVERED",
-    date: "2024-03-15",
-  },
-  {
-    id: "5",
-    bookingNumber: "BK-2024-005",
-    customerName: "Vikram Singh",
-    model: "Mahindra XUV700",
-    variant: "AX7 Luxury",
-    fuelType: "Diesel",
-    transmission: "Automatic",
-    color: "Deep Forest",
-    amount: 2450000,
-    status: "DRAFT",
-    date: "2024-03-14",
-  },
-];
 
-const MOCK_TEST_DRIVES: TestDrive[] = [
-  {
-    id: "1",
-    customerName: "Ananya Roy",
-    mobile: "98765 43210",
-    carModel: "Hyundai Creta 2024",
-    scheduledTime: "10:00 AM",
-    salesperson: "Ravi Kumar",
-    status: "SCHEDULED",
-  },
-  {
-    id: "2",
-    customerName: "Deepak Joshi",
-    mobile: "87654 32109",
-    carModel: "Tata Nexon",
-    scheduledTime: "11:30 AM",
-    salesperson: "Priya Shah",
-    status: "COMPLETED",
-  },
-  {
-    id: "3",
-    customerName: "Meera Nair",
-    mobile: "76543 21098",
-    carModel: "Kia Seltos HTX",
-    scheduledTime: "02:00 PM",
-    salesperson: "Arjun Verma",
-    status: "SCHEDULED",
-  },
-  {
-    id: "4",
-    customerName: "Suresh Pillai",
-    mobile: "65432 10987",
-    carModel: "Maruti Baleno",
-    scheduledTime: "03:30 PM",
-    salesperson: "Ravi Kumar",
-    status: "SCHEDULED",
-  },
-];
 
-const MOCK_EXCHANGES: ExchangeRequest[] = [
-  {
-    id: "1",
-    customerName: "Rajesh Kumar",
-    oldCar: "Hyundai i20 (2018)",
-    oldCarYear: 2018,
-    estimatedValue: 520000,
-    status: "VALUATED",
-    newModel: "Hyundai Creta",
-  },
-  {
-    id: "2",
-    customerName: "Sanjay Mishra",
-    oldCar: "Maruti Swift (2019)",
-    oldCarYear: 2019,
-    estimatedValue: 430000,
-    status: "PENDING",
-    newModel: "Tata Nexon",
-  },
-  {
-    id: "3",
-    customerName: "Pooja Reddy",
-    oldCar: "Honda City (2020)",
-    oldCarYear: 2020,
-    estimatedValue: 780000,
-    status: "APPROVED",
-    newModel: "Kia Seltos",
-  },
-];
 
-const MOCK_FINANCE: FinanceApplication[] = [
-  {
-    id: "1",
-    customerName: "Vikram Choudhary",
-    bankName: "HDFC Bank",
-    loanAmount: 1200000,
-    status: "APPROVED",
-    appliedOn: "2024-03-15",
-    carModel: "Hyundai Creta",
-  },
-  {
-    id: "2",
-    customerName: "Geeta Devi",
-    bankName: "SBI",
-    loanAmount: 950000,
-    status: "PENDING",
-    appliedOn: "2024-03-17",
-    carModel: "Maruti Brezza",
-  },
-  {
-    id: "3",
-    customerName: "Ramesh Yadav",
-    bankName: "ICICI Bank",
-    loanAmount: 1800000,
-    status: "DISBURSED",
-    appliedOn: "2024-03-12",
-    carModel: "Kia Seltos",
-  },
-  {
-    id: "4",
-    customerName: "Kavita Sharma",
-    bankName: "Axis Bank",
-    loanAmount: 650000,
-    status: "REJECTED",
-    appliedOn: "2024-03-16",
-    carModel: "Tata Punch",
-  },
-];
 
-const MOCK_HOT_LEADS: HotLead[] = [
-  {
-    id: "1",
-    customerName: "Arun Krishnamurthy",
-    mobile: "98123 45678",
-    interestedModel: "Hyundai Creta / Kia Seltos",
-    budgetMin: 1500000,
-    budgetMax: 2000000,
-    fuelPreference: "Diesel",
-    dealHealth: "HOT",
-  },
-  {
-    id: "2",
-    customerName: "Sita Raman",
-    mobile: "91234 56789",
-    interestedModel: "Tata Nexon EV",
-    budgetMin: 1200000,
-    budgetMax: 1700000,
-    fuelPreference: "Electric",
-    dealHealth: "HOT",
-  },
-  {
-    id: "3",
-    customerName: "Mohan Lal",
-    mobile: "87012 34567",
-    interestedModel: "Maruti Swift / Baleno",
-    budgetMin: 700000,
-    budgetMax: 1000000,
-    fuelPreference: "Petrol",
-    dealHealth: "HOT",
-  },
-];
+
+
+
+
+
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -428,16 +229,8 @@ export function CarDashboard() {
       const statsData = await apiGet<CarDashboardStats>("/api/dashboard/car-stats");
       setStats(statsData);
     } catch {
-      // Fall back to mock data if API not available
-      setStats(MOCK_STATS);
+      setStats(EMPTY_STATS);
     }
-
-    // Use mock data for sections that don't have dedicated APIs yet
-    setRecentBookings(MOCK_BOOKINGS);
-    setTestDrives(MOCK_TEST_DRIVES);
-    setExchanges(MOCK_EXCHANGES);
-    setFinanceApps(MOCK_FINANCE);
-    setHotLeads(MOCK_HOT_LEADS);
 
     try {
       const [bookingsData, leadsData] = await Promise.all([
@@ -460,7 +253,7 @@ export function CarDashboard() {
         }>>("/api/leads?dealHealth=HOT"),
       ]);
 
-      if (bookingsData.length > 0) {
+      if (bookingsData && bookingsData.length > 0) {
         const mapped: CarBooking[] = bookingsData.slice(0, 6).map((b) => ({
           id: b.id,
           bookingNumber: b.bookingNumber,
@@ -477,7 +270,7 @@ export function CarDashboard() {
         setRecentBookings(mapped);
       }
 
-      if (leadsData.length > 0) {
+      if (leadsData && leadsData.length > 0) {
         const mappedLeads: HotLead[] = leadsData.slice(0, 5).map((l) => ({
           id: l.id,
           customerName: l.customerName,
@@ -491,7 +284,7 @@ export function CarDashboard() {
         setHotLeads(mappedLeads);
       }
     } catch {
-      // keep mock data
+      // APIs not available yet — empty state shown
     }
 
     setLoading(false);
@@ -503,7 +296,7 @@ export function CarDashboard() {
 
   if (loading) return <DashboardSkeleton />;
 
-  const currentStats = stats ?? MOCK_STATS;
+  const currentStats = stats ?? EMPTY_STATS;
 
   const statCards = [
     {

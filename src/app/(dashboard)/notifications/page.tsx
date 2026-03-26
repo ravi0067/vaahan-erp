@@ -12,6 +12,8 @@ import {
   Shield,
   AlertTriangle,
   Check,
+  Bell,
+  Loader2,
 } from "lucide-react";
 
 type NotificationType =
@@ -29,12 +31,12 @@ interface Notification {
   title: string;
   message: string;
   time: string;
-  group: "Today" | "Yesterday" | "Earlier";
+  createdAt: string;
   read: boolean;
 }
 
 const typeConfig: Record<
-  NotificationType,
+  string,
   { icon: React.ElementType; color: string; bg: string }
 > = {
   new_lead: { icon: UserPlus, color: "text-blue-600", bg: "bg-blue-100" },
@@ -44,48 +46,149 @@ const typeConfig: Record<
   follow_up: { icon: Calendar, color: "text-orange-600", bg: "bg-orange-100" },
   daybook_lock: { icon: Shield, color: "text-red-600", bg: "bg-red-100" },
   insurance_expiry: { icon: AlertTriangle, color: "text-rose-600", bg: "bg-rose-100" },
+  call: { icon: Calendar, color: "text-blue-600", bg: "bg-blue-100" },
+  whatsapp: { icon: Bell, color: "text-green-600", bg: "bg-green-100" },
+  email: { icon: Bell, color: "text-purple-600", bg: "bg-purple-100" },
+  sms: { icon: Bell, color: "text-gray-600", bg: "bg-gray-100" },
+  general: { icon: Bell, color: "text-gray-600", bg: "bg-gray-100" },
 };
 
-const mockNotifications: Notification[] = [
-  { id: "1", type: "new_lead", title: "New Lead Received", message: "Amit Verma enquired about Honda Activa 6G via walk-in", time: "10 min ago", group: "Today", read: false },
-  { id: "2", type: "payment_received", title: "Payment Received", message: "₹25,000 received from Priya Singh for BK-2024-002", time: "35 min ago", group: "Today", read: false },
-  { id: "3", type: "follow_up", title: "Follow-up Reminder", message: "Follow up with Rohit Mishra about Honda Shine — due today", time: "1 hour ago", group: "Today", read: false },
-  { id: "4", type: "rto_status", title: "RTO Status Updated", message: "Registration for BK-2024-003 (Suresh Yadav) approved by RTO", time: "2 hours ago", group: "Today", read: true },
-  { id: "5", type: "booking_update", title: "Booking Status Changed", message: "BK-2024-005 moved to 'Ready for Delivery'", time: "3 hours ago", group: "Today", read: true },
-  { id: "6", type: "daybook_lock", title: "Daybook Not Locked", message: "Yesterday's daybook (21 Mar) is still unlocked. Please review and lock.", time: "4 hours ago", group: "Today", read: false },
-  { id: "7", type: "new_lead", title: "New Lead Received", message: "Kavita Rani enquired about Honda Dio via WhatsApp", time: "Yesterday 4:30 PM", group: "Yesterday", read: true },
-  { id: "8", type: "payment_received", title: "Payment Received", message: "₹82,000 received from Suresh Yadav for BK-2024-003", time: "Yesterday 2:15 PM", group: "Yesterday", read: true },
-  { id: "9", type: "insurance_expiry", title: "Insurance Expiry Warning", message: "Insurance for Honda CB350 (CHS-CB3-008) expires in 7 days", time: "Yesterday 11:00 AM", group: "Yesterday", read: false },
-  { id: "10", type: "follow_up", title: "Follow-up Reminder", message: "Follow up with Deepak Singh about Honda Unicorn", time: "Yesterday 9:00 AM", group: "Yesterday", read: true },
-  { id: "11", type: "booking_update", title: "Booking Confirmed", message: "BK-2024-006 confirmed by Meena Devi with ₹30,000 advance", time: "Yesterday 8:30 AM", group: "Yesterday", read: true },
-  { id: "12", type: "rto_status", title: "RTO Application Submitted", message: "RTO application submitted for BK-2024-004 (Anita Sharma)", time: "20 Mar, 5:00 PM", group: "Earlier", read: true },
-  { id: "13", type: "new_lead", title: "New Lead Received", message: "Sunita Devi enquired about Honda Activa via phone call", time: "20 Mar, 3:00 PM", group: "Earlier", read: true },
-  { id: "14", type: "payment_received", title: "Payment Received", message: "₹10,000 advance from Anita Sharma for BK-2024-004", time: "20 Mar, 11:00 AM", group: "Earlier", read: true },
-  { id: "15", type: "insurance_expiry", title: "Insurance Expiry Warning", message: "Insurance for Honda SP 125 (CHS-SP1-006) expires in 15 days", time: "19 Mar, 4:00 PM", group: "Earlier", read: true },
-  { id: "16", type: "daybook_lock", title: "Daybook Locked", message: "Daybook for 18 Mar locked by Ravi (Owner)", time: "19 Mar, 10:00 AM", group: "Earlier", read: true },
-  { id: "17", type: "follow_up", title: "Follow-up Overdue", message: "Manoj Tiwari follow-up is overdue by 3 days — lead marked as Cold", time: "18 Mar, 9:00 AM", group: "Earlier", read: true },
-];
+function getTimeGroup(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterdayStart = new Date(todayStart.getTime() - 86400000);
+
+  if (date >= todayStart) return "Today";
+  if (date >= yesterdayStart) return "Yesterday";
+  return "Earlier";
+}
+
+function formatTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHrs = Math.floor(diffMs / 3600000);
+
+  if (diffMin < 1) return "Just now";
+  if (diffMin < 60) return `${diffMin} min ago`;
+  if (diffHrs < 24) return `${diffHrs} hour${diffHrs > 1 ? "s" : ""} ago`;
+  return date.toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = React.useState(mockNotifications);
+  const [notifications, setNotifications] = React.useState<Notification[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    async function fetchNotifications() {
+      try {
+        const res = await fetch("/api/communications?type=notifications");
+        const data = await res.json();
+        if (data.success && data.notifications) {
+          const mapped: Notification[] = data.notifications.map((n: Record<string, unknown>) => {
+            const rawType = (n.type as string) || "general";
+            // Map communication channel types to notification types
+            const typeMap: Record<string, NotificationType> = {
+              call: "follow_up",
+              whatsapp: "booking_update",
+              email: "booking_update",
+              sms: "booking_update",
+            };
+            const nType = typeMap[rawType] || "follow_up";
+            return {
+              id: n.id as string,
+              type: nType,
+              title: rawType === "call" ? "Call Log" : `${rawType.charAt(0).toUpperCase() + rawType.slice(1)} Activity`,
+              message: n.message as string,
+              time: n.time ? formatTime(n.time as string) : "",
+              createdAt: (n.time as string) || new Date().toISOString(),
+              read: n.read as boolean,
+            };
+          });
+          setNotifications(mapped);
+        }
+      } catch {
+        // silently fail
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchNotifications();
+  }, []);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const toggleRead = (id: string) => {
+  const toggleRead = async (id: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: !n.read } : n))
     );
+    try {
+      await fetch("/api/communications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mark-read", id }),
+      });
+    } catch {
+      // silently fail
+    }
   };
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
+    const unreadIds = notifications.filter((n) => !n.read).map((n) => n.id);
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    for (const id of unreadIds) {
+      try {
+        await fetch("/api/communications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "mark-read", id }),
+        });
+      } catch {
+        // silently fail
+      }
+    }
   };
 
-  const grouped = {
-    Today: notifications.filter((n) => n.group === "Today"),
-    Yesterday: notifications.filter((n) => n.group === "Yesterday"),
-    Earlier: notifications.filter((n) => n.group === "Earlier"),
-  };
+  // Group by computed time group
+  const grouped: Record<string, Notification[]> = { Today: [], Yesterday: [], Earlier: [] };
+  notifications.forEach((n) => {
+    const group = getTimeGroup(n.createdAt);
+    if (!grouped[group]) grouped[group] = [];
+    grouped[group].push(n);
+  });
+
+  if (loading) {
+    return (
+      <div className="space-y-6 flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-3">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="text-muted-foreground text-sm">Loading notifications...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (notifications.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Notifications</h1>
+          <p className="text-muted-foreground text-sm">All caught up!</p>
+        </div>
+        <Card>
+          <CardContent className="p-12 text-center">
+            <Bell className="h-16 w-16 mx-auto text-muted-foreground mb-4 opacity-30" />
+            <h3 className="text-lg font-semibold mb-2">No notifications yet</h3>
+            <p className="text-muted-foreground text-sm max-w-md mx-auto">
+              Notifications will appear here as your dealership activity grows — new leads, bookings, payments, RTO updates, insurance expiries, and more.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -107,7 +210,7 @@ export default function NotificationsPage() {
 
       {(["Today", "Yesterday", "Earlier"] as const).map((group) => {
         const items = grouped[group];
-        if (items.length === 0) return null;
+        if (!items || items.length === 0) return null;
         return (
           <div key={group}>
             <h2 className="text-sm font-semibold text-muted-foreground mb-3">
@@ -115,7 +218,7 @@ export default function NotificationsPage() {
             </h2>
             <div className="space-y-2">
               {items.map((n) => {
-                const cfg = typeConfig[n.type];
+                const cfg = typeConfig[n.type] || typeConfig["general"];
                 const Icon = cfg.icon;
                 return (
                   <Card

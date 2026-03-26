@@ -27,39 +27,7 @@ const quickQueries = [
   "Top selling models",
 ];
 
-// Mock responses for quick queries
-const mockResponses: Record<string, string> = {
-  "today's sales":
-    "📊 **Today's Sales Summary**\n\n| Metric | Value |\n|--------|-------|\n| Vehicles Sold | 4 |\n| Total Revenue | ₹3,45,000 |\n| Top Model | Honda Activa 6G (2 units) |\n| Avg Deal Value | ₹86,250 |\n\n🟢 Today is 15% above daily average!",
-  "pending deliveries":
-    "🚚 **Pending Deliveries: 8**\n\n| Status | Count |\n|--------|-------|\n| Ready for Delivery | 3 |\n| Awaiting RTO | 2 |\n| Insurance Pending | 2 |\n| Finance Clearance | 1 |\n\n📍 Next: Rahul Verma (Honda SP 125) - Today 4 PM",
-  "hot leads count":
-    "🔥 **Hot Leads: 18**\n\n| Type | Count |\n|------|-------|\n| Follow-ups Due Today | 7 |\n| New Enquiries | 3 |\n| Test Rides Scheduled | 4 |\n| Ready to Book | 4 |\n\n⭐ Top Lead: Arjun Mehta → Honda CB350 (₹2.15L budget)",
-  "cash in hand":
-    "💰 **Cash Position**\n\n| Item | Amount |\n|------|--------|\n| Opening Balance | ₹5,00,890 |\n| Collections | +₹2,15,000 |\n| Payments | -₹1,48,000 |\n| **Cash in Hand** | **₹5,67,890** |\n\n✅ Daybook Status: Balanced",
-  "this month revenue":
-    "📈 **March 2024 Revenue**\n\n| Category | Amount |\n|----------|--------|\n| Vehicle Sales | ₹19,99,000 |\n| Service Income | ₹3,45,000 |\n| Accessories | ₹1,12,000 |\n| **Total** | **₹24,56,000** |\n\n🎯 Target: ₹30,00,000 (82% achieved)\n📊 Growth: +12.5% vs Feb",
-  "pending rto applications":
-    "📋 **Pending RTO Applications: 5**\n\n| Customer | Vehicle | Status | Days |\n|----------|---------|--------|------|\n| Suresh Yadav | Honda Shine | Submitted | 3 |\n| Rohit Mishra | Bajaj Pulsar | Pending Docs | 7 |\n| Kavita Rani | Honda Activa | At RTO Office | 2 |\n| Deepak Singh | TVS Jupiter | Inspection Due | 5 |\n| Amit Verma | Hero Splendor | Awaiting Slot | 1 |\n\n⚠️ 2 applications overdue (>5 days)",
-  "unlocked daybooks":
-    "🔓 **Unlocked Daybooks: 3**\n\n| Date | Branch | Txns | Status |\n|------|--------|------|--------|\n| 18 Mar 2024 | Main | 24 | ⚠️ Unlocked |\n| 19 Mar 2024 | Main | 18 | ⚠️ Unlocked |\n| 20 Mar 2024 | Main | 31 | ⚠️ Unlocked |\n\n💡 Reminder: Lock daybooks daily for accurate accounting!",
-  "insurance expiring this month":
-    "🛡️ **Insurance Expiring This Month: 12**\n\n| Customer | Vehicle | Expiry Date |\n|----------|---------|-------------|\n| Raj Kumar | Honda Activa | 25 Mar |\n| Priya Singh | TVS Jupiter | 27 Mar |\n| Neha Gupta | Suzuki Access | 28 Mar |\n| + 9 more... | | |\n\n📧 Auto-reminders scheduled for 5 customers",
-  "monthly expense summary":
-    "💸 **March 2024 Expenses**\n\n| Category | Amount |\n|----------|--------|\n| Staff Salary | ₹2,80,000 |\n| Rent | ₹45,000 |\n| Utilities | ₹12,000 |\n| Marketing | ₹35,000 |\n| Miscellaneous | ₹18,500 |\n| **Total** | **₹3,90,500** |\n\n📉 Down 8% from February (₹4,24,000)",
-  "top selling models":
-    "🏆 **Top Selling Models (March)**\n\n| # | Model | Units | Revenue |\n|---|-------|-------|---------|\n| 1 | Honda Activa 6G | 8 | ₹6,24,000 |\n| 2 | Honda SP 125 | 5 | ₹4,60,000 |\n| 3 | TVS Jupiter 125 | 4 | ₹3,12,000 |\n| 4 | Bajaj Pulsar 150 | 3 | ₹4,35,000 |\n| 5 | Hero Splendor+ | 3 | ₹2,16,000 |\n\n📊 Scooters dominate with 52% of sales!",
-};
 
-function getMockResponse(query: string): string {
-  const lower = query.toLowerCase().trim();
-  for (const [key, response] of Object.entries(mockResponses)) {
-    if (lower.includes(key) || key.includes(lower)) {
-      return response;
-    }
-  }
-  return `🤖 I understand you're asking about "${query}". This is a demo response — in the full version, I'll connect to your dealership data to give you real-time answers!\n\nTry asking:\n• Today's sales\n• Pending deliveries\n• Hot leads count\n• Cash in hand\n• Pending RTO applications\n• Top selling models\n• Monthly expense summary`;
-}
 
 export function AIChatWidget() {
   const [isOpen, setIsOpen] = React.useState(false);
