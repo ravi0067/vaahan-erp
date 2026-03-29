@@ -1,0 +1,24 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/daily-morning",
+      "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/daily-evening",
+      "schedule": "30 15 * * *"
+    },
+    {
+      "path": "/api/cron/weekly",
+      "schedule": "30 4 * * 1"
+    },
+    {
+      "path": "/api/cron/monthly",
+      "schedule": "30 4 1 * *"
+    },
+    {
+      "path": "/api/cron/health-check",
+      "schedule": "0 */6 * * *"
+    }
+  ]
+}
