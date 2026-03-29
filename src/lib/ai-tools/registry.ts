@@ -68,34 +68,42 @@ class AIToolRegistry implements ToolRegistry {
     const message = userMessage.toLowerCase();
     const categories: ToolCategory[] = [];
 
-    // Sales keywords
+    // Sales keywords (English + Hindi/Hinglish)
     if (this.containsKeywords(message, [
       'sales', 'booking', 'revenue', 'sold', 'delivery', 'payment',
-      'invoice', 'customer', 'bike', 'vehicle', 'model'
+      'invoice', 'customer', 'bike', 'vehicle', 'model', 'gaadi',
+      'bikri', 'sell', 'deliver', 'book karo', 'booking karo',
+      'payment add', 'paisa', 'amount'
     ])) {
       categories.push(ToolCategory.SALES);
     }
 
-    // Lead keywords
+    // Lead keywords (English + Hindi/Hinglish)
     if (this.containsKeywords(message, [
       'lead', 'enquiry', 'followup', 'follow up', 'hot', 'prospect',
-      'conversion', 'pipeline', 'contact', 'call'
+      'conversion', 'pipeline', 'contact', 'call', 'naya lead',
+      'lead add', 'lead create', 'assign', 'walk-in', 'walkin',
+      'enquiry', 'poochtaach', 'customer aaya'
     ])) {
       categories.push(ToolCategory.LEADS);
     }
 
-    // Finance keywords
+    // Finance keywords (English + Hindi/Hinglish)
     if (this.containsKeywords(message, [
       'cash', 'money', 'expense', 'daybook', 'balance', 'transaction',
-      'profit', 'loss', 'budget', 'financial', 'account'
+      'profit', 'loss', 'budget', 'financial', 'account', 'kharcha',
+      'paisa', 'hisab', 'bill', 'rent', 'salary', 'bijli', 'lock daybook',
+      'expense add', 'kharcha add'
     ])) {
       categories.push(ToolCategory.FINANCE);
     }
 
-    // Inventory keywords
+    // Inventory keywords (English + Hindi/Hinglish)
     if (this.containsKeywords(message, [
       'stock', 'inventory', 'available', 'vehicles', 'models',
-      'variants', 'spare', 'parts', 'warehouse'
+      'variants', 'spare', 'parts', 'warehouse', 'gaadi add',
+      'vehicle add', 'service', 'job card', 'repair', 'mechanic',
+      'marammat'
     ])) {
       categories.push(ToolCategory.INVENTORY);
     }
@@ -103,7 +111,8 @@ class AIToolRegistry implements ToolRegistry {
     // Communication keywords
     if (this.containsKeywords(message, [
       'whatsapp', 'sms', 'email', 'message', 'send', 'notify',
-      'alert', 'remind', 'communication', 'template'
+      'alert', 'remind', 'communication', 'template', 'bhejo',
+      'msg', 'notification'
     ])) {
       categories.push(ToolCategory.COMMUNICATION);
     }
@@ -111,7 +120,8 @@ class AIToolRegistry implements ToolRegistry {
     // System keywords
     if (this.containsKeywords(message, [
       'system', 'admin', 'user', 'setting', 'configuration',
-      'health', 'status', 'report', 'dashboard'
+      'health', 'status', 'report', 'dashboard', 'promotion',
+      'offer', 'discount', 'sale offer'
     ])) {
       categories.push(ToolCategory.SYSTEM);
     }

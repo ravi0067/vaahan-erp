@@ -14,16 +14,18 @@ import { checkRateLimitWithMessage, incrementUsage } from '@/lib/ai-tools/rate-l
 import { logAIChat, logToolSuccess, logToolError } from '@/lib/ai-tools/audit-logger';
 import { GeminiResponse, GeminiToolCall, ToolCategory } from '@/lib/ai-tools/types';
 import { registerAllDataTools } from '@/lib/ai-tools/data-tools';
+import { registerAllActionTools } from '@/lib/ai-tools/action-tools';
 
 export const dynamic = 'force-dynamic';
 
-// Register all data tools on module load
+// Register all tools on module load
 let toolsRegistered = false;
 function ensureToolsRegistered() {
   if (!toolsRegistered) {
     registerAllDataTools();
+    registerAllActionTools();
     toolsRegistered = true;
-    console.log('✅ AI Data Tools registered');
+    console.log('✅ AI Tools registered (18 data + 13 action = 31 total)');
   }
 }
 
