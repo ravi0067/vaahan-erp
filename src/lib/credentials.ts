@@ -131,4 +131,4 @@ export function getServiceStatuses() {
     github: isServiceConfigured('github'),
     vercel: isServiceConfigured('vercel'),
   };
-}
+}// Trigger redeploy with all env vars
