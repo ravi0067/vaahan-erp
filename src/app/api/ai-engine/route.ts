@@ -16,6 +16,7 @@ import { GeminiResponse, GeminiToolCall, ToolCategory } from '@/lib/ai-tools/typ
 import { registerAllDataTools } from '@/lib/ai-tools/data-tools';
 import { registerAllActionTools } from '@/lib/ai-tools/action-tools';
 import { registerAllCommunicationTools } from '@/lib/ai-tools/communication-tools';
+import { registerAllDevopsTools } from '@/lib/ai-tools/devops-tools';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,8 +27,9 @@ function ensureToolsRegistered() {
     registerAllDataTools();
     registerAllActionTools();
     registerAllCommunicationTools();
+    registerAllDevopsTools();
     toolsRegistered = true;
-    console.log('✅ AI Tools registered (18 data + 13 action + 11 communication = 42 total)');
+    console.log('✅ AI Tools registered (18 data + 13 action + 11 communication + 10 devops = 52 total)');
   }
 }
 
