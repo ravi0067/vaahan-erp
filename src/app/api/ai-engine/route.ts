@@ -15,6 +15,7 @@ import { logAIChat, logToolSuccess, logToolError } from '@/lib/ai-tools/audit-lo
 import { GeminiResponse, GeminiToolCall, ToolCategory } from '@/lib/ai-tools/types';
 import { registerAllDataTools } from '@/lib/ai-tools/data-tools';
 import { registerAllActionTools } from '@/lib/ai-tools/action-tools';
+import { registerAllCommunicationTools } from '@/lib/ai-tools/communication-tools';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,8 +25,9 @@ function ensureToolsRegistered() {
   if (!toolsRegistered) {
     registerAllDataTools();
     registerAllActionTools();
+    registerAllCommunicationTools();
     toolsRegistered = true;
-    console.log('✅ AI Tools registered (18 data + 13 action = 31 total)');
+    console.log('✅ AI Tools registered (18 data + 13 action + 11 communication = 42 total)');
   }
 }
 

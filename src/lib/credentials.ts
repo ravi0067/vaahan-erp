@@ -35,13 +35,13 @@ export function getNextAuthUrl(): string {
   return process.env.NEXTAUTH_URL || '';
 }
 
-// Communication Services
+// Communication Services — WhatsApp via Exotel
 export function getWhatsAppApiKey(): string {
-  return process.env.WHATSAPP_API_KEY || '';
+  return process.env.EXOTEL_API_KEY || process.env.WHATSAPP_API_KEY || '';
 }
 
 export function getWhatsAppBusinessNumber(): string {
-  return process.env.WHATSAPP_BUSINESS_NUMBER || '';
+  return process.env.EXOTEL_WHATSAPP_NUMBER || process.env.WHATSAPP_BUSINESS_NUMBER || '';
 }
 
 export function getSmsApiKey(): string {
