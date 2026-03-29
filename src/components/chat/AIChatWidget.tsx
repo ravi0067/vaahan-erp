@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { X, Send, Mic, Sparkles, Minimize2, Bot, Settings, AlertTriangle } from "lucide-react";
+import { X, Send, Mic, Sparkles, Minimize2, Bot, Settings, AlertTriangle, BarChart3, Users, DollarSign, ClipboardList, Phone, FileText, Bike, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSettingsStore } from "@/store/settings-store";
@@ -12,20 +12,47 @@ interface Message {
   role: "user" | "assistant";
   text: string;
   timestamp: Date;
+  toolsExecuted?: number;
+  executionTime?: number;
 }
 
-const quickQueries = [
-  "Today's sales",
-  "Pending deliveries",
-  "Hot leads count",
-  "Cash in hand",
-  "This month revenue",
-  "Pending RTO applications",
-  "Unlocked daybooks",
-  "Insurance expiring this month",
-  "Monthly expense summary",
-  "Top selling models",
+// Quick action buttons for easy access
+const quickActions = [
+  { icon: BarChart3, label: "📊 Sales", query: "Show me today's sales report" },
+  { icon: Users, label: "👥 Leads", query: "Show pending follow-ups" },
+  { icon: DollarSign, label: "💰 Cash", query: "Today's cash summary" },
+  { icon: ClipboardList, label: "📋 Bookings", query: "Recent bookings list" },
+  { icon: Phone, label: "📞 Follow-ups", query: "Get pending followups" },
+  { icon: FileText, label: "📄 Reports", query: "Generate revenue report" },
+  { icon: Bike, label: "🏍️ Stock", query: "Check inventory status" },
+  { icon: Wrench, label: "🔧 Service", query: "Active service jobs" },
 ];
+
+const quickQueries = [
+  "Today's dashboard stats",
+  "Pending follow-ups",
+  "Hot leads count", 
+  "Cash summary",
+  "Revenue report",
+  "Recent bookings",
+  "Available inventory",
+  "Service jobs",
+  "RTO status",
+  "Insurance expiring",
+];
+
+// Number shortcuts
+const numberShortcuts: { [key: string]: string } = {
+  "1": "Show me today's sales report",
+  "2": "Show pending follow-ups", 
+  "3": "Today's cash summary",
+  "4": "Recent bookings list",
+  "5": "Get pending followups",
+  "6": "Generate revenue report",
+  "7": "Check inventory status",
+  "8": "Active service jobs",
+  "9": "RTO status check"
+};
 
 
 
@@ -54,10 +81,15 @@ export function AIChatWidget() {
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
 
+    // Check for number shortcuts
+    const trimmedText = text.trim();
+    const shortcutQuery = numberShortcuts[trimmedText];
+    const messageText = shortcutQuery || trimmedText;
+
     const userMsg: Message = {
       id: `user-${Date.now()}`,
-      role: "user",
-      text: text.trim(),
+      role: "user", 
+      text: messageText,
       timestamp: new Date(),
     };
 
@@ -68,37 +100,20 @@ export function AIChatWidget() {
     setShowQueries(false);
 
     try {
-      // Check Zustand store first, then fallback to localStorage vaahan_ai_config
-      let geminiKey = aiAssistant.apiKey;
-      let callingConfig = null;
-      
-      if (typeof window !== 'undefined') {
-        if (!geminiKey) {
-          const savedConfig = localStorage.getItem('vaahan_ai_config');
-          const aiConfig = savedConfig ? JSON.parse(savedConfig) : {};
-          geminiKey = aiConfig.geminiApiKey || "";
-        }
-
-        // Read calling configuration
-        const callingConfigStr = localStorage.getItem('vaahan_calling_config');
-        callingConfig = callingConfigStr ? JSON.parse(callingConfigStr) : null;
-      }
-
-      // Format history for Gemini API: { role: 'user' | 'model', parts: [{ text: string }] }
+      // Format history for new AI Engine API: { role: 'user' | 'model', parts: [{ text: string }] }
       const chatHistory = updatedMessages.slice(1).map(m => ({
         role: m.role === "user" ? "user" : "model",
         parts: [{ text: m.text }]
       }));
 
-      const res = await fetch('/api/ai-chat', {
+      // Call new AI Engine API (server-side API key)
+      const res = await fetch('/api/ai-engine', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          messages: chatHistory,
-          apiKey: geminiKey,
-          callingConfig: callingConfig
+          messages: chatHistory
         })
       });
 
@@ -114,6 +129,8 @@ export function AIChatWidget() {
         role: "assistant",
         text: botResponseText,
         timestamp: new Date(),
+        toolsExecuted: data.toolsExecuted || 0,
+        executionTime: data.executionTime
       };
       
       setMessages((prev) => [...prev, botMsg]);
@@ -121,7 +138,7 @@ export function AIChatWidget() {
       const errorMsg: Message = {
         id: `bot-${Date.now()}`,
         role: "assistant",
-        text: "Error connecting to AI Assistant Backend.",
+        text: "Error connecting to AI Engine. Please try again.",
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -134,6 +151,17 @@ export function AIChatWidget() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     sendMessage(input);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle number shortcuts (1-9)
+    if (e.key >= '1' && e.key <= '9' && input === '' && !isTyping) {
+      e.preventDefault();
+      const shortcut = numberShortcuts[e.key];
+      if (shortcut) {
+        sendMessage(e.key); // Send the number, will be converted to query
+      }
+    }
   };
 
   // Floating button when closed
@@ -190,21 +218,27 @@ export function AIChatWidget() {
         </div>
       </div>
 
-      {/* AI Not Configured Banner */}
-      {!aiConfigured && (
-        <div className="bg-amber-50 dark:bg-amber-950 px-4 py-2 flex items-center gap-2 text-xs border-b border-amber-200 dark:border-amber-800">
-          <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-          <span className="text-amber-700 dark:text-amber-300">
-            AI not configured — showing demo responses.
-          </span>
-          <Link
-            href="/admin/settings"
-            className="ml-auto text-amber-700 dark:text-amber-300 underline hover:no-underline shrink-0 flex items-center gap-0.5"
-          >
-            <Settings className="h-3 w-3" /> Configure
-          </Link>
+      {/* Quick Action Buttons */}
+      <div className="px-4 py-3 bg-accent/30 border-b">
+        <div className="text-xs font-medium text-muted-foreground mb-2">Quick Actions:</div>
+        <div className="grid grid-cols-4 gap-1">
+          {quickActions.slice(0, 8).map((action, i) => (
+            <button
+              key={i}
+              onClick={() => sendMessage(action.query)}
+              disabled={isTyping}
+              className="p-1.5 rounded-lg hover:bg-accent transition-colors text-xs text-center flex flex-col items-center gap-0.5 disabled:opacity-50"
+              title={action.label}
+            >
+              <action.icon className="h-3 w-3" />
+              <span className="text-[9px] leading-none">{action.label.split(' ')[1]}</span>
+            </button>
+          ))}
         </div>
-      )}
+        <div className="mt-2 text-[10px] text-muted-foreground">
+          💡 Press 1-9 for quick shortcuts
+        </div>
+      </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -221,6 +255,12 @@ export function AIChatWidget() {
               }`}
             >
               {msg.text}
+              {msg.role === "assistant" && (msg.toolsExecuted || msg.executionTime) && (
+                <div className="mt-2 text-xs opacity-60 border-t pt-2">
+                  {msg.toolsExecuted ? `🔧 ${msg.toolsExecuted} tools` : ''}
+                  {msg.executionTime ? ` • ⚡ ${msg.executionTime}ms` : ''}
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -268,7 +308,8 @@ export function AIChatWidget() {
         <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask me anything..."
+          onKeyDown={handleKeyDown}
+          placeholder="Ask me anything... (1-9 for shortcuts)"
           className="h-9 text-sm"
           disabled={isTyping}
         />
