@@ -110,6 +110,9 @@ export default function HomePage() {
             <Image src="/logo.png" alt="VaahanERP" width={140} height={40} className="h-9 w-auto" />
           </div>
           <div className="flex gap-2">
+            <Link href="/register">
+              <Button variant="outline">Register</Button>
+            </Link>
             <Link href="/login">
               <Button>Login to Dashboard</Button>
             </Link>
@@ -134,9 +137,14 @@ export default function HomePage() {
           Manage leads, bookings, inventory, cashflow, service, and more — all in one place.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Link href="/login">
+          <Link href="/register">
             <Button size="lg" className="gap-2 text-base px-8">
-              Get Started <ArrowRight className="h-4 w-4" />
+              Register Your Dealership <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+          <Link href="/login">
+            <Button size="lg" variant="outline" className="gap-2 text-base px-8">
+              Login to Dashboard
             </Button>
           </Link>
         </div>

@@ -39,6 +39,24 @@ export default function LoginPage() {
       if (result?.error) {
         setError("Invalid email or password");
       } else {
+        // Play welcome voice
+        try {
+          if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(
+              'Welcome to Vaahan E R P. Aapki Dealership, Aapka Control.'
+            );
+            utterance.rate = 0.9;
+            utterance.pitch = 1;
+            utterance.volume = 1;
+            const voices = window.speechSynthesis.getVoices();
+            const hindiVoice = voices.find((v) => v.lang.includes('hi')) || voices.find((v) => v.lang.includes('en'));
+            if (hindiVoice) utterance.voice = hindiVoice;
+            window.speechSynthesis.speak(utterance);
+          }
+        } catch {}
+        // Small delay so voice starts before navigation
+        await new Promise((r) => setTimeout(r, 500));
         router.push("/dashboard");
         router.refresh();
       }
@@ -122,7 +140,17 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        <p className="text-center text-xs text-muted-foreground mt-4">
+        <p className="text-center text-sm text-muted-foreground">
+          Don&apos;t have an account?{" "}
+          <Link
+            href="/register"
+            className="text-primary font-medium hover:underline"
+          >
+            Register your dealership
+          </Link>
+        </p>
+
+        <p className="text-center text-xs text-muted-foreground mt-2">
           Powered by Ravi Accounting Services
         </p>
       </div>

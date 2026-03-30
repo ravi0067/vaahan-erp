@@ -814,6 +814,112 @@ const createCustomer: ToolDefinition = {
 };
 
 // ═══════════════════════════════════════
+// TOOL 32: register_client
+// ═══════════════════════════════════════
+const registerClient: ToolDefinition = {
+  name: 'register_client',
+  description: 'Register a new client/dealership on VaahanERP. Creates tenant, brand, location, and owner user. Use this when a new dealer wants to sign up.',
+  category: ToolCategory.SYSTEM,
+  permissionLevel: PermissionLevel.CONFIRM,
+  parameters: {
+    client_name: { type: 'string', description: 'Dealership name (e.g., Shri Bajrang Motors)', required: true },
+    owner_name: { type: 'string', description: 'Owner full name', required: true },
+    email: { type: 'string', description: 'Owner email for login', required: true },
+    password: { type: 'string', description: 'Login password (min 6 chars)', required: true },
+    phone: { type: 'string', description: 'Phone number' },
+    firm_name: { type: 'string', description: 'Legal firm/company name' },
+    gst_number: { type: 'string', description: 'GST number' },
+    address: { type: 'string', description: 'Business address' },
+    showroom_type: { type: 'string', description: 'Type of showroom', enum: ['BIKE', 'CAR', 'EV', 'MULTI'] },
+    brand_name: { type: 'string', description: 'Primary brand name (e.g., Honda, Hero)' },
+    location_name: { type: 'string', description: 'Showroom location name' }
+  },
+  handler: async (params: any): Promise<ToolResult> => {
+    const { client_name, owner_name, email, password, phone, firm_name, gst_number, address, showroom_type, brand_name, location_name } = params;
+
+    if (!client_name || !owner_name || !email || !password) {
+      return { success: false, message: '❌ Required: client_name, owner_name, email, password' };
+    }
+    if (password.length < 6) {
+      return { success: false, message: '❌ Password must be at least 6 characters.' };
+    }
+
+    // Check email uniqueness
+    const existingUser = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+    if (existingUser) {
+      return { success: false, message: `❌ Email "${email}" already exists. Use a different email.` };
+    }
+
+    // Generate slug
+    const baseSlug = client_name.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    let slug = baseSlug;
+    const existingTenant = await prisma.tenant.findUnique({ where: { slug } });
+    if (existingTenant) {
+      slug = `${baseSlug}-${Math.random().toString(36).substring(2, 6)}`;
+    }
+
+    // Hash password
+    const bcrypt = await import('bcryptjs');
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create tenant
+    const tenant = await prisma.tenant.create({
+      data: {
+        name: client_name.trim(),
+        slug,
+        plan: 'FREE',
+        status: 'ACTIVE',
+        dealershipType: showroom_type || null,
+        address: address || null,
+        phone: phone || null,
+        email: email.toLowerCase().trim(),
+        gst: gst_number || null,
+      },
+    });
+
+    // Create brand
+    const brand = await prisma.dealershipBrand.create({
+      data: {
+        tenantId: tenant.id,
+        brandName: brand_name || client_name.trim(),
+        brandType: showroom_type || 'BIKE',
+        logoUrl: null,
+      },
+    });
+
+    // Create location
+    await prisma.showroomLocation.create({
+      data: {
+        tenantId: tenant.id,
+        brandId: brand.id,
+        locationName: location_name || 'Main Showroom',
+        address: address || null,
+        phone: phone || null,
+        managerName: owner_name.trim(),
+      },
+    });
+
+    // Create owner user
+    await prisma.user.create({
+      data: {
+        tenantId: tenant.id,
+        name: owner_name.trim(),
+        email: email.toLowerCase().trim(),
+        password: hashedPassword,
+        phone: phone || null,
+        role: 'OWNER',
+      },
+    });
+
+    return {
+      success: true,
+      message: `✅ Client Registered Successfully!\n\n🏢 Dealership: ${client_name}\n👤 Owner: ${owner_name}\n📧 Login Email: ${email.toLowerCase().trim()}\n🔑 Password: (as provided)\n🌐 Slug: ${slug}\n📋 Plan: FREE\n\nClient can now login at /login with their email and password.`,
+      data: { tenantId: tenant.id, slug, email: email.toLowerCase().trim() }
+    };
+  }
+};
+
+// ═══════════════════════════════════════
 // REGISTER ALL ACTION TOOLS
 // ═══════════════════════════════════════
 export function registerAllActionTools(): void {
@@ -830,7 +936,8 @@ export function registerAllActionTools(): void {
     addExpense,         // 28
     createPromotion,    // 29
     lockDaybook,        // 30
-    createCustomer      // 31
+    createCustomer,     // 31
+    registerClient      // 32
   ];
 
   tools.forEach(tool => registerTool(tool));
