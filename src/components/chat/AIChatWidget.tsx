@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { X, Send, Mic, Sparkles, Minimize2, Bot, Settings, AlertTriangle, BarChart3, Users, DollarSign, ClipboardList, Phone, FileText, Bike, Wrench } from "lucide-react";
+import { X, Send, Mic, MicOff, Sparkles, Minimize2, Bot, Settings, AlertTriangle, BarChart3, Users, DollarSign, ClipboardList, Phone, FileText, Bike, Wrench, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSettingsStore } from "@/store/settings-store";
@@ -65,14 +65,81 @@ export function AIChatWidget() {
     {
       id: "welcome",
       role: "assistant",
-      text: "Namaste! 🙏 I'm your Vaahan AI Assistant. Ask me anything about your dealership — sales, leads, deliveries, cashflow, or RTO status!",
+      text: "Namaste! 🙏 Main hoon Vaani — aapki VaahanERP AI Assistant! Mujhse poochho kuch bhi — sales, leads, deliveries, cashflow, ya RTO status! 💁‍♀️\n\n💡 Tip: \"Hey Vaani\" ya \"Hello Vaani\" bolke baat shuru karo!",
       timestamp: new Date(),
     },
   ]);
   const [input, setInput] = React.useState("");
   const [isTyping, setIsTyping] = React.useState(false);
   const [showQueries, setShowQueries] = React.useState(true);
+  const [voiceEnabled, setVoiceEnabled] = React.useState(true);
+  const [isListening, setIsListening] = React.useState(false);
+  const recognitionRef = React.useRef<any>(null);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  // Female voice TTS helper
+  const speakVaani = React.useCallback((text: string) => {
+    if (!voiceEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      // Clean text for speech (remove emojis, markdown)
+      const cleanText = text
+        .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
+        .replace(/[*_~`#]/g, '')
+        .replace(/\n+/g, '. ')
+        .substring(0, 500); // Limit length for TTS
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = 0.95;
+      utterance.pitch = 1.15; // Slightly higher for female voice
+      utterance.volume = 1;
+      // Prefer female Hindi voice, then female English, then any female
+      const voices = window.speechSynthesis.getVoices();
+      const femaleHindi = voices.find(v => v.lang.includes('hi') && (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('lekha') || v.name.toLowerCase().includes('aditi')));
+      const femaleEn = voices.find(v => v.lang.includes('en') && (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('samantha') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('google') && v.name.toLowerCase().includes('female')));
+      const anyFemale = voices.find(v => v.name.toLowerCase().includes('female'));
+      const hindi = voices.find(v => v.lang.includes('hi'));
+      utterance.voice = femaleHindi || femaleEn || anyFemale || hindi || voices[0] || null;
+      window.speechSynthesis.speak(utterance);
+    } catch {}
+  }, [voiceEnabled]);
+
+  // Voice input with Web Speech API
+  const toggleVoiceInput = React.useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'hi-IN'; // Hindi primary, understands English too
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.continuous = false;
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setIsListening(false);
+      // Auto-send if starts with "Hey Vaani" or "Hello Vaani"
+      const lower = transcript.toLowerCase();
+      if (lower.startsWith('hey vaani') || lower.startsWith('hello vaani') || lower.startsWith('hi vaani') || lower.startsWith('हे वाणी') || lower.startsWith('हैलो वाणी')) {
+        sendMessage(transcript);
+      } else {
+        setInput(transcript);
+      }
+    };
+
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
+  }, [isListening]);
 
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -134,6 +201,9 @@ export function AIChatWidget() {
       };
       
       setMessages((prev) => [...prev, botMsg]);
+
+      // Vaani speaks her response (female voice)
+      speakVaani(botResponseText);
     } catch (e) {
       const errorMsg: Message = {
         id: `bot-${Date.now()}`,
@@ -185,7 +255,7 @@ export function AIChatWidget() {
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all"
         >
           <Bot className="h-5 w-5" />
-          <span className="text-sm font-medium">Vaahan AI</span>
+          <span className="text-sm font-medium">Vaani AI 💁‍♀️</span>
         </button>
       </div>
     );
@@ -198,8 +268,8 @@ export function AIChatWidget() {
         <div className="flex items-center gap-2">
           <Bot className="h-5 w-5" />
           <div>
-            <p className="font-semibold text-sm">Vaahan AI Assistant 🤖</p>
-            <p className="text-[10px] opacity-80">Ask anything about your dealership</p>
+            <p className="font-semibold text-sm">Vaani AI 💁‍♀️</p>
+            <p className="text-[10px] opacity-80">Your multilingual dealership assistant</p>
           </div>
         </div>
         <div className="flex gap-1">
@@ -300,19 +370,30 @@ export function AIChatWidget() {
           type="button"
           variant="ghost"
           size="icon"
-          className="shrink-0 h-9 w-9"
-          title="Voice input"
+          className={`shrink-0 h-9 w-9 ${isListening ? 'bg-red-100 text-red-600 animate-pulse' : ''}`}
+          title={isListening ? 'Listening... (click to stop)' : 'Voice input — say "Hey Vaani"'}
+          onClick={toggleVoiceInput}
         >
-          <Mic className="h-4 w-4 text-muted-foreground" />
+          {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4 text-muted-foreground" />}
         </Button>
         <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask me anything... (1-9 for shortcuts)"
+          placeholder={isListening ? '🎙️ Bol raha hai... "Hey Vaani"' : 'Ask Vaani anything... (1-9 for shortcuts)'}
           className="h-9 text-sm"
           disabled={isTyping}
         />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="shrink-0 h-9 w-9"
+          title={voiceEnabled ? 'Vaani voice ON' : 'Vaani voice OFF'}
+          onClick={() => { setVoiceEnabled(!voiceEnabled); if (voiceEnabled) window.speechSynthesis?.cancel(); }}
+        >
+          {voiceEnabled ? <Volume2 className="h-4 w-4 text-primary" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
+        </Button>
         <Button type="submit" size="icon" className="shrink-0 h-9 w-9" disabled={!input.trim() || isTyping}>
           <Send className="h-4 w-4" />
         </Button>

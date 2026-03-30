@@ -29,7 +29,7 @@ function ensureToolsRegistered() {
     registerAllCommunicationTools();
     registerAllDevopsTools();
     toolsRegistered = true;
-    console.log('✅ AI Tools registered (18 data + 13 action + 11 communication + 10 devops = 52 total)');
+    console.log('✅ Vaani AI Tools registered (18 data + 14 action + 11 communication + 10 devops = 53 total)');
   }
 }
 

@@ -44,14 +44,17 @@ export default function LoginPage() {
           if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(
-              'Welcome to Vaahan E R P. Aapki Dealership, Aapka Control.'
+              'Welcome to Vaahan E R P! Main hoon Vaani, aapki AI assistant. Aapki Dealership, Aapka Control.'
             );
-            utterance.rate = 0.9;
-            utterance.pitch = 1;
+            utterance.rate = 0.95;
+            utterance.pitch = 1.15;
             utterance.volume = 1;
             const voices = window.speechSynthesis.getVoices();
-            const hindiVoice = voices.find((v) => v.lang.includes('hi')) || voices.find((v) => v.lang.includes('en'));
-            if (hindiVoice) utterance.voice = hindiVoice;
+            const femaleHindi = voices.find((v: SpeechSynthesisVoice) => v.lang.includes('hi') && (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('lekha') || v.name.toLowerCase().includes('aditi')));
+            const femaleEn = voices.find((v: SpeechSynthesisVoice) => v.lang.includes('en') && (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('samantha') || v.name.toLowerCase().includes('zira')));
+            const anyFemale = voices.find((v: SpeechSynthesisVoice) => v.name.toLowerCase().includes('female'));
+            const hindi = voices.find((v: SpeechSynthesisVoice) => v.lang.includes('hi'));
+            utterance.voice = femaleHindi || femaleEn || anyFemale || hindi || voices[0] || null;
             window.speechSynthesis.speak(utterance);
           }
         } catch {}

@@ -15,13 +15,13 @@ type CaptureStep = "greeting" | "name" | "business" | "mobile" | "email" | "addr
 
 const stepQuestions: Record<CaptureStep, string> = {
   greeting:
-    "Namaste! 🙏 Welcome to VaahanERP!\n\nI'm here to help you understand how VaahanERP can transform your dealership.\n\nCan I know your good name?",
+    "Namaste! 🙏 Main hoon Vaani — VaahanERP ki AI Assistant! 💁‍♀️\n\nMain aapko bataungi kaise VaahanERP aapki dealership ko transform kar sakta hai.\n\nAapka shubh naam kya hai?",
   name: "",
   business: "Nice to meet you, {name}! 🤝\n\nWhat type of dealership do you run? (Bike / Car / EV / Other)",
   mobile: "Great! 👍\n\nCan I have your mobile number? We'll send you a personalized demo link.",
   email: "Perfect! 📱\n\nAnd your email ID? (for sending you the demo access details)",
   address: "Almost done! 🏢\n\nWhich city/area is your dealership located in?",
-  done: "Thank you, {name}! 🎉\n\nOur team will contact you shortly with a personalized demo.\n\nMeanwhile, you can explore our live demos on this page — click the Bike or Car demo cards above! 👆\n\nFeel free to ask me anything about VaahanERP!",
+  done: "Dhanyavaad, {name} ji! 🎉\n\nHumari team jaldi hi aapko personalized demo ke saath contact karegi.\n\nTab tak upar Bike ya Car demo cards pe click karke pura system explore kar sakte ho! 👆\n\nMujhse kuch bhi poochho VaahanERP ke baare mein — Main Vaani, hamesha ready! 💁‍♀️",
 };
 
 export function PublicChatWidget() {
@@ -168,7 +168,7 @@ export function PublicChatWidget() {
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-green-600 text-white shadow-lg hover:shadow-xl transition-all"
         >
           <Bot className="h-5 w-5" />
-          <span className="text-sm font-medium">VaahanERP Chat</span>
+          <span className="text-sm font-medium">Vaani AI 💁‍♀️</span>
         </button>
       </div>
     );
@@ -181,8 +181,8 @@ export function PublicChatWidget() {
         <div className="flex items-center gap-2">
           <Bot className="h-5 w-5" />
           <div>
-            <p className="font-semibold text-sm">VaahanERP Sales Bot 💬</p>
-            <p className="text-[10px] opacity-80">We typically reply instantly</p>
+            <p className="font-semibold text-sm">Vaani AI 💁‍♀️</p>
+            <p className="text-[10px] opacity-80">VaahanERP Smart Assistant</p>
           </div>
         </div>
         <div className="flex gap-1">
