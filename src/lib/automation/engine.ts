@@ -307,10 +307,20 @@ export async function runSystemHealthCheck(): Promise<{ status: string; checks: 
   console.log('🏥 Running: System Health Check');
   const checks: Record<string, boolean> = {};
 
-  // DB check
+  // DB check — use Supabase REST API (more reliable on serverless)
   try {
-    await prisma.tenant.count();
-    checks.database = true;
+    const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supaKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (supaUrl && supaKey) {
+      const res = await fetch(`${supaUrl}/rest/v1/Tenant?limit=1`, {
+        headers: { 'apikey': supaKey, 'Authorization': `Bearer ${supaKey}` }
+      });
+      checks.database = res.ok;
+    } else {
+      // Fallback to Prisma
+      await prisma.tenant.count();
+      checks.database = true;
+    }
   } catch {
     checks.database = false;
   }
