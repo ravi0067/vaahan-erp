@@ -162,6 +162,16 @@ export default function VaaniAvatarPage() {
   const [brandColor, setBrandColor] = useState("#7c3aed");
   const [showSettings, setShowSettings] = useState(false);
 
+  // ── Inventory (real dealership stock) ─────────────────────────────────
+  const [inventory, setInventory] = useState<{
+    brands: string[];
+    inventoryByBrand: Record<string, any[]>;
+    firmName: string | null;
+    city: string | null;
+    totalAvailable: number;
+    showroomLocations: any[];
+  }>({ brands: [], inventoryByBrand: {}, firmName: null, city: null, totalAvailable: 0, showroomLocations: [] });
+
   // ── Voice Gender ────────────────────────────────────────────────────────
   const [voiceGender, setVoiceGender] = useState<"female" | "male">("female");
 
@@ -196,6 +206,29 @@ export default function VaaniAvatarPage() {
     }
     const savedVoice = localStorage.getItem("vaani_voice");
     if (savedVoice === "male" || savedVoice === "female") setVoiceGender(savedVoice);
+  }, []);
+
+  // ── Fetch real dealership inventory ──────────────────────────────────
+  useEffect(() => {
+    const fetchInventory = async () => {
+      try {
+        // Get tenantId from localStorage (set during login) or session
+        const tenantId = localStorage.getItem("vaani_tenantId") ||
+                         sessionStorage.getItem("tenantId") || "";
+        const url = tenantId
+          ? `/api/vaani-avatar/inventory?tenantId=${tenantId}`
+          : `/api/vaani-avatar/inventory`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          setInventory(data);
+          if (data.firmName) setDealershipName(data.firmName);
+        }
+      } catch (err) {
+        console.error("Inventory fetch error:", err);
+      }
+    };
+    fetchInventory();
   }, []);
 
   // ── Initial greeting ───────────────────────────────────────────────────
@@ -357,7 +390,7 @@ export default function VaaniAvatarPage() {
   const fallbackSpeak = (text: string) => {
     if (!("speechSynthesis" in window)) { setIsSpeaking(false); setMood("idle"); return; }
     window.speechSynthesis.cancel();
-    const clean = text.replace(/[\u{1F000}-\u{1FFFF}]/gu, "").replace(/[*_~`#]/g, "").replace(/\n+/g, ". ").substring(0, 500);
+    const clean = text.replace(/[\uD800-\uDFFF]/g, "").replace(/[*_~`#]/g, "").replace(/\n+/g, ". ").substring(0, 500);
     const u = new SpeechSynthesisUtterance(clean);
     u.rate = 0.95; u.pitch = 1.15; u.volume = 1;
     const voices = window.speechSynthesis.getVoices();
@@ -473,6 +506,12 @@ export default function VaaniAvatarPage() {
           messages: history,
           context: {
             dealershipName,
+            firmName: inventory.firmName || dealershipName,
+            city: inventory.city,
+            brands: inventory.brands,
+            inventoryByBrand: inventory.inventoryByBrand,
+            totalAvailable: inventory.totalAvailable,
+            showroomLocations: inventory.showroomLocations,
             visitorName,
             isReturning,
             visitCount,

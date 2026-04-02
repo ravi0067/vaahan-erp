@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
     // Clean text for natural speech
     const cleanText = text
-      .replace(/[\u{1F000}-\u{1FFFF}]/gu, "") // Remove emojis
+      .replace(/[\uD800-\uDFFF]/g, "") // Remove emoji surrogates
       .replace(/[*_~`#\[\](){}]/g, "")          // Remove markdown chars
       .replace(/https?:\/\/\S+/g, "")           // Remove URLs
       .replace(/\n+/g, ". ")                     // Newlines to pauses

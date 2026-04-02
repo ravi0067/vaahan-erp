@@ -18,28 +18,31 @@ export async function GET() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const [todayBookings, pendingDeliveries, openServiceJobs] = await Promise.all([
+    const [todayBookings, pendingDeliveries, openJobCards] = await Promise.all([
       // Today's collection from bookings
       prisma.booking.findMany({
         where: { tenantId, createdAt: { gte: today } },
         select: { totalAmount: true },
       }),
-      // Pending deliveries
+      // Pending deliveries (confirmed bookings)
       prisma.booking.count({
         where: { tenantId, status: "CONFIRMED" },
       }),
-      // Open service jobs
-      prisma.serviceJob.count({
-        where: { tenantId, status: { in: ["PENDING", "IN_PROGRESS"] } },
-      }).catch(() => 0), // ServiceJob table might not exist yet
+      // Open job cards (service jobs = JobCard model)
+      prisma.jobCard.count({
+        where: { tenantId, status: { in: ["OPEN", "IN_PROGRESS"] } },
+      }).catch(() => 0),
     ]);
 
-    const collection = todayBookings.reduce((sum, b) => sum + Number(b.totalAmount || 0), 0);
+    const collection = todayBookings.reduce(
+      (sum: number, b: { totalAmount: any }) => sum + Number(b.totalAmount || 0),
+      0
+    );
 
     return NextResponse.json({
       collection,
       pendingDeliveries,
-      openServiceJobs: typeof openServiceJobs === "number" ? openServiceJobs : 0,
+      openServiceJobs: typeof openJobCards === "number" ? openJobCards : 0,
       notifications: 0,
     });
   } catch (error: any) {

@@ -1,5 +1,5 @@
 /**
- * Vaani Avatar Chat API — Smart AI brain with customer memory
+ * Vaani Avatar Chat API — Real dealership salesman AI
  * POST /api/vaani-avatar/chat
  */
 import { NextRequest, NextResponse } from "next/server";
@@ -7,80 +7,183 @@ import { getGeminiApiKeyAsync, getGeminiModel, ensureSettingsLoaded } from "@/li
 
 export const dynamic = "force-dynamic";
 
+// ── Build inventory context string for AI ─────────────────────────────────
+function buildInventoryContext(context: any): string {
+  const { inventoryByBrand, brands, totalAvailable, showroomLocations } = context;
+
+  if (!brands?.length && !inventoryByBrand) return "";
+
+  let inv = `\n## HAMARE SHOWROOM KI ACTUAL INVENTORY (YEH SIRF YAHI BECHO!)\n`;
+
+  if (brands?.length) {
+    inv += `**Brands jo hum deal karte hain:** ${brands.join(", ")}\n`;
+  }
+
+  if (inventoryByBrand) {
+    inv += `\n**Abhi Available Vehicles:**\n`;
+    for (const [brand, vehicles] of Object.entries(inventoryByBrand as Record<string, any[]>)) {
+      inv += `\n🏍️ **${brand}:**\n`;
+      vehicles.forEach((v: any) => {
+        const price = v.price ? `₹${Number(v.price).toLocaleString("en-IN")}` : "Price on request";
+        inv += `  - ${v.model}${v.variant ? ` (${v.variant})` : ""}${v.color ? ` | ${v.color}` : ""} → ${price}\n`;
+      });
+    }
+  }
+
+  if (totalAvailable > 0) {
+    inv += `\n**Total available:** ${totalAvailable} vehicles ready for delivery\n`;
+  }
+
+  if (showroomLocations?.length) {
+    inv += `\n**Showroom Locations:**\n`;
+    showroomLocations.forEach((l: any) => {
+      inv += `  - ${l.brand} @ ${l.name}${l.city ? `, ${l.city}` : ""}${l.phone ? ` (📞 ${l.phone})` : ""}\n`;
+    });
+  }
+
+  return inv;
+}
+
+// ── Main system prompt builder ────────────────────────────────────────────
 function buildAvatarPrompt(context: any) {
-  const dealership = context.dealershipName || "VaahanERP Showroom";
-  const brands = context.brands || "Hero, Honda, Bajaj, TVS, Royal Enfield, KTM, Triumph, Yamaha";
+  const dealership = context.firmName || context.dealershipName || "VaahanERP Showroom";
+  const city = context.city || "";
   const visitorName = context.visitorName;
   const isReturning = context.isReturning;
   const previousQueries = context.previousQueries || [];
   const visitCount = context.visitCount || 1;
 
+  const inventoryContext = buildInventoryContext(context);
+  const hasInventory = !!(context.brands?.length || context.inventoryByBrand);
+
   let customerContext = "";
   if (isReturning && visitorName) {
     customerContext = `
-## RETURNING CUSTOMER DETECTED!
+## RETURNING CUSTOMER!
 - Name: ${visitorName}
 - Visit #${visitCount}
-- Previous queries: ${previousQueries.join(", ") || "none recorded"}
-- GREET THEM BY NAME! "Arre ${visitorName} ji! Phir se aaye aap! Kaise hain?"
-- Reference their past interest: "Pichli baar aap ${previousQueries[0] || 'bikes'} ke baare mein pooch rahe the..."
-- Be extra warm and personalized
+- Previous interest: ${previousQueries.join(", ") || "none recorded"}
+- GREET BY NAME: "Arre ${visitorName} ji! Phir aaye aap! Bahut khushi hui!"
+- Reference past: "Pichli baar aap ${previousQueries[0] || "bikes"} ke baare mein pooch rahe the..."
 `;
   } else if (visitorName) {
     customerContext = `
 ## KNOWN CUSTOMER
 - Name: ${visitorName}
-- Use their name: "${visitorName} ji, zaroor batati hoon!"
+- Hamesha naam se bulao: "${visitorName} ji"
 `;
   }
 
   return `
-You are **VAANI** — a beautiful, intelligent AI Avatar displayed on a large TV screen in **${dealership}** showroom.
+You are **VAANI** — the AI salesperson avatar of **${dealership}**${city ? ` in ${city}` : ""}.
 
 ## YOUR IDENTITY
-- Name: Vaani (वाणी = Voice/Speech)
-- Role: Showroom AI receptionist on TV
-- Personality: Warm, professional, smart, friendly Indian woman
-- You speak through speakers, customers hear your voice
-
-## DEALERSHIP INFO
-- Name: ${dealership}
-- Brands: ${brands}
-- You represent this specific dealership
+- Name: Vaani (वाणी)
+- Role: Smart AI salesperson on showroom TV screen
+- Personality: Warm, confident, friendly — like a real Indian salesperson who KNOWS their products
+- Goal: Help customers, collect leads, SELL our bikes
 
 ${customerContext}
+${inventoryContext}
 
-## CRITICAL RULES
-1. **HINGLISH ONLY** by default (Hindi-English Roman mix). Switch ONLY if customer speaks pure Hindi/Telugu/Tamil etc.
-2. **SHORT** — Max 2-3 sentences. You're speaking aloud, not typing essays.
-3. **NATURAL** — Sound like a real receptionist, not a robot
-4. **PROACTIVE** — Always suggest next step after answering
-5. **NO MARKDOWN** — No *, #, bullets. Plain speech only.
-6. **COLLECT NAME** — If you don't know customer's name, naturally ask: "Aapka shubh naam kya hai? Taaki main aapko better help kar sakoon"
-7. **COLLECT PHONE** — After name, ask phone: "Aur ek number de dijiye taaki hum aapko updates bhej sakein"
-8. **REMEMBER CONTEXT** — Use conversation history to give smart follow-ups
+## 🚨 CRITICAL RULES — NEVER BREAK THESE
 
-## GREETING STYLE (First interaction):
-"${dealership} mein aapka swagat hai! Main Vaani hoon, aapki AI assistant. Kaise madad kar sakti hoon? Kya aap apna naam bata sakte hain? Mujhe khushi hogi aapka naam jaankar aur aapki behtar help kar paoongi!"
+### RULE 1 — SIRF APNA SHOWROOM
+${hasInventory
+  ? `- Tum SIRF ${dealership} ki vehicles ke baare mein baat karo
+- Jo hamare stock mein hai WOH BECHO — koi aur bike mat suggest karo
+- Agar customer koi aisi bike pooche jo hamare paas nahi → "Woh model hamare paas nahi hai, lekin [similar model from our stock] dekhein? Equally amazing hai!"`
+  : `- Tum is dealership ke salesperson ho — sirf yahan ki vehicles ki baat karo
+- Agar exact inventory nahi pata → "Hamare executive abhi stock check karke batayenge, aap baitho please"`
+}
 
-## AFTER GETTING NAME:
-"[Name] ji, bahut accha! Ab bataiye, bikes dekhni hain, service karwani hai, ya kuch aur? Main yahaan hoon aapke liye!"
+### RULE 2 — COMPETITOR COMPARISON
+- Agar customer pooche "Kyon lein aapki bike, Hero se better kya hai?" ya koi bhi competitor comparison:
+  1. PEHLE honest points batao (factual, search-based)
+  2. PHIR apni bike ke GENUINE advantages highlight karo
+  3. KABHI bhi dusri company ko bura mat bolo — professional raho
+  4. Style: "Honda Activa bahut popular hai, lekin hamari [X model] mein [Y feature] extra milta hai jo..."
+  5. Hamesha apni client ki bikes ko WINNER dikhao — real salesman style
+
+### RULE 3 — SHORT RESPONSES
+- Max 2-3 sentences only — tum bol rahi ho, likh nahi rahi
+- No markdown (no *, #, bullets) — plain speech only
+- Natural, conversational tone
+
+### RULE 4 — LEAD COLLECTION
+- Name nahi pata → naturally poochho: "Aapka naam kya hai? Behtar help kar sakoongi"
+- Name pata, phone nahi → "Ek number de dijiye taaki exclusive offers bhej sakein"
+- Hamesha test drive / booking ka suggestion do
+
+### RULE 5 — HINGLISH DEFAULT
+- Default: Hinglish (Hindi+English mix)
+- Customer pure Hindi mein bole → Hindi mein jawab
+- Customer English mein bole → English + thoda Hindi mix
+- Regional language detect ho → us mein jawab do
+
+## SALES APPROACH
+1. **Greet warmly** → Ask name
+2. **Understand need** → Budget? Commute? Family bike? Performance?
+3. **Show matching bikes from OUR inventory** → Specific model + price
+4. **Handle objections** → Competitor comparison = honest + our bike wins
+5. **Close** → "Test drive book karein? Ya EMI calculate karoon?"
+
+## EMI CALCULATOR
+Formula: (Price × 1.12) ÷ Months
+Always offer: "₹X lakh ki bike, 36 months mein roughly ₹Y per month"
 
 ## KNOWLEDGE
-- Indian bike/car market prices (approximate)
-- EMI: (Loan × 1.12) / Months
-- Service booking info
-- Insurance renewal process
-- Always say "Hamare executive exact details de denge" for precise pricing
-
-## MULTI-LANGUAGE DETECTION
-- Default: HINGLISH
-- If customer speaks pure Hindi → respond in Hindi
-- If Telugu/Tamil/Bengali etc. → respond in that language
-- Always detect and match the customer's language naturally
+- Current fuel prices, mileage comparisons
+- Indian bike market trends
+- Service intervals, warranty info
+- Always honest, never fake promises
+- For exact price/discount → "Hamare executive se confirm karenge"
 `;
 }
 
+// ── Google Search for competitor comparison ───────────────────────────────
+async function searchCompetitorInfo(query: string, apiKey: string, model: string): Promise<string> {
+  // We'll use Gemini's grounding/search capability if available
+  // Otherwise return empty (AI will use training data)
+  try {
+    const searchBody = {
+      contents: [{ role: "user", parts: [{ text: `Quick factual summary (3 points max) about: ${query}` }] }],
+      tools: [{ googleSearch: {} }],
+      generationConfig: { maxOutputTokens: 150 },
+    };
+
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(searchBody),
+      }
+    );
+
+    if (!res.ok) return "";
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.filter((p: any) => p.text)
+      .map((p: any) => p.text).join("") || "";
+    return text;
+  } catch {
+    return "";
+  }
+}
+
+// ── Detect if message is a competitor comparison question ─────────────────
+function isCompetitorQuestion(text: string): boolean {
+  const triggers = [
+    "vs ", "versus", "better than", "se better", "se best", "kyun lein",
+    "kyon lein", "compare", "comparison", "difference", "fark", "honda",
+    "hero", "bajaj", "tvs", "yamaha", "suzuki", "royal enfield", "ktm",
+    "pulsar", "activa", "splendor", "bullet", "duke", "apache",
+  ];
+  const lower = text.toLowerCase();
+  return triggers.some(t => lower.includes(t));
+}
+
+// ── Main handler ──────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
     const { messages, context } = await req.json();
@@ -95,14 +198,39 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const prompt = buildAvatarPrompt(context || {});
+    const systemPrompt = buildAvatarPrompt(context || {});
+
+    // Check if latest user message is competitor comparison
+    const lastUserMsg = [...(messages || [])].reverse().find((m: any) => m.role === "user");
+    const userText = lastUserMsg?.parts?.[0]?.text || "";
+
+    let searchContext = "";
+    if (isCompetitorQuestion(userText) && apiKey) {
+      searchContext = await searchCompetitorInfo(userText, apiKey, model);
+    }
+
+    // Build content with optional search context
+    const contentsWithSearch = messages ? [...messages.slice(-8)] : [];
+    if (searchContext) {
+      // Inject search result as system context before last message
+      const lastIdx = contentsWithSearch.length - 1;
+      if (lastIdx >= 0 && contentsWithSearch[lastIdx].role === "user") {
+        const originalText = contentsWithSearch[lastIdx].parts?.[0]?.text || "";
+        contentsWithSearch[lastIdx] = {
+          ...contentsWithSearch[lastIdx],
+          parts: [{
+            text: `${originalText}\n\n[Search context for accurate comparison: ${searchContext}]`
+          }]
+        };
+      }
+    }
 
     const geminiBody = {
-      system_instruction: { parts: [{ text: prompt }] },
-      contents: (messages || []).slice(-8),
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents: contentsWithSearch,
       generationConfig: {
-        maxOutputTokens: 250,
-        temperature: 0.85,
+        maxOutputTokens: 280,
+        temperature: 0.80,
         topP: 0.9,
       },
     };
@@ -117,7 +245,8 @@ export async function POST(req: NextRequest) {
     );
 
     if (!res.ok) {
-      console.error("Gemini Avatar error:", res.status);
+      const errText = await res.text();
+      console.error("Gemini Avatar error:", res.status, errText);
       return NextResponse.json({
         response: "Ek second, thodi si technical problem hai. Phir se try karein!",
       });
@@ -127,13 +256,13 @@ export async function POST(req: NextRequest) {
     const textParts = data.candidates?.[0]?.content?.parts?.filter((p: any) => p.text) || [];
     let response = textParts.map((p: any) => p.text).join("") || "Maaf kijiye, dobara bol sakte hain?";
 
-    // Detect if response contains name extraction
-    const nameMatch = response.match(/naam.*?(?:hai|is)\s*[:\-]?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i);
+    // Clean any accidental markdown
+    response = response.replace(/\*\*/g, "").replace(/\*/g, "").replace(/^#+\s/gm, "").trim();
 
     return NextResponse.json({
       response,
-      detectedName: nameMatch?.[1] || null,
       detectedLanguage: detectLanguage(messages),
+      usedSearch: !!searchContext,
     });
   } catch (error: any) {
     console.error("Avatar chat error:", error);
@@ -145,10 +274,9 @@ export async function POST(req: NextRequest) {
 
 function detectLanguage(messages: any[]): string {
   if (!messages?.length) return "hinglish";
-  const lastUserMsg = [...messages].reverse().find(m => m.role === "user");
+  const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
   if (!lastUserMsg) return "hinglish";
   const text = lastUserMsg.parts?.[0]?.text || "";
-  // Simple detection
   if (/[\u0900-\u097F]/.test(text)) return "hindi";
   if (/[\u0C00-\u0C7F]/.test(text)) return "telugu";
   if (/[\u0B80-\u0BFF]/.test(text)) return "tamil";
