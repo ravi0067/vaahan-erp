@@ -298,9 +298,9 @@ export default function TrackingPage() {
               <Phone className="h-4 w-4 shrink-0" />
               <span>+91 9554762008</span>
             </a>
-            <a href="mailto:raviverma0067@gmail.com" className="flex items-center gap-2 text-primary hover:underline">
+            <a href="mailto:support@vaahanerp.com" className="flex items-center gap-2 text-primary hover:underline">
               <Mail className="h-4 w-4 shrink-0" />
-              <span>raviverma0067@gmail.com</span>
+              <span>support@vaahanerp.com</span>
             </a>
           </div>
         </div>

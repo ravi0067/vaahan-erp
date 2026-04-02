@@ -100,10 +100,10 @@ export default function HelpPage() {
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-muted-foreground" />
                   <a
-                    href="mailto:raviverma0067@gmail.com"
+                    href="mailto:support@vaahanerp.com"
                     className="text-primary hover:underline"
                   >
-                    raviverma0067@gmail.com
+                    support@vaahanerp.com
                   </a>
                 </div>
                 <div className="flex items-center gap-2">
@@ -137,7 +137,7 @@ export default function HelpPage() {
             </CardContent>
           </Card>
         </a>
-        <a href="mailto:raviverma0067@gmail.com" className="block">
+        <a href="mailto:support@vaahanerp.com" className="block">
           <Card className="hover:shadow-md transition-shadow cursor-pointer border-blue-200">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
@@ -145,7 +145,7 @@ export default function HelpPage() {
               </div>
               <div>
                 <p className="font-medium text-sm">Email Us</p>
-                <p className="text-xs text-muted-foreground">raviverma0067@gmail.com</p>
+                <p className="text-xs text-muted-foreground">support@vaahanerp.com</p>
               </div>
             </CardContent>
           </Card>

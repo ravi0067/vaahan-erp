@@ -85,6 +85,7 @@ function buildNavItems(bookingLabel: string, stockLabel: string, iconName: strin
     { label: "Communication Center", icon: Phone, href: "/communications" },
     { label: "Clients (Admin)", icon: ShieldCheck, href: "/admin" },
     { label: "Brand Management", icon: Store, href: "/admin/brands" },
+    { label: "AI Configuration", icon: Brain, href: "/admin/ai-config" },
     { label: "Help & Support", icon: HelpCircle, href: "/help" },
   ];
 }
@@ -94,7 +95,7 @@ function getNavItemsForRole(role: string | undefined, allNavItems: NavItem[], al
 
   // Super admin sees only admin pages
   if (role === "SUPER_ADMIN") {
-    const superAdminPaths = ["/dashboard", "/admin", "/admin/settings", "/admin/brands", "/reports", "/settings", "/help"];
+    const superAdminPaths = ["/dashboard", "/admin", "/admin/settings", "/admin/brands", "/admin/ai-config", "/reports", "/settings", "/help"];
     return allNavItems.filter((n) => superAdminPaths.includes(n.href));
   }
 

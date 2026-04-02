@@ -275,7 +275,7 @@ export default function HomePage() {
                 <span className="text-primary text-lg">📧</span>
               </div>
               <p className="font-medium">Email</p>
-              <p className="text-sm text-muted-foreground">raviverma0067@gmail.com</p>
+              <p className="text-sm text-muted-foreground">support@vaahanerp.com</p>
             </div>
             <div className="space-y-2">
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto">

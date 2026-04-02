@@ -659,6 +659,7 @@ export default function AdminPage() {
           <Button variant="outline" size="sm" onClick={fetchTenants} className="gap-1">
             <RefreshCw className="h-4 w-4" /> Refresh
           </Button>
+          <Link href="/admin/ai-config"><Button variant="outline" className="bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-700">🧠 AI Config</Button></Link>
           <Link href="/admin/settings"><Button variant="outline"><Settings className="h-4 w-4 mr-2" /> Master Settings</Button></Link>
           <Button onClick={() => setDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
             <Plus className="h-4 w-4 mr-2" /> 🏢 Add New Client

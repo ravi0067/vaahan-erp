@@ -265,5 +265,5 @@ function getSmartResponse(query: string, name: string): string {
     return "⚡ EV dealerships bhi support karte hain! Battery tracking, range info, charging details — sab managed.\n\nDemo ke liye contact karein: 📞 +91 9554762008";
   }
 
-  return `${name} ji, aapka question humare team tak pahunch jayega! 😊\n\nAap humse directly baat kar sakte hain:\n📞 +91 9554762008\n📧 raviverma0067@gmail.com\n\nYa phir upar demo explore karein! 🎯`;
+  return `${name} ji, aapka question humare team tak pahunch jayega! 😊\n\nAap humse directly baat kar sakte hain:\n📞 +91 9554762008\n📧 support@vaahanerp.com\n\nYa phir upar demo explore karein! 🎯`;
 }

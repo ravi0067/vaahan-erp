@@ -89,7 +89,7 @@ function GeneralSettings() {
           </div>
           <div className="grid gap-2">
             <Label>Email</Label>
-            <Input defaultValue="raviverma0067@gmail.com" />
+            <Input defaultValue="support@vaahanerp.com" />
           </div>
         </div>
         <div className="grid gap-2">

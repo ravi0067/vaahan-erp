@@ -62,7 +62,7 @@ export function BookingInvoice({ booking, onClose }: BookingInvoiceProps) {
               <div className="text-xs text-muted-foreground space-y-0.5 mt-3">
                 <p>Chinhat, Gomti Nagar, Lucknow 226028</p>
                 <p>Phone: +91 9554762008</p>
-                <p>Email: raviverma0067@gmail.com</p>
+                <p>Email: support@vaahanerp.com</p>
                 <p>GST: XXXXXXXXXXXXXXXXX</p>
               </div>
             </div>

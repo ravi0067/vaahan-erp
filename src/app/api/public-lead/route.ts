@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 // Ravi's notification email
-const NOTIFY_EMAIL = 'raviverma0067@gmail.com';
+const NOTIFY_EMAIL = 'support@vaahanerp.com';
 
 export async function POST(request: NextRequest) {
   try {
