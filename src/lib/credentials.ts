@@ -75,9 +75,14 @@ export function getGeminiApiKey(): string {
   return getSetting("ai.apiKey.gemini", "GEMINI_API_KEY");
 }
 
-// Async version — ensures cache is fresh (use in API routes)
+// Async version — ALWAYS fetches fresh from DB first (use in API routes)
 export async function getGeminiApiKeyAsync(): Promise<string> {
-  return getSettingAsync("ai.apiKey.gemini", "GEMINI_API_KEY");
+  // Always refresh on this call to ensure we have the latest key
+  await refreshSettingsCache();
+  const dbKey = settingsCache.get("ai.apiKey.gemini");
+  if (dbKey) return dbKey;
+  // Only fallback to env if DB has nothing
+  return process.env.GEMINI_API_KEY || "";
 }
 
 // Get Gemini model from DB config — default to gemini-2.5-flash
