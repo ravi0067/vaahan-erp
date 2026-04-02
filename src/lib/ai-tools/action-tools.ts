@@ -838,14 +838,26 @@ const registerClient: ToolDefinition = {
     const { client_name, owner_name, email, password, phone, firm_name, gst_number, address, showroom_type, brand_name, location_name } = params;
 
     if (!client_name || !owner_name || !email || !password) {
-      return { success: false, message: '❌ Required: client_name, owner_name, email, password' };
+      return { success: false, message: '❌ Required fields missing: client_name, owner_name, email, password dena padega' };
     }
     if (password.length < 6) {
-      return { success: false, message: '❌ Password must be at least 6 characters.' };
+      return { success: false, message: '❌ Password kam se kam 6 characters ka hona chahiye.' };
     }
 
-    // Check email uniqueness
-    const existingUser = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+    // Check email uniqueness (with connection retry)
+    let existingUser;
+    try {
+      existingUser = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+    } catch (dbError: any) {
+      console.error('DB connection error in register_client:', dbError.message);
+      // Retry once after 1 second
+      try {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        existingUser = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+      } catch (retryError: any) {
+        return { success: false, message: `❌ Database connection fail ho gayi. Thodi der baad phir try karo.\n\nError: ${retryError.message?.substring(0, 100)}` };
+      }
+    }
     if (existingUser) {
       return { success: false, message: `❌ Email "${email}" already exists. Use a different email.` };
     }
