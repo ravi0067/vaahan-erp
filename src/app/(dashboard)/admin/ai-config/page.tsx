@@ -726,12 +726,12 @@ export default function AIConfigPage() {
 
               <div className="grid gap-2">
                 <Label>Key ID</Label>
-                <Input value={get("payment.keyId")} onChange={(e) => set("payment.keyId", e.target.value)} placeholder={get("payment.provider", "razorpay") === "razorpay" ? "rzp_test_xxxxx" : "Key ID"} />
+                <Input value={get("payment.keyId")} onChange={(e) => set("payment.keyId", e.target.value)} placeholder="Enter Razorpay Key ID" />
               </div>
 
               <div className="grid gap-2">
                 <Label>Key Secret</Label>
-                <MaskedInput value={get("payment.keySecret")} onChange={(v) => set("payment.keySecret", v)} placeholder="Secret key" />
+                <MaskedInput value={get("payment.keySecret")} onChange={(v) => set("payment.keySecret", v)} placeholder="Enter Razorpay Secret Key" />
               </div>
 
               {/* PayPal-specific fields */}
@@ -739,11 +739,11 @@ export default function AIConfigPage() {
                 <>
                   <div className="grid gap-2">
                     <Label>PayPal Client ID</Label>
-                    <Input value={get("payment.paypal.clientId")} onChange={(e) => set("payment.paypal.clientId", e.target.value)} placeholder="BAArW0xxxxx..." />
+                    <Input value={get("payment.paypal.clientId")} onChange={(e) => set("payment.paypal.clientId", e.target.value)} placeholder="Enter PayPal Client ID" />
                   </div>
                   <div className="grid gap-2">
                     <Label>PayPal Secret Key</Label>
-                    <MaskedInput value={get("payment.paypal.secret")} onChange={(v) => set("payment.paypal.secret", v)} placeholder="EFepn8xxxxx..." />
+                    <MaskedInput value={get("payment.paypal.secret")} onChange={(v) => set("payment.paypal.secret", v)} placeholder="Enter PayPal Secret Key" />
                   </div>
                 </>
               )}
@@ -778,13 +778,12 @@ export default function AIConfigPage() {
             <CardContent>
               <div className="space-y-3">
                 {[
-                  { key: "gemini", label: "🧠 Gemini AI", icon: Brain },
-                  { key: "openai", label: "🤖 OpenAI", icon: Bot },
+                  { key: "gemini", label: "🧠 Gemini AI (Brain)", icon: Brain },
                   { key: "exotel", label: "📞 Exotel (Call + WhatsApp)", icon: Phone },
                   { key: "smtp", label: "📧 Email SMTP", icon: Mail },
-                  { key: "sms", label: "💬 SMS", icon: MessageSquare },
-                  { key: "github", label: "🔧 GitHub", icon: Github },
-                  { key: "vercel", label: "☁️ Vercel", icon: Cloud },
+                  { key: "sms", label: "💬 SMS (MSG91)", icon: MessageSquare },
+                  { key: "github", label: "🔧 GitHub (DevOps)", icon: Github },
+                  { key: "vercel", label: "☁️ Vercel (Hosting)", icon: Cloud },
                 ].map(({ key, label }) => {
                   const status = statuses[key];
                   return (

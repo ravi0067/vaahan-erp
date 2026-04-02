@@ -16,7 +16,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Building2, Users, IndianRupee, Activity, Plus, Archive, RotateCcw, Settings2, Settings, RefreshCw, Building, Trash2 } from "lucide-react";
+import { Building2, Users, IndianRupee, Activity, Plus, Archive, RotateCcw, Settings2, Settings, RefreshCw, Building, Trash2, Bike } from "lucide-react";
 import { ImageUpload } from "@/components/ui/image-upload";
 import Link from "next/link";
 import { useSettingsStore, defaultClientFeatures, type ClientFeatureConfig } from "@/store/settings-store";
@@ -681,7 +681,7 @@ export default function AdminPage() {
           <CardContent><div className="text-2xl font-bold">{totalUsers}</div></CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Vehicles</CardTitle><IndianRupee className="h-4 w-4 text-purple-500" /></CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Vehicles</CardTitle><Bike className="h-4 w-4 text-purple-500" /></CardHeader>
           <CardContent><div className="text-2xl font-bold">{tenants.reduce((s, c) => s + (c._count?.vehicles || 0), 0)}</div></CardContent>
         </Card>
       </div>
@@ -724,8 +724,8 @@ export default function AdminPage() {
                 <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                   <div className="flex flex-col items-center gap-2">
                     <Building2 className="h-12 w-12 text-muted-foreground/50" />
-                    <p>No clients found</p>
-                    <p className="text-sm">(Super Admin access required)</p>
+                    <p>Abhi koi client nahi hai</p>
+                    <p className="text-sm text-muted-foreground">Naya client add karne ke liye "Add New Client" button dabao</p>
                   </div>
                 </TableCell></TableRow>
               )}

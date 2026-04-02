@@ -1,18 +1,35 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { IndianRupee, Truck, Wrench, Bell } from "lucide-react";
 
-const stats = [
-  { label: "Today's Collection", value: "₹1,85,000", icon: IndianRupee, color: "text-green-600" },
-  { label: "Pending Deliveries", value: "3", icon: Truck, color: "text-amber-600" },
-  { label: "Open Service Jobs", value: "5", icon: Wrench, color: "text-blue-600" },
-  { label: "Unread Notifications", value: "6", icon: Bell, color: "text-red-600" },
-];
+interface Stats {
+  collection: number;
+  pendingDeliveries: number;
+  openServiceJobs: number;
+  notifications: number;
+}
 
 export function QuickStatsBar() {
+  const [stats, setStats] = useState<Stats | null>(null);
+
+  useEffect(() => {
+    fetch("/api/dashboard/quick-stats")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setStats(d); })
+      .catch(() => {});
+  }, []);
+
+  const items = [
+    { label: "Today's Collection", value: stats ? `₹${(stats.collection).toLocaleString("en-IN")}` : "₹0", icon: IndianRupee, color: "text-green-600" },
+    { label: "Pending Deliveries", value: stats?.pendingDeliveries?.toString() || "0", icon: Truck, color: "text-amber-600" },
+    { label: "Open Service Jobs", value: stats?.openServiceJobs?.toString() || "0", icon: Wrench, color: "text-blue-600" },
+    { label: "Notifications", value: stats?.notifications?.toString() || "0", icon: Bell, color: "text-red-600" },
+  ];
+
   return (
     <div className="hidden md:flex items-center justify-between bg-muted/50 border-b px-6 py-1.5 text-xs">
-      {stats.map((s) => {
+      {items.map((s) => {
         const Icon = s.icon;
         return (
           <div key={s.label} className="flex items-center gap-1.5">
