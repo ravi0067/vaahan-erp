@@ -306,6 +306,11 @@ export default function HomePage() {
           <p className="text-sm text-muted-foreground">
             © 2026 Ravi Accounting Services. All rights reserved.
           </p>
+          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+            <a href="/privacy-policy" className="hover:text-primary underline">Privacy Policy</a>
+            <a href="/terms" className="hover:text-primary underline">Terms of Service</a>
+            <a href="/data-deletion" className="hover:text-primary underline">Data Deletion</a>
+          </div>
         </div>
       </footer>
 
