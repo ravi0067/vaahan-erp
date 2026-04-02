@@ -1,7 +1,7 @@
 /**
- * Vaani Avatar TTS API — Uses ElevenLabs for natural Hindi/Hinglish voice
+ * Vaani Avatar TTS API — ElevenLabs Multilingual Voice
  * POST /api/vaani-avatar/speak
- * Body: { text: string, voiceId?: string }
+ * Body: { text: string, voice?: "female" | "male", voiceId?: string }
  * Returns: audio/mpeg stream
  */
 import { NextRequest, NextResponse } from "next/server";
@@ -9,45 +9,60 @@ import { ensureSettingsLoaded, getElevenLabsApiKey } from "@/lib/credentials";
 
 export const dynamic = "force-dynamic";
 
-// Default voice — female Hindi voice on ElevenLabs
-// "Rachel" is a good default, or use a Hindi voice ID
-const DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"; // Rachel (natural female)
+// ── Voice Presets ────────────────────────────────────────────────────────
+// Professional voices that pronounce Hindi/Hinglish clearly
+const VOICE_PRESETS = {
+  female: {
+    id: "cgSgspJ2msm6clMCkdW9", // Jessica — Playful, Bright, Warm (young female)
+    name: "Vaani (Female)",
+    settings: { stability: 0.50, similarity_boost: 0.75, style: 0.35, use_speaker_boost: true },
+  },
+  male: {
+    id: "cjVigY5qzO86Huf0OWal", // Eric — Smooth, Trustworthy (young male)
+    name: "Vaani (Male)",
+    settings: { stability: 0.50, similarity_boost: 0.75, style: 0.30, use_speaker_boost: true },
+  },
+};
 
 export async function POST(req: NextRequest) {
   try {
-    const { text, voiceId } = await req.json();
+    const body = await req.json();
+    const { text, voice, voiceId } = body;
 
     if (!text || typeof text !== "string") {
-      return NextResponse.json({ error: "Text is required" }, { status: 400 });
+      return NextResponse.json({ error: "Text required" }, { status: 400 });
     }
 
-    // Clean text for speech
+    // Clean text for natural speech
     const cleanText = text
       .replace(/[\u{1F000}-\u{1FFFF}]/gu, "") // Remove emojis
-      .replace(/[*_~`#\[\]]/g, "") // Remove markdown
-      .replace(/\n+/g, ". ")
+      .replace(/[*_~`#\[\](){}]/g, "")          // Remove markdown chars
+      .replace(/https?:\/\/\S+/g, "")           // Remove URLs
+      .replace(/\n+/g, ". ")                     // Newlines to pauses
       .replace(/\s+/g, " ")
       .trim()
-      .substring(0, 1000); // ElevenLabs limit
+      .substring(0, 1000);
 
-    if (!cleanText) {
+    if (!cleanText || cleanText.length < 2) {
       return NextResponse.json({ error: "No speakable text" }, { status: 400 });
     }
 
-    // Get ElevenLabs API key
+    // Get API key
     await ensureSettingsLoaded();
     const apiKey = getElevenLabsApiKey();
 
     if (!apiKey) {
-      // Fallback: return empty response, client will use browser TTS
       return NextResponse.json({ error: "ElevenLabs not configured", fallback: true }, { status: 503 });
     }
 
-    const voice = voiceId || DEFAULT_VOICE_ID;
+    // Select voice
+    const preset = voice === "male" ? VOICE_PRESETS.male : VOICE_PRESETS.female;
+    const finalVoiceId = voiceId || preset.id;
+    const voiceSettings = preset.settings;
 
-    // Call ElevenLabs TTS API
+    // Call ElevenLabs TTS — eleven_multilingual_v2 for Hindi/Hinglish/all Indian languages
     const res = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voice}`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${finalVoiceId}`,
       {
         method: "POST",
         headers: {
@@ -57,24 +72,16 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify({
           text: cleanText,
-          model_id: "eleven_multilingual_v2", // Supports Hindi/Hinglish
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
-            style: 0.3,
-            use_speaker_boost: true,
-          },
+          model_id: "eleven_multilingual_v2", // Best for Hindi/Hinglish/all Indian languages
+          voice_settings: voiceSettings,
         }),
       }
     );
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error("ElevenLabs error:", res.status, errText);
-      return NextResponse.json(
-        { error: `ElevenLabs error: ${res.status}`, fallback: true },
-        { status: 503 }
-      );
+      console.error("ElevenLabs TTS error:", res.status, errText);
+      return NextResponse.json({ error: `TTS error: ${res.status}`, fallback: true }, { status: 503 });
     }
 
     // Stream audio back
@@ -83,14 +90,24 @@ export async function POST(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": "audio/mpeg",
-        "Cache-Control": "no-cache",
+        "Content-Length": String(audioBuffer.byteLength),
+        "Cache-Control": "no-store",
       },
     });
   } catch (error: any) {
     console.error("Vaani speak error:", error);
-    return NextResponse.json(
-      { error: error.message, fallback: true },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message, fallback: true }, { status: 500 });
   }
+}
+
+// GET — List available voices
+export async function GET() {
+  return NextResponse.json({
+    voices: {
+      female: { id: VOICE_PRESETS.female.id, name: VOICE_PRESETS.female.name, description: "Young female — professional, warm, clear Hindi pronunciation" },
+      male: { id: VOICE_PRESETS.male.id, name: VOICE_PRESETS.male.name, description: "Young male — smooth, trustworthy, clear Hindi pronunciation" },
+    },
+    model: "eleven_multilingual_v2",
+    supportedLanguages: ["Hindi", "Hinglish", "English", "Telugu", "Tamil", "Bengali", "Gujarati", "Marathi", "Punjabi", "Kannada", "Malayalam", "Odia"],
+  });
 }

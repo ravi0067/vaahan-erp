@@ -106,34 +106,37 @@ export function AIChatWidget() {
   const recognitionRef = React.useRef<any>(null);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
-  // ── Vaani TTS — ONLY called when voiceMode is true ────────────────────
-  const speakVaani = React.useCallback((text: string) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  // ── Vaani TTS — ElevenLabs first, browser fallback ─────────────────────
+  const speakVaani = React.useCallback(async (text: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      // Try ElevenLabs first
+      const res = await fetch("/api/vaani-avatar/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voice: "female" }),
+      });
+      if (res.ok && res.headers.get("content-type")?.includes("audio")) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.onended = () => URL.revokeObjectURL(url);
+        await audio.play();
+        return;
+      }
+    } catch {}
+
+    // Fallback to browser TTS
+    if (!("speechSynthesis" in window)) return;
     try {
       window.speechSynthesis.cancel();
-      // Clean text for speech
       const cleanText = text
-        .replace(/[\u{1F000}-\u{1FFFF}]/gu, "")
-        .replace(/[*_~`#]/g, "")
-        .replace(/\n+/g, ". ")
-        .substring(0, 500);
+        .replace(/[\u{1F000}-\u{1FFFF}]/gu, "").replace(/[*_~`#]/g, "")
+        .replace(/\n+/g, ". ").substring(0, 500);
       const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.rate = 0.95;
-      utterance.pitch = 1.15;
-      utterance.volume = 1;
-      // Set Hinglish voice — prefer Hindi female
+      utterance.rate = 0.95; utterance.pitch = 1.15; utterance.volume = 1;
       const voices = window.speechSynthesis.getVoices();
-      const femaleHindi = voices.find((v) =>
-        v.lang.includes("hi") &&
-        (v.name.toLowerCase().includes("female") || v.name.toLowerCase().includes("lekha") || v.name.toLowerCase().includes("aditi"))
-      );
-      const femaleEn = voices.find((v) =>
-        v.lang.includes("en") &&
-        (v.name.toLowerCase().includes("female") || v.name.toLowerCase().includes("samantha") || v.name.toLowerCase().includes("zira"))
-      );
-      const anyFemale = voices.find((v) => v.name.toLowerCase().includes("female"));
-      const hindi = voices.find((v) => v.lang.includes("hi"));
-      utterance.voice = femaleHindi || femaleEn || anyFemale || hindi || voices[0] || null;
+      utterance.voice = voices.find(v => v.lang.includes("hi")) || voices.find(v => v.name.toLowerCase().includes("female")) || voices[0] || null;
       window.speechSynthesis.speak(utterance);
     } catch {}
   }, []);

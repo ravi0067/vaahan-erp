@@ -162,9 +162,14 @@ export default function VaaniAvatarPage() {
   const [brandColor, setBrandColor] = useState("#7c3aed");
   const [showSettings, setShowSettings] = useState(false);
 
+  // ── Voice Gender ────────────────────────────────────────────────────────
+  const [voiceGender, setVoiceGender] = useState<"female" | "male">("female");
+
   // ── Wake Word Detection (continuous listening) ─────────────────────────
   const [wakeWordActive, setWakeWordActive] = useState(false);
   const wakeRecognitionRef = useRef<any>(null);
+  const isListeningRef = useRef(false);
+  const isSpeakingRef = useRef(false);
 
   // ── Refs ────────────────────────────────────────────────────────────────
   const recognitionRef = useRef<any>(null);
@@ -179,7 +184,7 @@ export default function VaaniAvatarPage() {
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  // ── Load branding from localStorage ────────────────────────────────────
+  // ── Load branding + voice from localStorage ─────────────────────────────
   useEffect(() => {
     const saved = localStorage.getItem("vaani_branding");
     if (saved) {
@@ -189,6 +194,8 @@ export default function VaaniAvatarPage() {
         if (b.color) setBrandColor(b.color);
       } catch {}
     }
+    const savedVoice = localStorage.getItem("vaani_voice");
+    if (savedVoice === "male" || savedVoice === "female") setVoiceGender(savedVoice);
   }, []);
 
   // ── Initial greeting ───────────────────────────────────────────────────
@@ -203,63 +210,88 @@ export default function VaaniAvatarPage() {
     startWakeWordDetection();
   }, []);
 
+  // Keep refs in sync
+  useEffect(() => { isListeningRef.current = isListening; }, [isListening]);
+  useEffect(() => { isSpeakingRef.current = isSpeaking; }, [isSpeaking]);
+
   // ── Wake Word Detection ("Hey Vaani") ─────────────────────────────────
   const startWakeWordDetection = useCallback(() => {
     if (typeof window === "undefined") return;
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
 
+    // Stop existing wake listener
+    if (wakeRecognitionRef.current) {
+      try { wakeRecognitionRef.current.abort(); } catch {}
+      wakeRecognitionRef.current = null;
+    }
+
     const recognition = new SR();
     recognition.lang = "hi-IN";
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
+    recognition.continuous = false; // Use short bursts — more reliable cross-browser
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 3;
 
     recognition.onresult = (event: any) => {
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript.toLowerCase().trim();
-        // Check for wake word
-        if (transcript.includes("hey vaani") || transcript.includes("hello vaani") ||
-            transcript.includes("hi vaani") || transcript.includes("vaani") ||
-            transcript.includes("हे वाणी") || transcript.includes("वाणी")) {
-          // Stop wake word listener, start actual listening
-          recognition.stop();
-          setWakeWordActive(false);
-          // Extract query after wake word
-          const afterWake = transcript
-            .replace(/.*?(hey vaani|hello vaani|hi vaani|vaani|हे वाणी|वाणी)\s*/i, "")
-            .trim();
-          if (afterWake.length > 2 && event.results[i].isFinal) {
-            processUserInput(afterWake);
-          } else {
-            startListening(); // Start active listening for the query
+      for (let i = 0; i < event.results.length; i++) {
+        for (let j = 0; j < event.results[i].length; j++) {
+          const transcript = event.results[i][j].transcript.toLowerCase().trim();
+          // Check for wake word in any alternative
+          if (transcript.includes("hey vaani") || transcript.includes("hello vaani") ||
+              transcript.includes("hi vaani") || transcript.includes("vaani") ||
+              transcript.includes("bani") || transcript.includes("वाणी")) {
+            // Wake word detected!
+            setWakeWordActive(false);
+            wakeRecognitionRef.current = null;
+            // Extract query after trigger
+            const afterWake = transcript
+              .replace(/.*?(hey vaani|hello vaani|hi vaani|vaani|bani|हे वाणी|वाणी)\s*/i, "")
+              .trim();
+            if (afterWake.length > 2) {
+              processUserInput(afterWake);
+            } else {
+              // Just wake word — start active listening for query
+              setTimeout(() => startListeningDirect(), 200);
+            }
+            return;
           }
-          return;
         }
       }
     };
 
     recognition.onend = () => {
-      // Auto-restart wake word detection if not actively listening
-      if (!isListening && !isSpeaking) {
+      // Auto-restart wake word detection in loop (short bursts)
+      if (!isListeningRef.current && !isSpeakingRef.current) {
         setTimeout(() => {
-          try { recognition.start(); setWakeWordActive(true); } catch {}
-        }, 500);
+          if (!isListeningRef.current && !isSpeakingRef.current) {
+            try {
+              recognition.start();
+              setWakeWordActive(true);
+            } catch {}
+          }
+        }, 300);
       }
     };
 
-    recognition.onerror = () => {
-      setTimeout(() => {
-        try { recognition.start(); setWakeWordActive(true); } catch {}
-      }, 2000);
+    recognition.onerror = (e: any) => {
+      // Restart on non-fatal errors
+      if (e.error !== "aborted" && e.error !== "not-allowed") {
+        setTimeout(() => {
+          if (!isListeningRef.current && !isSpeakingRef.current) {
+            try { recognition.start(); setWakeWordActive(true); } catch {}
+          }
+        }, 1000);
+      }
     };
 
     try {
       recognition.start();
       setWakeWordActive(true);
       wakeRecognitionRef.current = recognition;
-    } catch {}
-  }, [isListening, isSpeaking]);
+    } catch (e) {
+      console.log("Wake word failed to start:", e);
+    }
+  }, []);
 
   // ── Camera Functions ───────────────────────────────────────────────────
   const startCamera = async () => {
@@ -300,11 +332,13 @@ export default function VaaniAvatarPage() {
     if (!voiceEnabled) { setMood("idle"); return; }
     setIsSpeaking(true);
     setMood("speaking");
+    // Stop wake word while speaking
+    if (wakeRecognitionRef.current) { try { wakeRecognitionRef.current.abort(); } catch {} setWakeWordActive(false); }
     try {
       const res = await fetch("/api/vaani-avatar/speak", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, voice: voiceGender }),
       });
       if (res.ok && res.headers.get("content-type")?.includes("audio")) {
         const blob = await res.blob();
@@ -339,30 +373,61 @@ export default function VaaniAvatarPage() {
   };
 
   // ── Active Listening (after wake word or mic press) ────────────────────
-  const startListening = useCallback(() => {
+  const startListeningDirect = () => {
+    if (typeof window === "undefined") return;
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) return;
+    if (!SR) { console.log("SpeechRecognition not supported"); return; }
+
     // Stop wake word listener
-    if (wakeRecognitionRef.current) try { wakeRecognitionRef.current.stop(); } catch {}
+    if (wakeRecognitionRef.current) { try { wakeRecognitionRef.current.abort(); } catch {} wakeRecognitionRef.current = null; }
     setWakeWordActive(false);
+
     // Stop current speech
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-    window.speechSynthesis?.cancel();
+    if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
     setIsSpeaking(false);
 
     const r = new SR();
-    r.lang = "hi-IN"; r.interimResults = false; r.continuous = false;
-    r.onresult = (e: any) => { setIsListening(false); processUserInput(e.results[0][0].transcript); };
-    r.onerror = () => { setIsListening(false); setMood("idle"); restartWakeWord(); };
-    r.onend = () => { setIsListening(false); };
-    recognitionRef.current = r;
-    r.start();
-    setIsListening(true);
-    setMood("listening");
-  }, []);
+    r.lang = "hi-IN";
+    r.interimResults = false;
+    r.continuous = false;
+    r.maxAlternatives = 1;
+
+    r.onresult = (e: any) => {
+      const transcript = e.results[0][0].transcript;
+      setIsListening(false);
+      if (transcript.trim()) processUserInput(transcript.trim());
+      else restartWakeWord();
+    };
+    r.onerror = (e: any) => {
+      console.log("Listening error:", e.error);
+      setIsListening(false);
+      setMood("idle");
+      restartWakeWord();
+    };
+    r.onend = () => {
+      if (isListeningRef.current) {
+        setIsListening(false);
+        restartWakeWord();
+      }
+    };
+
+    try {
+      recognitionRef.current = r;
+      r.start();
+      setIsListening(true);
+      setMood("listening");
+    } catch (e) {
+      console.log("Mic start failed:", e);
+      setIsListening(false);
+      restartWakeWord();
+    }
+  };
+
+  const startListening = startListeningDirect;
 
   const stopListening = () => {
-    if (recognitionRef.current) recognitionRef.current.stop();
+    if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch {} }
     setIsListening(false);
     setMood("idle");
     restartWakeWord();
@@ -648,6 +713,21 @@ export default function VaaniAvatarPage() {
                     className="w-10 h-10 rounded-lg cursor-pointer" />
                   <input value={brandColor} onChange={e => setBrandColor(e.target.value)}
                     className="flex-1 h-10 px-3 rounded-lg bg-white/10 border border-white/20 text-white text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-white/60 block mb-1">Voice — Girl / Boy</label>
+                <div className="flex gap-2">
+                  <button onClick={() => { setVoiceGender("female"); localStorage.setItem("vaani_voice", "female"); }}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      voiceGender === "female" ? "bg-pink-500/30 text-pink-300 border border-pink-400/50" : "bg-white/10 text-white/60"}`}>
+                    👩 Girl Voice
+                  </button>
+                  <button onClick={() => { setVoiceGender("male"); localStorage.setItem("vaani_voice", "male"); }}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      voiceGender === "male" ? "bg-blue-500/30 text-blue-300 border border-blue-400/50" : "bg-white/10 text-white/60"}`}>
+                    👨 Boy Voice
+                  </button>
                 </div>
               </div>
               <div>
