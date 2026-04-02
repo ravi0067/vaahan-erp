@@ -110,6 +110,9 @@ export default function HomePage() {
             <Image src="/logo.png" alt="VaahanERP" width={140} height={40} className="h-9 w-auto" />
           </div>
           <div className="flex gap-2">
+            <Link href="/pricing">
+              <Button variant="ghost">Pricing</Button>
+            </Link>
             <Link href="/register">
               <Button variant="outline">Register</Button>
             </Link>

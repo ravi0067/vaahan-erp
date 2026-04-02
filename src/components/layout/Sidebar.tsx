@@ -34,6 +34,7 @@ import {
   Megaphone,
   Phone,
   Brain,
+  CreditCard,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -78,6 +79,7 @@ function buildNavItems(bookingLabel: string, stockLabel: string, iconName: strin
     { label: "Reports", icon: BarChart3, href: "/reports" },
     { label: "Users", icon: Users, href: "/users" },
     { label: "System Settings", icon: Settings, href: "/settings" },
+    { label: "Subscription", icon: CreditCard, href: "/settings/subscription" },
     { label: "Customer Ledger", icon: BookUser, href: "/customers" },
     { label: "RTO & Documents", icon: FileCheck, href: "/rto" },
     { label: "Document Vault", icon: FileCheck, href: "/documents" },
@@ -95,7 +97,7 @@ function getNavItemsForRole(role: string | undefined, allNavItems: NavItem[], al
 
   // Super admin sees only admin pages
   if (role === "SUPER_ADMIN") {
-    const superAdminPaths = ["/dashboard", "/admin", "/admin/settings", "/admin/brands", "/admin/ai-config", "/reports", "/settings", "/help"];
+    const superAdminPaths = ["/dashboard", "/admin", "/admin/settings", "/admin/brands", "/admin/ai-config", "/reports", "/settings", "/settings/subscription", "/help"];
     return allNavItems.filter((n) => superAdminPaths.includes(n.href));
   }
 

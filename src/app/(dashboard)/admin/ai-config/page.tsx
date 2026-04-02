@@ -717,6 +717,7 @@ export default function AIConfigPage() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="razorpay">Razorpay 🇮🇳 (Recommended)</SelectItem>
+                    <SelectItem value="paypal">PayPal 🌍 (International)</SelectItem>
                     <SelectItem value="stripe">Stripe</SelectItem>
                     <SelectItem value="payu">PayU</SelectItem>
                   </SelectContent>
@@ -733,6 +734,20 @@ export default function AIConfigPage() {
                 <MaskedInput value={get("payment.keySecret")} onChange={(v) => set("payment.keySecret", v)} placeholder="Secret key" />
               </div>
 
+              {/* PayPal-specific fields */}
+              {get("payment.provider") === "paypal" && (
+                <>
+                  <div className="grid gap-2">
+                    <Label>PayPal Client ID</Label>
+                    <Input value={get("payment.paypal.clientId")} onChange={(e) => set("payment.paypal.clientId", e.target.value)} placeholder="BAArW0xxxxx..." />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>PayPal Secret Key</Label>
+                    <MaskedInput value={get("payment.paypal.secret")} onChange={(v) => set("payment.paypal.secret", v)} placeholder="EFepn8xxxxx..." />
+                  </div>
+                </>
+              )}
+
               <Toggle enabled={getBool("payment.testMode", true)} onChange={(v) => setBool("payment.testMode", v)} label="🧪 Test Mode" desc="Sandbox environment for testing payments" />
 
               <div className="grid gap-2">
@@ -740,7 +755,7 @@ export default function AIConfigPage() {
                 <Input value={`https://www.vaahanerp.com/api/webhooks/${get("payment.provider", "razorpay")}`} readOnly className="bg-muted" />
               </div>
 
-              <SaveButton keys={["payment.provider", "payment.keyId", "payment.keySecret", "payment.testMode"]} label="Save Payment Config" />
+              <SaveButton keys={["payment.provider", "payment.keyId", "payment.keySecret", "payment.testMode", "payment.paypal.clientId", "payment.paypal.secret"]} label="Save Payment Config" />
             </CardContent>
           </Card>
         </TabsContent>
