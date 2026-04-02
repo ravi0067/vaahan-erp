@@ -242,7 +242,7 @@ function getSmartResponse(query: string, name: string): string {
   const q = query.toLowerCase();
 
   if (q.includes("price") || q.includes("cost") || q.includes("kitna")) {
-    return `${name} ji, VaahanERP ke plans:\n\n🆓 Free — ₹0/month (1 user, basic features)\n💼 Pro — ₹2,999/month (5 users, all modules)\n🏢 Enterprise — ₹9,999/month (unlimited users, priority support)\n\nHumare team se baat karein — 📞 +91 9554762008`;
+    return `${name} ji, VaahanERP ke plans:\n\n⚡ Basic — ₹4,999/month (2 users, core ERP)\n👑 Pro — ₹9,999/month (10 users, AI + WhatsApp + Calling)\n🏢 Enterprise — ₹14,999/month (unlimited users, Vaani AI Voice Bot)\n\n🎉 1 Month FREE Trial — koi card nahi chahiye!\n\n📞 +91 9554762008 ya visit: vaahanerp.com/pricing`;
   }
 
   if (q.includes("feature") || q.includes("kya kya") || q.includes("module")) {
