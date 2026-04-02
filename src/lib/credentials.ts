@@ -1,8 +1,57 @@
 /**
  * Central Credential Manager
- * Reads environment variables for all VaahanERP services
+ * Reads from DB (AI Config Dashboard) first, then falls back to .env
  * Provides clean getter functions for all API keys and credentials
  */
+
+// In-memory cache for DB settings (refreshes every 5 min)
+let settingsCache: Map<string, string> = new Map();
+let lastCacheRefresh = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Fetch all settings from Supabase DB
+async function refreshSettingsCache(): Promise<void> {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseKey) return;
+
+    const res = await fetch(`${supabaseUrl}/rest/v1/SystemSetting?select=key,value`, {
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (res.ok) {
+      const settings: Array<{ key: string; value: string }> = await res.json();
+      const newCache = new Map<string, string>();
+      for (const s of settings) {
+        if (s.value) newCache.set(s.key, s.value);
+      }
+      settingsCache = newCache;
+      lastCacheRefresh = Date.now();
+    }
+  } catch (e) {
+    console.error("Failed to refresh settings cache:", e);
+  }
+}
+
+// Get setting from cache (DB first) → env fallback
+async function getSettingAsync(dbKey: string, envKey: string): Promise<string> {
+  // Refresh cache if stale
+  if (Date.now() - lastCacheRefresh > CACHE_TTL) {
+    await refreshSettingsCache();
+  }
+  return settingsCache.get(dbKey) || process.env[envKey] || "";
+}
+
+// Sync version (uses cached values, no await needed after first load)
+function getSetting(dbKey: string, envKey: string): string {
+  return settingsCache.get(dbKey) || process.env[envKey] || "";
+}
 
 // Supabase Credentials
 export function getSupabaseUrl(): string {
@@ -21,9 +70,31 @@ export function getDirectDatabaseUrl(): string {
   return process.env.DIRECT_DATABASE_URL || '';
 }
 
-// AI Credentials
+// AI Credentials — DB first (ai.apiKey.gemini), then .env (GEMINI_API_KEY)
 export function getGeminiApiKey(): string {
-  return process.env.GEMINI_API_KEY || '';
+  return getSetting("ai.apiKey.gemini", "GEMINI_API_KEY");
+}
+
+// Async version — ensures cache is fresh (use in API routes)
+export async function getGeminiApiKeyAsync(): Promise<string> {
+  return getSettingAsync("ai.apiKey.gemini", "GEMINI_API_KEY");
+}
+
+// Get Gemini model from DB config — default to gemini-2.5-flash
+export function getGeminiModel(): string {
+  return getSetting("ai.model", "") || "gemini-2.5-flash";
+}
+
+// ElevenLabs
+export function getElevenLabsApiKey(): string {
+  return getSetting("vaani.elevenLabsKey", "ELEVENLABS_API_KEY");
+}
+
+// Force refresh settings cache (call at app startup or after config change)
+export async function ensureSettingsLoaded(): Promise<void> {
+  if (Date.now() - lastCacheRefresh > CACHE_TTL) {
+    await refreshSettingsCache();
+  }
 }
 
 // Authentication

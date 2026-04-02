@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, errorResponse } from '@/lib/api-auth';
-import { getGeminiApiKey } from '@/lib/credentials';
+import { getGeminiApiKeyAsync, getGeminiModel, ensureSettingsLoaded } from '@/lib/credentials';
 import { getSystemPrompt } from '@/lib/ai-system-prompt';
 import { toolRegistry, routeQuery, getFunctionDeclarationsByCategories } from '@/lib/ai-tools/registry';
 import { checkPermission, getPermissionMessage } from '@/lib/ai-tools/permissions';
@@ -81,8 +81,9 @@ export async function POST(request: NextRequest) {
       }, { status: 429 });
     }
 
-    // 3. Get Gemini API key from server environment
-    const geminiApiKey = getGeminiApiKey();
+    // 3. Get Gemini API key — DB (AI Config Dashboard) first, then .env fallback
+    await ensureSettingsLoaded();
+    const geminiApiKey = await getGeminiApiKeyAsync();
     if (!geminiApiKey) {
       logAIChat(tenantId, userId, userRole, 'no_api_key', null, false, 
                 Date.now() - startTime, 'Gemini API key not configured', ipAddress, userAgent);
@@ -93,8 +94,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Get the user's latest message for tool routing
-    const latestMessage = Array.isArray(messages) && messages.length > 0 
-      ? messages[messages.length - 1]?.parts?.[0]?.text || ''
+    // Limit chat history to last 20 messages to prevent token overflow
+    const trimmedMessages = Array.isArray(messages) ? messages.slice(-20) : [];
+    const latestMessage = trimmedMessages.length > 0 
+      ? trimmedMessages[trimmedMessages.length - 1]?.parts?.[0]?.text || ''
       : '';
 
     // 5. Route query to determine relevant tool categories
@@ -149,7 +152,7 @@ Your role: ${userRole} - you have access to categories: ${relevantCategories.joi
       system_instruction: {
         parts: [{ text: enhancedSystemPrompt }]
       },
-      contents: messages || [
+      contents: trimmedMessages.length > 0 ? trimmedMessages : [
         { role: 'user', parts: [{ text: latestMessage }] }
       ]
     };
@@ -168,17 +171,50 @@ Your role: ${userRole} - you have access to categories: ${relevantCategories.joi
       };
     }
 
-    console.log(`🤖 Calling Gemini API with ${functionDeclarations.length} tools...`);
+    // Get model from DB config or default
+    const geminiModel = getGeminiModel();
+    console.log(`🤖 Calling Gemini API (model: ${geminiModel}) with ${functionDeclarations.length} tools...`);
 
     // 9. Call Gemini API
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiApiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(geminiRequestBody)
       }
     );
+
+    if (!geminiResponse.ok) {
+      const errorText = await geminiResponse.text();
+      console.error(`❌ Gemini HTTP ${geminiResponse.status}:`, errorText);
+      logAIChat(tenantId, userId, userRole, latestMessage, null, false, 
+                Date.now() - startTime, `HTTP ${geminiResponse.status}: ${errorText}`, ipAddress, userAgent);
+      
+      // Parse specific error messages
+      let userMsg = `❌ AI Error (HTTP ${geminiResponse.status})`;
+      try {
+        const errJson = JSON.parse(errorText);
+        const errDetail = errJson?.error?.message || errorText;
+        if (geminiResponse.status === 400) {
+          if (errDetail.includes("API_KEY")) {
+            userMsg = "❌ **Gemini API Key invalid hai.** Admin se sahi API key set karwao (AI Config Dashboard → AI Brain).";
+          } else if (errDetail.includes("token") || errDetail.includes("limit") || errDetail.includes("length")) {
+            userMsg = "❌ **Token limit hit ho gayi.** Chhota message bhejo ya admin se model upgrade karwao.";
+          } else {
+            userMsg = `❌ **Gemini Error:** ${errDetail}`;
+          }
+        } else if (geminiResponse.status === 429) {
+          userMsg = "⏳ **Rate limit!** Thoda wait karo aur phir try karo (1-2 min).";
+        } else if (geminiResponse.status === 403) {
+          userMsg = "🚫 **API key mein permission nahi hai.** Google AI Studio se key check karo.";
+        } else {
+          userMsg = `❌ **AI Error:** ${errDetail}`;
+        }
+      } catch {}
+      
+      return NextResponse.json({ response: userMsg, error: true }, { status: 500 });
+    }
 
     const geminiData: GeminiResponse = await geminiResponse.json();
     
@@ -283,7 +319,7 @@ Your role: ${userRole} - you have access to categories: ${relevantCategories.joi
         }
 
         // Send function results back to Gemini for final response
-        const followUpMessages = [...(messages || [])];
+        const followUpMessages = [...trimmedMessages];
         
         // Add the function call
         followUpMessages.push({
@@ -310,7 +346,7 @@ Your role: ${userRole} - you have access to categories: ${relevantCategories.joi
         };
 
         const followUpResponse = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiApiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
