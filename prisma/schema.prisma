@@ -37,6 +37,8 @@ model Tenant {
   users              User[]
   vehicles           Vehicle[]
   subscriptions      Subscription[]
+  avatarVisitors     AvatarVisitor[]
+  avatarSessions     AvatarSession[]
 }
 
 model User {
@@ -473,6 +475,44 @@ enum JobCardStatus {
   IN_PROGRESS
   COMPLETED
   INVOICED
+}
+
+// ── Vaani Avatar — Visitor Tracking & Analytics ─────────────────────────
+model AvatarVisitor {
+  id            String   @id @default(cuid())
+  tenantId      String
+  name          String?
+  phone         String?
+  photoUrl      String?  // Camera snapshot stored as base64 or URL
+  faceEncoding  String?  // Face signature for re-identification (JSON array)
+  firstSeen     DateTime @default(now())
+  lastSeen      DateTime @default(now())
+  visitCount    Int      @default(1)
+  leadId        String?  // Linked CRM lead
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessions      AvatarSession[]
+
+  @@index([tenantId])
+  @@index([phone])
+}
+
+model AvatarSession {
+  id          String   @id @default(cuid())
+  tenantId    String
+  visitorId   String?
+  startedAt   DateTime @default(now())
+  endedAt     DateTime?
+  messages    Json     @default("[]") // Chat history [{role,text,ts}]
+  queries     Json     @default("[]") // What customer asked (for analytics)
+  language    String   @default("hinglish")
+  mood        String?  // Last detected mood
+  source      String   @default("avatar_tv") // avatar_tv, avatar_kiosk
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  visitor     AvatarVisitor? @relation(fields: [visitorId], references: [id])
+
+  @@index([tenantId])
+  @@index([visitorId])
+  @@index([startedAt])
 }
 
 // ── Subscription & Billing ──────────────────────────────────────────────

@@ -2,330 +2,401 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Mic, MicOff, Volume2, VolumeX, Settings, Maximize, Minimize,
-  MessageSquare, Phone, Bike, Car, Wrench, Shield, Clock,
-  Sparkles, Zap, Globe, ChevronRight
+  Mic, MicOff, Volume2, VolumeX, Maximize, Minimize,
+  MessageSquare, Phone, Bike, Wrench, Shield, Clock,
+  Sparkles, Camera, CameraOff, User, Settings, X
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────
-interface ChatMessage {
-  id: string;
-  role: "user" | "vaani";
-  text: string;
-  timestamp: Date;
-}
+interface ChatMsg { id: string; role: "user" | "vaani"; text: string; ts: Date; }
+type Mood = "idle" | "listening" | "thinking" | "speaking" | "greeting";
 
-// ── Avatar Mood based on conversation ────────────────────────────────────
-type AvatarMood = "idle" | "listening" | "thinking" | "speaking" | "greeting" | "excited";
-
-// ── Quick Prompts for Showroom ───────────────────────────────────────────
 const quickPrompts = [
-  { icon: Bike, label: "Bikes Dekhna Hai", query: "Kaunsi bikes available hain showroom mein?" },
-  { icon: Car, label: "Price List", query: "Sabhi available vehicles ki price list dikhao" },
-  { icon: Wrench, label: "Service Booking", query: "Meri bike ki service booking karni hai" },
-  { icon: Shield, label: "Insurance", query: "Insurance renewal kaise hoga?" },
-  { icon: Clock, label: "EMI Calculator", query: "EMI calculate karo ek bike ke liye" },
-  { icon: Phone, label: "Contact", query: "Showroom ka contact number aur timing kya hai?" },
+  { icon: Bike, label: "🏍️ Bikes", query: "Kaunsi bikes available hain?" },
+  { icon: "💰", label: "💰 Price", query: "Sabhi vehicles ki price list dikhao" },
+  { icon: Wrench, label: "🔧 Service", query: "Service booking karni hai" },
+  { icon: Shield, label: "🛡️ Insurance", query: "Insurance renewal kaise hoga?" },
+  { icon: Clock, label: "💳 EMI", query: "EMI calculate karo" },
+  { icon: Phone, label: "📞 Contact", query: "Showroom ka timing aur number?" },
 ];
 
-// ── Greeting Messages (rotate) ──────────────────────────────────────────
-const greetings = [
-  "Namaste! 🙏 Main hoon Vaani — aapki AI assistant. Kaise help kar sakti hoon?",
-  "Welcome to our showroom! Main Vaani hoon. Bikes dekhni hain ya kuch aur help chahiye?",
-  "Namaste ji! Vaani yahaan hai aapki seva mein. Bataiye kya chahiye? 😊",
-];
-
-// ── Avatar Visual Component ──────────────────────────────────────────────
-function AvatarVisual({ mood, isSpeaking }: { mood: AvatarMood; isSpeaking: boolean }) {
-  // Animated avatar face using CSS
-  const moodColors = {
-    idle: "from-violet-500 to-purple-600",
-    listening: "from-blue-500 to-cyan-500",
-    thinking: "from-amber-500 to-orange-500",
-    speaking: "from-green-500 to-emerald-500",
-    greeting: "from-pink-500 to-rose-500",
-    excited: "from-yellow-400 to-orange-500",
+// ── 3D-style Avatar Component ────────────────────────────────────────────
+function AvatarCharacter({ mood, isSpeaking }: { mood: Mood; isSpeaking: boolean }) {
+  const gradients: Record<Mood, string> = {
+    idle: "from-violet-600 via-purple-600 to-indigo-700",
+    listening: "from-blue-500 via-cyan-500 to-blue-600",
+    thinking: "from-amber-500 via-orange-500 to-amber-600",
+    speaking: "from-emerald-500 via-green-500 to-teal-600",
+    greeting: "from-pink-500 via-rose-500 to-pink-600",
   };
 
-  const moodEmojis = {
-    idle: "😊",
-    listening: "👂",
-    thinking: "🤔",
-    speaking: "💬",
-    greeting: "🙏",
-    excited: "🎉",
-  };
+  // Animated speaking bars
+  const speakBars = isSpeaking ? [...Array(7)].map((_, i) => (
+    <div key={i} className="w-1 md:w-1.5 rounded-full bg-white/80" style={{
+      height: `${8 + Math.sin(Date.now() / 200 + i) * 16}px`,
+      animation: `speakBar 0.3s ease-in-out ${i * 50}ms infinite alternate`,
+    }} />
+  )) : null;
 
   return (
     <div className="relative flex flex-col items-center">
-      {/* Outer glow ring */}
-      <div className={`absolute -inset-8 rounded-full bg-gradient-to-r ${moodColors[mood]} opacity-20 blur-3xl ${
-        isSpeaking ? "animate-pulse" : ""
-      }`} />
+      {/* Outer glow */}
+      <div className={`absolute -inset-12 rounded-full bg-gradient-to-r ${gradients[mood]} opacity-15 blur-3xl
+        ${isSpeaking ? "animate-pulse" : ""}`} />
+      
+      {/* Rings when speaking */}
+      {isSpeaking && <>
+        <div className="absolute w-80 h-80 rounded-full border-2 border-white/5 animate-ping" style={{ animationDuration: "2s" }} />
+        <div className="absolute w-96 h-96 rounded-full border border-white/3 animate-ping" style={{ animationDuration: "3s" }} />
+      </>}
 
-      {/* Sound wave rings when speaking */}
-      {isSpeaking && (
-        <>
-          <div className="absolute inset-0 m-auto w-72 h-72 rounded-full border-2 border-white/10 animate-ping" style={{ animationDuration: "1.5s" }} />
-          <div className="absolute inset-0 m-auto w-80 h-80 rounded-full border border-white/5 animate-ping" style={{ animationDuration: "2s" }} />
-        </>
-      )}
-
-      {/* Main Avatar Circle */}
-      <div className={`relative w-56 h-56 md:w-72 md:h-72 rounded-full bg-gradient-to-br ${moodColors[mood]} 
-        flex items-center justify-center shadow-2xl transition-all duration-500
-        ${mood === "listening" ? "scale-105 ring-4 ring-blue-400/50" : ""}
-        ${mood === "thinking" ? "animate-pulse" : ""}
-        ${isSpeaking ? "scale-110" : ""}
-      `}>
-        {/* Inner face */}
-        <div className="w-48 h-48 md:w-60 md:h-60 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
-          <div className="text-center">
-            <div className={`text-6xl md:text-8xl transition-all duration-300 ${isSpeaking ? "animate-bounce" : ""}`}>
-              {moodEmojis[mood]}
-            </div>
-            <p className="text-white/90 text-sm md:text-base font-bold mt-2 tracking-wide">
-              VAANI AI
-            </p>
-          </div>
+      {/* Avatar Body — Female character silhouette */}
+      <div className={`relative w-52 h-52 md:w-64 md:h-64 rounded-full bg-gradient-to-br ${gradients[mood]}
+        flex items-center justify-center shadow-2xl transition-all duration-700 overflow-hidden
+        ${mood === "listening" ? "scale-105 ring-4 ring-blue-400/40" : ""}
+        ${isSpeaking ? "scale-110" : ""}`}>
+        
+        {/* Inner avatar face */}
+        <div className="absolute inset-3 rounded-full bg-gradient-to-b from-white/15 to-white/5 backdrop-blur-sm flex flex-col items-center justify-center">
+          {/* Female avatar face using SVG */}
+          <svg viewBox="0 0 200 200" className="w-32 h-32 md:w-40 md:h-40">
+            {/* Hair */}
+            <ellipse cx="100" cy="70" rx="55" ry="60" fill="#1a1a2e" />
+            <ellipse cx="100" cy="50" rx="50" ry="45" fill="#16213e" />
+            {/* Face */}
+            <ellipse cx="100" cy="90" rx="40" ry="45" fill="#f4c4a0" />
+            {/* Eyes */}
+            <ellipse cx="85" cy="82" rx="5" ry={mood === "listening" ? "6" : isSpeaking ? "5" : "4"} fill="#2d1b1b">
+              <animate attributeName="ry" values={isSpeaking ? "4;6;4" : "4;4;4"} dur="2s" repeatCount="indefinite" />
+            </ellipse>
+            <ellipse cx="115" cy="82" rx="5" ry={mood === "listening" ? "6" : isSpeaking ? "5" : "4"} fill="#2d1b1b">
+              <animate attributeName="ry" values={isSpeaking ? "4;6;4" : "4;4;4"} dur="2s" repeatCount="indefinite" />
+            </ellipse>
+            {/* Eye sparkle */}
+            <circle cx="87" cy="80" r="1.5" fill="white" opacity="0.8" />
+            <circle cx="117" cy="80" r="1.5" fill="white" opacity="0.8" />
+            {/* Eyebrows */}
+            <path d="M75 73 Q85 68 95 73" stroke="#1a1a2e" strokeWidth="2" fill="none" />
+            <path d="M105 73 Q115 68 125 73" stroke="#1a1a2e" strokeWidth="2" fill="none" />
+            {/* Nose */}
+            <path d="M98 92 Q100 97 102 92" stroke="#d4a07a" strokeWidth="1.5" fill="none" />
+            {/* Mouth — changes with mood */}
+            {isSpeaking ? (
+              <ellipse cx="100" cy="108" rx="8" ry="5" fill="#c0392b">
+                <animate attributeName="ry" values="3;6;3" dur="0.4s" repeatCount="indefinite" />
+              </ellipse>
+            ) : mood === "greeting" ? (
+              <path d="M88 105 Q100 118 112 105" stroke="#c0392b" strokeWidth="2.5" fill="#e74c3c" opacity="0.7" />
+            ) : (
+              <path d="M90 106 Q100 113 110 106" stroke="#c0392b" strokeWidth="2" fill="none" />
+            )}
+            {/* Bindi */}
+            <circle cx="100" cy="70" r="2.5" fill="#e74c3c" />
+            {/* Earrings */}
+            <circle cx="58" cy="95" r="3" fill="#f1c40f" opacity="0.8" />
+            <circle cx="142" cy="95" r="3" fill="#f1c40f" opacity="0.8" />
+            {/* Dupatta hint */}
+            <path d="M55 120 Q100 140 145 120" stroke="#9b59b6" strokeWidth="6" fill="none" opacity="0.5" />
+          </svg>
+          
+          <p className="text-white font-bold text-xs md:text-sm tracking-widest mt-1">VAANI</p>
         </div>
-
-        {/* Speaking animation bars */}
-        {isSpeaking && (
-          <div className="absolute bottom-4 flex gap-1 items-end">
-            {[...Array(5)].map((_, i) => (
-              <div
-                key={i}
-                className="w-1.5 bg-white/80 rounded-full animate-pulse"
-                style={{
-                  height: `${12 + Math.random() * 24}px`,
-                  animationDelay: `${i * 100}ms`,
-                  animationDuration: "0.4s",
-                }}
-              />
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Status label */}
-      <div className={`mt-6 px-6 py-2 rounded-full text-sm font-semibold tracking-wide backdrop-blur-sm ${
-        mood === "idle" ? "bg-white/10 text-white/70" :
+      {/* Speaking bars */}
+      {isSpeaking && (
+        <div className="flex gap-1 items-end mt-4 h-8">{speakBars}</div>
+      )}
+
+      {/* Status */}
+      <div className={`mt-4 px-5 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm ${
+        mood === "idle" ? "bg-white/10 text-white/60" :
         mood === "listening" ? "bg-blue-500/20 text-blue-300 animate-pulse" :
         mood === "thinking" ? "bg-amber-500/20 text-amber-300" :
         mood === "speaking" ? "bg-green-500/20 text-green-300" :
-        "bg-white/10 text-white/70"
+        "bg-pink-500/20 text-pink-300"
       }`}>
-        {mood === "idle" && "💬 Mujhse baat karo..."}
+        {mood === "idle" && "💬 Baat karein mujhse..."}
         {mood === "listening" && "👂 Sun rahi hoon..."}
         {mood === "thinking" && "🤔 Soch rahi hoon..."}
         {mood === "speaking" && "🗣️ Bol rahi hoon..."}
-        {mood === "greeting" && "🙏 Namaste!"}
-        {mood === "excited" && "🎉 Bahut accha!"}
+        {mood === "greeting" && "🙏 Swagat hai!"}
       </div>
     </div>
   );
 }
 
-// ── Main Vaani Avatar Page ──────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════
+// MAIN PAGE
+// ══════════════════════════════════════════════════════════════════════════
 export default function VaaniAvatarPage() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [mood, setMood] = useState<AvatarMood>("greeting");
+  // ── State ──────────────────────────────────────────────────────────────
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [mood, setMood] = useState<Mood>("greeting");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [showChat, setShowChat] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [currentText, setCurrentText] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [dealershipName, setDealershipName] = useState("VaahanERP Showroom");
-  const [idleTimeout, setIdleTimeout] = useState<NodeJS.Timeout | null>(null);
 
+  // ── Customer tracking ──────────────────────────────────────────────────
+  const [visitorName, setVisitorName] = useState<string | null>(null);
+  const [visitorPhone, setVisitorPhone] = useState<string | null>(null);
+  const [isReturning, setIsReturning] = useState(false);
+  const [visitCount, setVisitCount] = useState(1);
+  const [previousQueries, setPreviousQueries] = useState<string[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [queries, setQueries] = useState<string[]>([]);
+
+  // ── Camera ─────────────────────────────────────────────────────────────
+  const [cameraOn, setCameraOn] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // ── Branding ───────────────────────────────────────────────────────────
+  const [dealershipName, setDealershipName] = useState("VaahanERP Showroom");
+  const [brandColor, setBrandColor] = useState("#7c3aed");
+  const [showSettings, setShowSettings] = useState(false);
+
+  // ── Wake Word Detection (continuous listening) ─────────────────────────
+  const [wakeWordActive, setWakeWordActive] = useState(false);
+  const wakeRecognitionRef = useRef<any>(null);
+
+  // ── Refs ────────────────────────────────────────────────────────────────
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Update clock every second
+  // ── Clock ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    const interval = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(interval);
+    const i = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(i);
   }, []);
 
-  // Auto-scroll chat
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  // Initial greeting
+  // ── Load branding from localStorage ────────────────────────────────────
   useEffect(() => {
-    const greeting = greetings[Math.floor(Math.random() * greetings.length)];
-    const msg: ChatMessage = {
-      id: "greeting-0",
-      role: "vaani",
-      text: greeting,
-      timestamp: new Date(),
-    };
+    const saved = localStorage.getItem("vaani_branding");
+    if (saved) {
+      try {
+        const b = JSON.parse(saved);
+        if (b.name) setDealershipName(b.name);
+        if (b.color) setBrandColor(b.color);
+      } catch {}
+    }
+  }, []);
+
+  // ── Initial greeting ───────────────────────────────────────────────────
+  useEffect(() => {
+    const greeting = `${dealershipName} mein aapka swagat hai! Main Vaani hoon, aapki AI assistant. Kaise madad kar sakti hoon? Aap apna naam bata dijiye, mujhe khushi hogi aapko better help karne mein!`;
+    const msg: ChatMsg = { id: "g0", role: "vaani", text: greeting, ts: new Date() };
     setMessages([msg]);
     setCurrentText(greeting);
-
-    // Speak greeting after 1 second
-    setTimeout(() => {
-      speakText(greeting);
-    }, 1000);
-
-    // Return to idle after 10 seconds
-    setTimeout(() => {
-      if (!isListening && !isSpeaking) setMood("idle");
-    }, 10000);
+    setTimeout(() => speakText(greeting), 1500);
+    setTimeout(() => { if (!isListening && !isSpeaking) setMood("idle"); }, 15000);
+    // Start wake word detection
+    startWakeWordDetection();
   }, []);
 
-  // Reset to idle after inactivity
-  const resetIdleTimer = useCallback(() => {
-    if (idleTimeout) clearTimeout(idleTimeout);
-    const timeout = setTimeout(() => {
-      if (!isListening && !isSpeaking && !isProcessing) {
-        setMood("idle");
-        setCurrentText("");
+  // ── Wake Word Detection ("Hey Vaani") ─────────────────────────────────
+  const startWakeWordDetection = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+
+    const recognition = new SR();
+    recognition.lang = "hi-IN";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event: any) => {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript.toLowerCase().trim();
+        // Check for wake word
+        if (transcript.includes("hey vaani") || transcript.includes("hello vaani") ||
+            transcript.includes("hi vaani") || transcript.includes("vaani") ||
+            transcript.includes("हे वाणी") || transcript.includes("वाणी")) {
+          // Stop wake word listener, start actual listening
+          recognition.stop();
+          setWakeWordActive(false);
+          // Extract query after wake word
+          const afterWake = transcript
+            .replace(/.*?(hey vaani|hello vaani|hi vaani|vaani|हे वाणी|वाणी)\s*/i, "")
+            .trim();
+          if (afterWake.length > 2 && event.results[i].isFinal) {
+            processUserInput(afterWake);
+          } else {
+            startListening(); // Start active listening for the query
+          }
+          return;
+        }
       }
-    }, 30000); // 30 seconds idle
-    setIdleTimeout(timeout);
-  }, [idleTimeout, isListening, isSpeaking, isProcessing]);
+    };
 
-  // ── ElevenLabs TTS ────────────────────────────────────────────────────
+    recognition.onend = () => {
+      // Auto-restart wake word detection if not actively listening
+      if (!isListening && !isSpeaking) {
+        setTimeout(() => {
+          try { recognition.start(); setWakeWordActive(true); } catch {}
+        }, 500);
+      }
+    };
+
+    recognition.onerror = () => {
+      setTimeout(() => {
+        try { recognition.start(); setWakeWordActive(true); } catch {}
+      }, 2000);
+    };
+
+    try {
+      recognition.start();
+      setWakeWordActive(true);
+      wakeRecognitionRef.current = recognition;
+    } catch {}
+  }, [isListening, isSpeaking]);
+
+  // ── Camera Functions ───────────────────────────────────────────────────
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: 320, height: 240 },
+      });
+      setCameraStream(stream);
+      setCameraOn(true);
+      if (videoRef.current) videoRef.current.srcObject = stream;
+    } catch (err) {
+      console.error("Camera error:", err);
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(t => t.stop());
+      setCameraStream(null);
+    }
+    setCameraOn(false);
+  };
+
+  const capturePhoto = (): string | null => {
+    if (!videoRef.current || !canvasRef.current) return null;
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    canvas.width = 160;
+    canvas.height = 120;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(video, 0, 0, 160, 120);
+    return canvas.toDataURL("image/jpeg", 0.6);
+  };
+
+  // ── TTS (ElevenLabs + fallback) ────────────────────────────────────────
   const speakText = async (text: string) => {
-    if (!voiceEnabled) return;
-
+    if (!voiceEnabled) { setMood("idle"); return; }
     setIsSpeaking(true);
     setMood("speaking");
-
     try {
       const res = await fetch("/api/vaani-avatar/speak", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
       });
-
-      if (res.ok) {
+      if (res.ok && res.headers.get("content-type")?.includes("audio")) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
         audioRef.current = audio;
-
-        audio.onended = () => {
-          setIsSpeaking(false);
-          setMood("idle");
-          URL.revokeObjectURL(url);
-          resetIdleTimer();
-        };
-
-        audio.onerror = () => {
-          setIsSpeaking(false);
-          setMood("idle");
-          // Fallback to browser TTS
-          fallbackSpeak(text);
-        };
-
+        audio.onended = () => { setIsSpeaking(false); setMood("idle"); URL.revokeObjectURL(url); restartWakeWord(); };
+        audio.onerror = () => { fallbackSpeak(text); };
         await audio.play();
-      } else {
-        // Fallback to browser TTS
-        fallbackSpeak(text);
+        return;
       }
-    } catch {
-      fallbackSpeak(text);
-    }
+    } catch {}
+    fallbackSpeak(text);
   };
 
-  // Fallback browser TTS
   const fallbackSpeak = (text: string) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      setIsSpeaking(false);
-      setMood("idle");
-      return;
-    }
+    if (!("speechSynthesis" in window)) { setIsSpeaking(false); setMood("idle"); return; }
     window.speechSynthesis.cancel();
-    const cleanText = text.replace(/[\u{1F000}-\u{1FFFF}]/gu, "").replace(/[*_~`#]/g, "").replace(/\n+/g, ". ").substring(0, 500);
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.rate = 0.95;
-    utterance.pitch = 1.15;
-    utterance.volume = 1;
+    const clean = text.replace(/[\u{1F000}-\u{1FFFF}]/gu, "").replace(/[*_~`#]/g, "").replace(/\n+/g, ". ").substring(0, 500);
+    const u = new SpeechSynthesisUtterance(clean);
+    u.rate = 0.95; u.pitch = 1.15; u.volume = 1;
     const voices = window.speechSynthesis.getVoices();
-    const femaleHindi = voices.find(v => v.lang.includes("hi") && (v.name.toLowerCase().includes("female") || v.name.toLowerCase().includes("aditi")));
-    const femaleEn = voices.find(v => v.lang.includes("en") && (v.name.toLowerCase().includes("female") || v.name.toLowerCase().includes("samantha")));
-    utterance.voice = femaleHindi || femaleEn || voices[0] || null;
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      setMood("idle");
-      resetIdleTimer();
-    };
-    window.speechSynthesis.speak(utterance);
+    u.voice = voices.find(v => v.lang.includes("hi")) || voices.find(v => v.name.toLowerCase().includes("female")) || voices[0];
+    u.onend = () => { setIsSpeaking(false); setMood("idle"); restartWakeWord(); };
+    window.speechSynthesis.speak(u);
   };
 
-  // ── Voice Recognition ─────────────────────────────────────────────────
-  const startListening = useCallback(() => {
-    if (typeof window === "undefined") return;
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
+  const restartWakeWord = () => {
+    setTimeout(() => {
+      if (!isListening) startWakeWordDetection();
+    }, 1000);
+  };
 
-    // Stop any current speech
+  // ── Active Listening (after wake word or mic press) ────────────────────
+  const startListening = useCallback(() => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    // Stop wake word listener
+    if (wakeRecognitionRef.current) try { wakeRecognitionRef.current.stop(); } catch {}
+    setWakeWordActive(false);
+    // Stop current speech
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     window.speechSynthesis?.cancel();
     setIsSpeaking(false);
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = "hi-IN";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognition.continuous = false;
-
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setIsListening(false);
-      processUserInput(transcript);
-    };
-
-    recognition.onerror = () => {
-      setIsListening(false);
-      setMood("idle");
-    };
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
+    const r = new SR();
+    r.lang = "hi-IN"; r.interimResults = false; r.continuous = false;
+    r.onresult = (e: any) => { setIsListening(false); processUserInput(e.results[0][0].transcript); };
+    r.onerror = () => { setIsListening(false); setMood("idle"); restartWakeWord(); };
+    r.onend = () => { setIsListening(false); };
+    recognitionRef.current = r;
+    r.start();
     setIsListening(true);
     setMood("listening");
   }, []);
 
   const stopListening = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
+    if (recognitionRef.current) recognitionRef.current.stop();
     setIsListening(false);
     setMood("idle");
+    restartWakeWord();
   };
 
-  // ── Process User Input (voice or text) ─────────────────────────────────
+  // ── Process Input ──────────────────────────────────────────────────────
   const processUserInput = async (text: string) => {
     if (!text.trim()) return;
-
-    // Add user message
-    const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      text: text.trim(),
-      timestamp: new Date(),
-    };
+    const userMsg: ChatMsg = { id: `u${Date.now()}`, role: "user", text: text.trim(), ts: new Date() };
     setMessages(prev => [...prev, userMsg]);
     setCurrentText(text.trim());
     setMood("thinking");
     setIsProcessing(true);
+    setQueries(prev => [...prev, text.trim()]);
+
+    // Detect name from user input
+    const namePatterns = [
+      /(?:mera naam|my name is|i am|mai|main)\s+(?:hai\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
+      /(?:naam|name)\s*(?:hai|is|:)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
+    ];
+    for (const pat of namePatterns) {
+      const m = text.match(pat);
+      if (m?.[1] && m[1].length > 2) {
+        setVisitorName(m[1].trim());
+        break;
+      }
+    }
+
+    // Detect phone
+    const phoneMatch = text.match(/\b(\d{10})\b/);
+    if (phoneMatch) setVisitorPhone(phoneMatch[1]);
 
     try {
-      // Build chat history for AI
-      const history = [...messages, userMsg].slice(-10).map(m => ({
+      const history = [...messages, userMsg].slice(-8).map(m => ({
         role: m.role === "user" ? "user" : "model",
         parts: [{ text: m.text }],
       }));
@@ -333,241 +404,278 @@ export default function VaaniAvatarPage() {
       const res = await fetch("/api/vaani-avatar/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history }),
+        body: JSON.stringify({
+          messages: history,
+          context: {
+            dealershipName,
+            visitorName,
+            isReturning,
+            visitCount,
+            previousQueries,
+          },
+        }),
       });
 
       const data = await res.json();
-      const responseText = data.response || "Sorry, abhi kuch problem hai. Thodi der mein try karo.";
+      const responseText = data.response || "Sorry, phir se bolein?";
 
-      // Add Vaani response
-      const vaaniMsg: ChatMessage = {
-        id: `vaani-${Date.now()}`,
-        role: "vaani",
-        text: responseText,
-        timestamp: new Date(),
-      };
+      // If AI detected name
+      if (data.detectedName && !visitorName) setVisitorName(data.detectedName);
+
+      const vaaniMsg: ChatMsg = { id: `v${Date.now()}`, role: "vaani", text: responseText, ts: new Date() };
       setMessages(prev => [...prev, vaaniMsg]);
       setCurrentText(responseText);
-
-      // Detect mood from response
-      const lower = responseText.toLowerCase();
-      if (lower.includes("congratul") || lower.includes("badhai") || lower.includes("🎉")) {
-        setMood("excited");
-      } else {
-        setMood("speaking");
-      }
-
-      // Speak the response
       await speakText(responseText);
     } catch {
-      const errorMsg: ChatMessage = {
-        id: `vaani-err-${Date.now()}`,
-        role: "vaani",
-        text: "Network mein kuch problem hai. Thodi der mein phir try karo. 🙏",
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMsg]);
+      const errMsg: ChatMsg = { id: `e${Date.now()}`, role: "vaani", text: "Network problem hai, thodi der mein try karein!", ts: new Date() };
+      setMessages(prev => [...prev, errMsg]);
       setMood("idle");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // ── Fullscreen Toggle ─────────────────────────────────────────────────
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
+  // ── Save visitor to CRM when we have enough info ───────────────────────
+  useEffect(() => {
+    if ((visitorName || visitorPhone) && !sessionId) {
+      const photo = cameraOn ? capturePhoto() : null;
+      fetch("/api/vaani-avatar/visitor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: visitorName,
+          phone: visitorPhone,
+          photoBase64: photo,
+          queries,
+          sessionMessages: messages.map(m => ({ role: m.role, text: m.text, ts: m.ts })),
+        }),
+      }).then(r => r.json()).then(data => {
+        if (data.success) {
+          setSessionId(data.sessionId);
+          if (data.visitor?.isReturning) {
+            setIsReturning(true);
+            setVisitCount(data.visitor.visitCount);
+          }
+          if (data.previousInfo) {
+            setPreviousQueries(data.previousInfo.previousQueries || []);
+          }
+        }
+      }).catch(() => {});
     }
+  }, [visitorName, visitorPhone]);
+
+  // ── Fullscreen ─────────────────────────────────────────────────────────
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) { document.documentElement.requestFullscreen(); setIsFullscreen(true); }
+    else { document.exitFullscreen(); setIsFullscreen(false); }
   };
 
-  const formatTime = (d: Date) => d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
-  const formatDate = (d: Date) => d.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const saveBranding = () => {
+    localStorage.setItem("vaani_branding", JSON.stringify({ name: dealershipName, color: brandColor }));
+    setShowSettings(false);
+  };
 
+  const fmt = (d: Date) => d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+  const fmtDate = (d: Date) => d.toLocaleDateString("hi-IN", { weekday: "long", day: "numeric", month: "long" });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 text-white overflow-hidden relative">
-      {/* Animated background particles */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 text-white overflow-hidden relative select-none">
+      {/* Particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-white/10 rounded-full animate-pulse"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${3 + Math.random() * 4}s`,
-            }}
-          />
+        {[...Array(15)].map((_, i) => (
+          <div key={i} className="absolute w-1 h-1 bg-white/10 rounded-full animate-pulse" style={{
+            left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`,
+            animationDelay: `${Math.random() * 5}s`, animationDuration: `${3 + Math.random() * 4}s`,
+          }} />
         ))}
       </div>
 
-      {/* Top Bar — Showroom name + time + controls */}
-      <div className="relative z-10 flex items-center justify-between px-6 py-4">
+      {/* Hidden elements */}
+      <video ref={videoRef} autoPlay playsInline muted className="hidden" />
+      <canvas ref={canvasRef} className="hidden" />
+
+      {/* ── Top Bar ──────────────────────────────────────────────────── */}
+      <div className="relative z-10 flex items-center justify-between px-4 md:px-6 py-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center font-bold text-lg shadow-lg">
-            V
-          </div>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg shadow-lg"
+            style={{ background: `linear-gradient(135deg, ${brandColor}, ${brandColor}dd)` }}>V</div>
           <div>
-            <h1 className="text-lg font-bold tracking-wide">{dealershipName}</h1>
-            <p className="text-xs text-white/50">Powered by VaahanERP • Vaani AI</p>
+            <h1 className="text-base md:text-lg font-bold">{dealershipName}</h1>
+            <div className="flex items-center gap-2 text-[10px] text-white/40">
+              <span>Powered by Vaani AI</span>
+              {wakeWordActive && <span className="text-green-400">● "Hey Vaani" active</span>}
+              {visitorName && <span className="text-purple-300">👤 {visitorName}</span>}
+            </div>
           </div>
         </div>
 
-        <div className="text-right">
-          <p className="text-2xl font-mono font-bold tracking-wider">{formatTime(currentTime)}</p>
-          <p className="text-xs text-white/50">{formatDate(currentTime)}</p>
+        <div className="text-right mr-3">
+          <p className="text-xl md:text-2xl font-mono font-bold">{fmt(currentTime)}</p>
+          <p className="text-[10px] text-white/40">{fmtDate(currentTime)}</p>
         </div>
 
-        {/* Controls */}
-        <div className="flex gap-2">
-          <button onClick={() => setShowChat(!showChat)} className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition-colors" title="Chat">
-            <MessageSquare className="h-5 w-5" />
+        <div className="flex gap-1.5">
+          <button onClick={() => cameraOn ? stopCamera() : startCamera()}
+            className={`p-2 rounded-xl transition-colors ${cameraOn ? "bg-green-500/20 text-green-400" : "bg-white/10 hover:bg-white/20"}`}
+            title="Camera">
+            {cameraOn ? <Camera className="h-4 w-4" /> : <CameraOff className="h-4 w-4" />}
           </button>
-          <button onClick={() => setVoiceEnabled(!voiceEnabled)} className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition-colors" title="Voice">
-            {voiceEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5 text-white/40" />}
+          <button onClick={() => setShowChat(!showChat)} className="p-2 rounded-xl bg-white/10 hover:bg-white/20">
+            <MessageSquare className="h-4 w-4" />
           </button>
-          <button onClick={toggleFullscreen} className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition-colors" title="Fullscreen">
-            {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+          <button onClick={() => setVoiceEnabled(!voiceEnabled)} className="p-2 rounded-xl bg-white/10 hover:bg-white/20">
+            {voiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-white/40" />}
+          </button>
+          <button onClick={() => setShowSettings(true)} className="p-2 rounded-xl bg-white/10 hover:bg-white/20">
+            <Settings className="h-4 w-4" />
+          </button>
+          <button onClick={toggleFullscreen} className="p-2 rounded-xl bg-white/10 hover:bg-white/20">
+            {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
           </button>
         </div>
       </div>
 
-      {/* Main Content — Avatar + Interaction */}
-      <div className="relative z-10 flex flex-col items-center justify-center" style={{ minHeight: "calc(100vh - 180px)" }}>
-        {/* Avatar */}
-        <AvatarVisual mood={mood} isSpeaking={isSpeaking} />
+      {/* Camera preview (small corner) */}
+      {cameraOn && (
+        <div className="absolute top-16 right-4 z-20 w-32 h-24 rounded-xl overflow-hidden border-2 border-white/20 shadow-lg">
+          <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+          <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-[8px] text-center py-0.5 text-green-400">
+            📷 Camera On
+          </div>
+        </div>
+      )}
 
-        {/* Current Text Display */}
+      {/* ── Main Avatar ──────────────────────────────────────────────── */}
+      <div className="relative z-10 flex flex-col items-center justify-center" style={{ minHeight: "calc(100vh - 200px)" }}>
+        <AvatarCharacter mood={mood} isSpeaking={isSpeaking} />
+
+        {/* Customer name badge */}
+        {visitorName && (
+          <div className="mt-3 px-4 py-1 rounded-full bg-purple-500/20 border border-purple-400/30 text-sm">
+            <User className="h-3 w-3 inline mr-1" />
+            {visitorName} ji {isReturning && `(Visit #${visitCount})`}
+          </div>
+        )}
+
+        {/* Current text */}
         {currentText && (
-          <div className="mt-8 max-w-2xl px-8">
-            <p className="text-center text-lg md:text-xl text-white/90 leading-relaxed font-medium animate-fadeIn">
-              {currentText.length > 200 ? currentText.substring(0, 200) + "..." : currentText}
+          <div className="mt-6 max-w-xl px-6">
+            <p className="text-center text-base md:text-lg text-white/85 leading-relaxed font-medium">
+              {currentText.length > 180 ? currentText.substring(0, 180) + "..." : currentText}
             </p>
           </div>
         )}
 
-        {/* Big Mic Button */}
-        <div className="mt-10">
-          <button
-            onClick={isListening ? stopListening : startListening}
-            disabled={isProcessing}
-            className={`relative w-20 h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center 
-              transition-all duration-300 shadow-2xl
-              ${isListening
-                ? "bg-red-500 hover:bg-red-600 animate-pulse ring-4 ring-red-400/50 scale-110"
-                : isProcessing
-                ? "bg-amber-500/50 cursor-not-allowed"
-                : "bg-white/15 hover:bg-white/25 hover:scale-105 active:scale-95 backdrop-blur-sm"
-              }`}
-          >
-            {isListening ? (
-              <MicOff className="h-8 w-8 md:h-10 md:w-10" />
-            ) : isProcessing ? (
-              <div className="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <Mic className="h-8 w-8 md:h-10 md:w-10" />
-            )}
+        {/* Big Mic */}
+        <div className="mt-8">
+          <button onClick={isListening ? stopListening : startListening} disabled={isProcessing}
+            className={`relative w-18 h-18 md:w-20 md:h-20 rounded-full flex items-center justify-center transition-all shadow-2xl
+              ${isListening ? "bg-red-500 animate-pulse ring-4 ring-red-400/50 scale-110"
+                : isProcessing ? "bg-amber-500/40 cursor-not-allowed"
+                : "bg-white/15 hover:bg-white/25 hover:scale-105 active:scale-95 backdrop-blur-sm"}`}>
+            {isListening ? <MicOff className="h-7 w-7" />
+              : isProcessing ? <div className="w-7 h-7 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              : <Mic className="h-7 w-7" />}
           </button>
-          <p className="text-center text-xs text-white/40 mt-3">
-            {isListening ? "Sun rahi hoon... (stop karo)" : isProcessing ? "Soch rahi hoon..." : "Mic dabao ya neeche se poochho"}
+          <p className="text-center text-[10px] text-white/35 mt-2">
+            {isListening ? "Sun rahi hoon..." : isProcessing ? "Soch rahi hoon..." : "Mic dabao ya \"Hey Vaani\" bolo"}
           </p>
         </div>
       </div>
 
-      {/* Quick Prompts — Bottom Bar */}
-      <div className="relative z-10 px-6 pb-6">
-        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide justify-center flex-wrap">
+      {/* ── Quick Prompts ────────────────────────────────────────────── */}
+      <div className="relative z-10 px-4 pb-4">
+        <div className="flex gap-2 overflow-x-auto justify-center flex-wrap">
           {quickPrompts.map((p, i) => (
-            <button
-              key={i}
-              onClick={() => processUserInput(p.query)}
-              disabled={isProcessing || isSpeaking}
-              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/8 hover:bg-white/15 
-                backdrop-blur-sm border border-white/10 hover:border-white/20 transition-all
-                disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-            >
-              <p.icon className="h-4 w-4 text-purple-300" />
-              <span className="text-sm font-medium whitespace-nowrap">{p.label}</span>
+            <button key={i} onClick={() => processUserInput(p.query)} disabled={isProcessing || isSpeaking}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/8 hover:bg-white/15 backdrop-blur-sm
+                border border-white/10 hover:border-white/20 transition-all disabled:opacity-30 shrink-0 text-sm">
+              <span>{typeof p.icon === "string" ? p.icon : ""}</span>
+              <span>{p.label}</span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* Side Chat Panel */}
+      {/* ── Chat Panel ───────────────────────────────────────────────── */}
       {showChat && (
-        <div className="fixed right-0 top-0 bottom-0 w-96 max-w-[85vw] bg-slate-900/95 backdrop-blur-xl border-l border-white/10 z-50 flex flex-col">
+        <div className="fixed right-0 top-0 bottom-0 w-80 md:w-96 bg-slate-900/95 backdrop-blur-xl border-l border-white/10 z-50 flex flex-col">
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-            <h3 className="font-bold flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-purple-400" /> Chat History
-            </h3>
-            <button onClick={() => setShowChat(false)} className="p-1.5 rounded-lg hover:bg-white/10">✕</button>
+            <h3 className="font-bold text-sm flex items-center gap-2"><Sparkles className="h-4 w-4 text-purple-400" /> Chat</h3>
+            <button onClick={() => setShowChat(false)} className="p-1 rounded hover:bg-white/10"><X className="h-4 w-4" /></button>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {messages.map(msg => (
-              <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-line ${
-                  msg.role === "user"
-                    ? "bg-purple-600 text-white rounded-br-md"
-                    : "bg-white/10 text-white/90 rounded-bl-md"
-                }`}>
-                  {msg.text}
-                  <div className="text-[10px] text-white/30 mt-1">
-                    {msg.timestamp.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
-                  </div>
-                </div>
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {messages.map(m => (
+              <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
+                  m.role === "user" ? "bg-purple-600 rounded-br-sm" : "bg-white/10 rounded-bl-sm"
+                }`}>{m.text}</div>
               </div>
             ))}
             <div ref={chatEndRef} />
           </div>
-          {/* Text input in chat panel */}
-          <form
-            className="p-3 border-t border-white/10 flex gap-2"
-            onSubmit={e => {
-              e.preventDefault();
-              const input = (e.target as any).elements.chatInput;
-              if (input.value.trim()) {
-                processUserInput(input.value.trim());
-                input.value = "";
-              }
-            }}
-          >
-            <input
-              name="chatInput"
-              className="flex-1 h-10 px-4 rounded-xl bg-white/10 border border-white/10 text-white text-sm 
-                placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-              placeholder="Type karo..."
-              disabled={isProcessing}
-            />
-            <button
-              type="submit"
-              disabled={isProcessing}
-              className="px-4 h-10 rounded-xl bg-purple-600 hover:bg-purple-700 font-medium text-sm disabled:opacity-40"
-            >
-              Send
-            </button>
+          <form className="p-3 border-t border-white/10 flex gap-2"
+            onSubmit={e => { e.preventDefault(); const inp = (e.target as any).elements.ci;
+              if (inp.value.trim()) { processUserInput(inp.value.trim()); inp.value = ""; } }}>
+            <input name="ci" className="flex-1 h-9 px-3 rounded-lg bg-white/10 border border-white/10 text-white text-sm
+              placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+              placeholder="Type karo..." disabled={isProcessing} />
+            <button type="submit" disabled={isProcessing}
+              className="px-3 h-9 rounded-lg bg-purple-600 hover:bg-purple-700 text-sm font-medium disabled:opacity-40">Send</button>
           </form>
         </div>
       )}
 
-      {/* Branding footer */}
-      <div className="absolute bottom-2 left-0 right-0 text-center">
-        <p className="text-[10px] text-white/20">
-          Vaani AI Avatar • VaahanERP Enterprise • © 2026 Ravi Accounting Services
-        </p>
+      {/* ── Settings Panel (Branding) ────────────────────────────────── */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center" onClick={() => setShowSettings(false)}>
+          <div className="bg-slate-900 rounded-2xl p-6 w-96 max-w-[90vw] border border-white/10" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-lg mb-4">⚙️ Avatar Settings</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-white/60 block mb-1">Dealership / Firm Name</label>
+                <input value={dealershipName} onChange={e => setDealershipName(e.target.value)}
+                  className="w-full h-10 px-3 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:ring-1 focus:ring-purple-500" />
+              </div>
+              <div>
+                <label className="text-xs text-white/60 block mb-1">Brand Color</label>
+                <div className="flex gap-2 items-center">
+                  <input type="color" value={brandColor} onChange={e => setBrandColor(e.target.value)}
+                    className="w-10 h-10 rounded-lg cursor-pointer" />
+                  <input value={brandColor} onChange={e => setBrandColor(e.target.value)}
+                    className="flex-1 h-10 px-3 rounded-lg bg-white/10 border border-white/20 text-white text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-white/60 block mb-1">Camera</label>
+                <button onClick={() => cameraOn ? stopCamera() : startCamera()}
+                  className={`px-4 py-2 rounded-lg text-sm ${cameraOn ? "bg-red-500/20 text-red-400" : "bg-green-500/20 text-green-400"}`}>
+                  {cameraOn ? "📷 Camera Off Karo" : "📷 Camera On Karo"}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button onClick={saveBranding}
+                className="flex-1 h-10 rounded-lg bg-purple-600 hover:bg-purple-700 font-medium text-sm">Save</button>
+              <button onClick={() => setShowSettings(false)}
+                className="flex-1 h-10 rounded-lg bg-white/10 hover:bg-white/20 text-sm">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="absolute bottom-1 left-0 right-0 text-center">
+        <p className="text-[9px] text-white/15">Vaani AI Avatar • VaahanERP Enterprise • © 2026</p>
       </div>
 
       <style jsx>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fadeIn { animation: fadeIn 0.5s ease-out; }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes speakBar { from { transform: scaleY(0.5); } to { transform: scaleY(1.5); } }
       `}</style>
     </div>
   );

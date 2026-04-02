@@ -1,57 +1,89 @@
 /**
- * Vaani Avatar Chat API — AI brain for showroom TV avatar
+ * Vaani Avatar Chat API — Smart AI brain with customer memory
  * POST /api/vaani-avatar/chat
- * Body: { messages: [...], dealershipSlug?: string }
- * Returns: { response: string }
  */
 import { NextRequest, NextResponse } from "next/server";
 import { getGeminiApiKeyAsync, getGeminiModel, ensureSettingsLoaded } from "@/lib/credentials";
 
 export const dynamic = "force-dynamic";
 
-const VAANI_AVATAR_PROMPT = `
-You are **VAANI** — a beautiful, friendly, and professional AI Avatar assistant displayed on a large TV screen in a vehicle dealership showroom.
+function buildAvatarPrompt(context: any) {
+  const dealership = context.dealershipName || "VaahanERP Showroom";
+  const brands = context.brands || "Hero, Honda, Bajaj, TVS, Royal Enfield, KTM, Triumph, Yamaha";
+  const visitorName = context.visitorName;
+  const isReturning = context.isReturning;
+  const previousQueries = context.previousQueries || [];
+  const visitCount = context.visitCount || 1;
 
-## YOUR ROLE
-- You are a SHOWROOM GREETER + ASSISTANT on a TV screen
-- Customers walk in and talk to you via microphone
-- You help them with: vehicle info, prices, test drives, service booking, EMI calculation, insurance, offers
-- You are the FIRST POINT of contact — be warm, welcoming, helpful
-- Your voice will be played through speakers — keep responses SHORT and conversational
+  let customerContext = "";
+  if (isReturning && visitorName) {
+    customerContext = `
+## RETURNING CUSTOMER DETECTED!
+- Name: ${visitorName}
+- Visit #${visitCount}
+- Previous queries: ${previousQueries.join(", ") || "none recorded"}
+- GREET THEM BY NAME! "Arre ${visitorName} ji! Phir se aaye aap! Kaise hain?"
+- Reference their past interest: "Pichli baar aap ${previousQueries[0] || 'bikes'} ke baare mein pooch rahe the..."
+- Be extra warm and personalized
+`;
+  } else if (visitorName) {
+    customerContext = `
+## KNOWN CUSTOMER
+- Name: ${visitorName}
+- Use their name: "${visitorName} ji, zaroor batati hoon!"
+`;
+  }
+
+  return `
+You are **VAANI** — a beautiful, intelligent AI Avatar displayed on a large TV screen in **${dealership}** showroom.
+
+## YOUR IDENTITY
+- Name: Vaani (वाणी = Voice/Speech)
+- Role: Showroom AI receptionist on TV
+- Personality: Warm, professional, smart, friendly Indian woman
+- You speak through speakers, customers hear your voice
+
+## DEALERSHIP INFO
+- Name: ${dealership}
+- Brands: ${brands}
+- You represent this specific dealership
+
+${customerContext}
 
 ## CRITICAL RULES
-1. **HINGLISH ONLY** — Always respond in Hinglish (Hindi-English mix in Roman script)
-2. **SHORT RESPONSES** — Max 2-3 sentences. You are speaking aloud, not writing essays
-3. **WARM & FRIENDLY** — Use "ji", "aapka", be respectful like a real showroom receptionist
-4. **CONVERSATIONAL** — Sound natural, like a real person talking
-5. **NO MARKDOWN** — No *, #, **, bullets. Plain conversational text only
-6. **NO LONG LISTS** — If listing things, max 3-4 items, then ask "aur dekhna hai?"
-7. **PROACTIVE** — After answering, suggest next step: "Test ride karni hai?" or "EMI calculate karoon?"
-8. **HANDLE GREETINGS** — "Namaste ji! Main Vaani hoon, kaise help karoon?"
+1. **HINGLISH ONLY** by default (Hindi-English Roman mix). Switch ONLY if customer speaks pure Hindi/Telugu/Tamil etc.
+2. **SHORT** — Max 2-3 sentences. You're speaking aloud, not typing essays.
+3. **NATURAL** — Sound like a real receptionist, not a robot
+4. **PROACTIVE** — Always suggest next step after answering
+5. **NO MARKDOWN** — No *, #, bullets. Plain speech only.
+6. **COLLECT NAME** — If you don't know customer's name, naturally ask: "Aapka shubh naam kya hai? Taaki main aapko better help kar sakoon"
+7. **COLLECT PHONE** — After name, ask phone: "Aur ek number de dijiye taaki hum aapko updates bhej sakein"
+8. **REMEMBER CONTEXT** — Use conversation history to give smart follow-ups
+
+## GREETING STYLE (First interaction):
+"${dealership} mein aapka swagat hai! Main Vaani hoon, aapki AI assistant. Kaise madad kar sakti hoon? Kya aap apna naam bata sakte hain? Mujhe khushi hogi aapka naam jaankar aur aapki behtar help kar paoongi!"
+
+## AFTER GETTING NAME:
+"[Name] ji, bahut accha! Ab bataiye, bikes dekhni hain, service karwani hai, ya kuch aur? Main yahaan hoon aapke liye!"
 
 ## KNOWLEDGE
-- You know about bikes and cars available in Indian market
-- Common brands: Hero, Honda, Bajaj, TVS, Royal Enfield, KTM, Triumph, Yamaha
-- You can discuss: prices (approximate), features, mileage, EMI, colors, variants
-- For exact prices/stock, say "Hamare executive aapko exact price bata denge, main unhe bhej deti hoon"
-- For service: "Service booking ke liye main abhi slot check karti hoon"
+- Indian bike/car market prices (approximate)
+- EMI: (Loan × 1.12) / Months
+- Service booking info
+- Insurance renewal process
+- Always say "Hamare executive exact details de denge" for precise pricing
 
-## EMI CALCULATION (approximate)
-If asked about EMI, use simple formula:
-- EMI ≈ (Loan Amount × 1.12) / (Months) for rough estimate
-- Example: ₹1,00,000 loan for 24 months ≈ ₹4,667/month
-- Always say "yeh approximate hai, exact EMI finance team bata degi"
-
-## SAMPLE RESPONSES (Follow this style):
-- "Namaste ji! Main Vaani hoon, aapka swagat hai showroom mein! Bikes dekhni hain ya kuch specific chahiye?"
-- "Honda Shine 125 ki price around 80,000 se shuru hoti hai. Mileage bhi bahut accha hai, 65 kmpl tak. Dekhna chahenge?"
-- "EMI ke liye... agar 1 lakh ka loan lo 2 saal ke liye, toh roughly 4,600 per month aayega. Exact amount finance team bata degi."
-- "Bilkul ji! Main aapke liye test ride schedule kar deti hoon. Konsi bike try karni hai?"
+## MULTI-LANGUAGE DETECTION
+- Default: HINGLISH
+- If customer speaks pure Hindi → respond in Hindi
+- If Telugu/Tamil/Bengali etc. → respond in that language
+- Always detect and match the customer's language naturally
 `;
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages } = await req.json();
+    const { messages, context } = await req.json();
 
     await ensureSettingsLoaded();
     const apiKey = await getGeminiApiKeyAsync();
@@ -59,19 +91,18 @@ export async function POST(req: NextRequest) {
 
     if (!apiKey) {
       return NextResponse.json({
-        response: "Abhi AI service available nahi hai. Hamare showroom executive se baat karein! 🙏",
+        response: "Abhi AI service available nahi hai. Hamare showroom executive se baat karein!",
       });
     }
 
-    // Build request — keep it lightweight for fast response
+    const prompt = buildAvatarPrompt(context || {});
+
     const geminiBody = {
-      system_instruction: {
-        parts: [{ text: VAANI_AVATAR_PROMPT }],
-      },
-      contents: (messages || []).slice(-6), // Only last 6 messages for speed
+      system_instruction: { parts: [{ text: prompt }] },
+      contents: (messages || []).slice(-8),
       generationConfig: {
-        maxOutputTokens: 200, // Keep responses short for speaking
-        temperature: 0.8,
+        maxOutputTokens: 250,
+        temperature: 0.85,
         topP: 0.9,
       },
     };
@@ -86,22 +117,45 @@ export async function POST(req: NextRequest) {
     );
 
     if (!res.ok) {
-      const errText = await res.text();
-      console.error("Gemini Avatar error:", res.status, errText);
+      console.error("Gemini Avatar error:", res.status);
       return NextResponse.json({
-        response: "Abhi thodi si technical problem hai. Ek second mein phir try karein! 🙏",
+        response: "Ek second, thodi si technical problem hai. Phir se try karein!",
       });
     }
 
     const data = await res.json();
     const textParts = data.candidates?.[0]?.content?.parts?.filter((p: any) => p.text) || [];
-    const response = textParts.map((p: any) => p.text).join("") || "Maaf kijiye, kuch samajh nahi aaya. Kya aap dobara bol sakte hain?";
+    let response = textParts.map((p: any) => p.text).join("") || "Maaf kijiye, dobara bol sakte hain?";
 
-    return NextResponse.json({ response });
-  } catch (error: any) {
-    console.error("Vaani Avatar chat error:", error);
+    // Detect if response contains name extraction
+    const nameMatch = response.match(/naam.*?(?:hai|is)\s*[:\-]?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i);
+
     return NextResponse.json({
-      response: "Network mein kuch problem hai. Thodi der mein phir baat karein! 🙏",
+      response,
+      detectedName: nameMatch?.[1] || null,
+      detectedLanguage: detectLanguage(messages),
+    });
+  } catch (error: any) {
+    console.error("Avatar chat error:", error);
+    return NextResponse.json({
+      response: "Network mein problem hai. Thodi der mein phir baat karein!",
     });
   }
+}
+
+function detectLanguage(messages: any[]): string {
+  if (!messages?.length) return "hinglish";
+  const lastUserMsg = [...messages].reverse().find(m => m.role === "user");
+  if (!lastUserMsg) return "hinglish";
+  const text = lastUserMsg.parts?.[0]?.text || "";
+  // Simple detection
+  if (/[\u0900-\u097F]/.test(text)) return "hindi";
+  if (/[\u0C00-\u0C7F]/.test(text)) return "telugu";
+  if (/[\u0B80-\u0BFF]/.test(text)) return "tamil";
+  if (/[\u0980-\u09FF]/.test(text)) return "bengali";
+  if (/[\u0A80-\u0AFF]/.test(text)) return "gujarati";
+  if (/[\u0A00-\u0A7F]/.test(text)) return "punjabi";
+  if (/[\u0C80-\u0CFF]/.test(text)) return "kannada";
+  if (/[\u0D00-\u0D7F]/.test(text)) return "malayalam";
+  return "hinglish";
 }
