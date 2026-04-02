@@ -116,7 +116,7 @@ const plans = [
       { text: "Custom Report Builder", included: true },
       { text: "Priority Support — 24/7", included: true },
       { text: "Dedicated Account Manager", included: true },
-      { text: "Vaani AI Avatar TV (coming soon)", included: true },
+      { text: "Vaani AI Avatar TV Setup 🖥️", included: true },
       { text: "Custom Integrations", included: true },
       { text: "SLA Guarantee — 99.9% Uptime", included: true },
     ],
@@ -352,7 +352,7 @@ export default function PricingPage() {
                 ["Vaani AI Voice Bot", "❌", "❌", "✅"],
                 ["Multi-Location Support", "❌", "❌", "✅"],
                 ["Priority Support 24/7", "❌", "❌", "✅"],
-                ["Vaani AI Avatar TV", "❌", "❌", "🔜 Coming Soon"],
+                ["Vaani AI Avatar TV", "❌", "❌", "✅ Included"],
               ].map(([feature, basic, pro, enterprise], i) => (
                 <tr key={i} className="hover:bg-muted/30">
                   <td className="p-3 font-medium">{feature}</td>
