@@ -1,29 +1,47 @@
 /**
  * Test Connection API — Tests individual service connections
+ * Uses Supabase REST API (not Prisma) to read saved settings
  * POST /api/admin/ai-config/test
  * Body: { service: "gemini" | "exotel" | "smtp" | "github" | "vercel" | "sms" | "all" }
- * Uses SAVED DB settings (not env vars) to test
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-auth';
-import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+function supabaseHeaders() {
+  return {
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json',
+  };
+}
+
 async function getSetting(key: string): Promise<string> {
-  const setting = await prisma.systemSetting.findUnique({ where: { key } });
-  return setting?.value || '';
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/SystemSetting?key=eq.${encodeURIComponent(key)}&select=value&limit=1`,
+    { headers: supabaseHeaders() }
+  );
+  const data = await res.json();
+  return data?.[0]?.value || '';
 }
 
 async function getSettings(prefix: string): Promise<Record<string, string>> {
-  const settings = await prisma.systemSetting.findMany({
-    where: { key: { startsWith: prefix } },
-  });
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/SystemSetting?key=like.${encodeURIComponent(prefix + '.*')}&select=key,value`,
+    { headers: supabaseHeaders() }
+  );
+  const data = await res.json();
   const result: Record<string, string> = {};
-  for (const s of settings) {
-    const shortKey = s.key.replace(`${prefix}.`, '');
-    result[shortKey] = s.value;
+  if (Array.isArray(data)) {
+    for (const s of data) {
+      const shortKey = s.key.replace(`${prefix}.`, '');
+      result[shortKey] = s.value;
+    }
   }
   return result;
 }
@@ -34,11 +52,11 @@ type TestResult = {
   configured: boolean;
   latency?: number;
   message: string;
-  details?: string;
 };
 
 async function testGemini(): Promise<TestResult> {
-  const apiKey = await getSetting('ai.apiKey.gemini');
+  // Try DB setting first, fallback to env var
+  const apiKey = (await getSetting('ai.apiKey.gemini')) || process.env.GEMINI_API_KEY || '';
   if (!apiKey) return { service: 'gemini', connected: false, configured: false, message: 'API key not configured' };
 
   const start = Date.now();
@@ -50,7 +68,7 @@ async function testGemini(): Promise<TestResult> {
       const modelCount = data.models?.length || 0;
       return { service: 'gemini', connected: true, configured: true, latency, message: `Connected! ${modelCount} models available` };
     }
-    return { service: 'gemini', connected: false, configured: true, latency, message: `HTTP ${res.status}`, details: await res.text() };
+    return { service: 'gemini', connected: false, configured: true, latency, message: `HTTP ${res.status}` };
   } catch (e: any) {
     return { service: 'gemini', connected: false, configured: true, latency: Date.now() - start, message: e.message };
   }
@@ -73,15 +91,20 @@ async function testOpenAI(): Promise<TestResult> {
 }
 
 async function testExotel(): Promise<TestResult> {
+  // Try DB settings first, fallback to env vars
   const config = await getSettings('exotel');
-  if (!config.apiKey || !config.apiToken || !config.accountSid) {
+  const apiKey = config.apiKey || process.env.EXOTEL_API_KEY || '';
+  const apiToken = config.apiToken || process.env.EXOTEL_API_TOKEN || '';
+  const accountSid = config.accountSid || process.env.EXOTEL_ACCOUNT_SID || '';
+
+  if (!apiKey || !apiToken || !accountSid) {
     return { service: 'exotel', connected: false, configured: false, message: 'Exotel credentials not configured' };
   }
 
   const start = Date.now();
   try {
-    const basicAuth = Buffer.from(`${config.apiKey}:${config.apiToken}`).toString('base64');
-    const res = await fetch(`https://api.exotel.com/v1/Accounts/${config.accountSid}`, {
+    const basicAuth = Buffer.from(`${apiKey}:${apiToken}`).toString('base64');
+    const res = await fetch(`https://api.exotel.com/v1/Accounts/${accountSid}`, {
       headers: { 'Authorization': `Basic ${basicAuth}` },
     });
     const latency = Date.now() - start;
@@ -90,7 +113,7 @@ async function testExotel(): Promise<TestResult> {
       connected: res.ok || res.status === 200,
       configured: true,
       latency,
-      message: res.ok ? `Connected! Account: ${config.accountSid}` : `HTTP ${res.status}`,
+      message: res.ok ? `Connected! Account: ${accountSid}` : `HTTP ${res.status}`,
     };
   } catch (e: any) {
     return { service: 'exotel', connected: false, configured: true, latency: Date.now() - start, message: e.message };
@@ -99,29 +122,25 @@ async function testExotel(): Promise<TestResult> {
 
 async function testSMTP(): Promise<TestResult> {
   const config = await getSettings('smtp');
-  if (!config.host || !config.username) {
-    return { service: 'smtp', connected: false, configured: false, message: 'SMTP not configured' };
+  const host = config.host || '';
+  const username = config.username || '';
+
+  if (!host || !username) {
+    return { service: 'smtp', connected: false, configured: false, message: 'SMTP not configured — host aur username daalo' };
   }
 
-  // Basic connection test — try to resolve the host
-  const start = Date.now();
-  try {
-    // We can't do full SMTP verify in edge/serverless easily, but we can validate config exists
-    const configured = !!(config.host && config.port && config.username && config.password);
-    return {
-      service: 'smtp',
-      connected: configured,
-      configured: true,
-      latency: Date.now() - start,
-      message: configured ? `Configured: ${config.username} via ${config.host}:${config.port}` : 'Incomplete configuration',
-    };
-  } catch (e: any) {
-    return { service: 'smtp', connected: false, configured: true, latency: Date.now() - start, message: e.message };
-  }
+  const configured = !!(host && config.port && username && config.password);
+  return {
+    service: 'smtp',
+    connected: configured,
+    configured: true,
+    latency: 0,
+    message: configured ? `Configured: ${username} via ${host}:${config.port || '587'}` : 'Incomplete — password missing',
+  };
 }
 
 async function testGitHub(): Promise<TestResult> {
-  const token = await getSetting('github.token');
+  const token = (await getSetting('github.token')) || process.env.GITHUB_TOKEN || '';
   if (!token) return { service: 'github', connected: false, configured: false, message: 'GitHub token not configured' };
 
   const start = Date.now();
@@ -141,7 +160,7 @@ async function testGitHub(): Promise<TestResult> {
 }
 
 async function testVercel(): Promise<TestResult> {
-  const token = await getSetting('vercel.token');
+  const token = (await getSetting('vercel.token')) || process.env.VERCEL_TOKEN || '';
   if (!token) return { service: 'vercel', connected: false, configured: false, message: 'Vercel token not configured' };
 
   const start = Date.now();
@@ -196,7 +215,7 @@ export async function POST(request: NextRequest) {
 
     if (service === 'all') {
       const results: TestResult[] = [];
-      for (const [name, fn] of Object.entries(testFunctions)) {
+      for (const [, fn] of Object.entries(testFunctions)) {
         results.push(await fn());
       }
       return NextResponse.json({ success: true, results });
