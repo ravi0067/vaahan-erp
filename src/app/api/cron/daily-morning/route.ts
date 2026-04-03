@@ -2,19 +2,21 @@
  * Cron: Daily Morning Jobs (9 AM IST = 3:30 AM UTC)
  * - Follow-up reminders
  * - Insurance expiry check
+ * - Email poll (all 3 mailboxes)
+ * - Overdue/stale lead notifications
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { runFollowUpReminders, runInsuranceCheck } from '@/lib/automation/engine';
+import { pollAllMailboxes } from '@/lib/lead-automation/imap-poller';
+import { createOverdueNotifications, createStaleLeadNotifications } from '@/lib/lead-automation/notification-service';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // 60 seconds max
+export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
-  // Verify cron secret (Vercel sends this header)
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    // Also allow without secret for manual triggers in dev
     if (process.env.NODE_ENV === 'production' && process.env.CRON_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -23,10 +25,22 @@ export async function GET(request: NextRequest) {
   try {
     const startTime = Date.now();
 
-    const [followUps, insurance] = await Promise.all([
-      runFollowUpReminders(),
-      runInsuranceCheck()
+    const [followUps, insurance, emailPoll] = await Promise.all([
+      runFollowUpReminders().catch((e: Error) => ({ error: e.message })),
+      runInsuranceCheck().catch((e: Error) => ({ error: e.message })),
+      pollAllMailboxes().catch((e: Error) => ({ total: 0, processed: 0, errors: [e.message], details: [] })),
     ]);
+
+    // Run notification checks
+    const DEFAULT_TENANT_ID = process.env.DEFAULT_TENANT_ID || "";
+    let notifications = { overdue: 0, stale: 0 };
+    if (DEFAULT_TENANT_ID) {
+      const [overdue, stale] = await Promise.all([
+        createOverdueNotifications(DEFAULT_TENANT_ID).catch(() => 0),
+        createStaleLeadNotifications(DEFAULT_TENANT_ID).catch(() => 0),
+      ]);
+      notifications = { overdue, stale };
+    }
 
     const executionTime = Date.now() - startTime;
 
@@ -34,10 +48,12 @@ export async function GET(request: NextRequest) {
       success: true,
       job: 'daily-morning',
       timestamp: new Date().toISOString(),
-      executionTime,
+      executionTime: `${executionTime}ms`,
       results: {
         followUpReminders: followUps,
-        insuranceCheck: insurance
+        insuranceCheck: insurance,
+        emailPoll: emailPoll,
+        notifications,
       }
     });
   } catch (error: any) {

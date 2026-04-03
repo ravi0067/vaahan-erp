@@ -99,6 +99,8 @@ model Lead {
   assignedTo           User?      @relation("AssignedLeads", fields: [assignedToId], references: [id])
   convertedToBooking   Booking?   @relation("ConvertedFromLead", fields: [convertedToBookingId], references: [id])
   tenant               Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  activities           LeadActivity[]
+  notifications        LeadNotification[]
 
   @@index([tenantId])
   @@index([status])
@@ -569,6 +571,46 @@ enum SubscriptionStatus {
 enum BillingCycle {
   MONTHLY
   YEARLY
+}
+
+// ── Lead Activity Tracking ──────────────────────────────────────────────
+model LeadActivity {
+  id        String   @id @default(cuid())
+  tenantId  String
+  leadId    String
+  action    String   // email_received, whatsapp_received, call_received, call_missed, follow_up_scheduled, status_changed, note_added, converted
+  channel   String?  // email, whatsapp, call, system, manual
+  direction String?  // incoming, outgoing
+  message   String?  @db.Text
+  metadata  Json?    // Extra data (duration, subject, classification etc.)
+  createdBy String?  // User ID who performed action (null = system)
+  createdAt DateTime @default(now())
+
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([tenantId])
+  @@index([createdAt])
+}
+
+// ── Lead Notifications ──────────────────────────────────────────────────
+model LeadNotification {
+  id        String   @id @default(cuid())
+  tenantId  String
+  leadId    String?
+  type      String   // new_lead, overdue_followup, stale_lead, conversion, missed_call
+  title     String
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  userId    String?  // Target user (null = all admins)
+  createdAt DateTime @default(now())
+
+  lead      Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
 }
 
 // ── System Settings (AI Config Dashboard) ──────────────────────────────

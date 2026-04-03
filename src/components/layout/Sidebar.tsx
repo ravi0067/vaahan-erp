@@ -67,6 +67,7 @@ function buildNavItems(bookingLabel: string, stockLabel: string, iconName: strin
   return [
     { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
     { label: "Leads CRM", icon: UserPlus, href: "/leads" },
+    { label: "Lead Automation", icon: Zap, href: "/leads/crm" },
     { label: "Advanced CRM", icon: Brain, href: "/leads/advanced" },
     { label: "Marketing Hub", icon: Megaphone, href: "/marketing" },
     { label: `Add Stock`, icon: PackagePlus, href: "/stock/add" },

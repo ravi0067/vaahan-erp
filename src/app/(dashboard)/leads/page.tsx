@@ -14,7 +14,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AddLeadDialog, type LeadFormData } from "./components/AddLeadDialog";
-import { Search, Phone, ArrowRight, Users, Flame, Sun, Snowflake, List, CalendarDays, Download, Send, RefreshCw } from "lucide-react";
+import { Search, Phone, ArrowRight, Users, Flame, Sun, Snowflake, List, CalendarDays, Download, Send, RefreshCw, Eye } from "lucide-react";
+import Link from "next/link";
 import { LeadSourceChart, LeadConversionGauge } from "@/components/charts/ChartComponents";
 import { SendAlertDialog } from "@/components/alerts/SendAlertDialog";
 import { FollowUpCalendar } from "./components/FollowUpCalendar";
@@ -252,7 +253,11 @@ export default function LeadsPage() {
               <TableBody>
                 {filtered.map((lead) => (
                   <TableRow key={lead.id}>
-                    <TableCell className="font-medium">{lead.customerName}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link href={`/leads/${lead.id}`} className="text-purple-600 hover:underline cursor-pointer">
+                        {lead.customerName}
+                      </Link>
+                    </TableCell>
                     <TableCell className="hidden sm:table-cell font-mono text-sm">{lead.mobile}</TableCell>
                     <TableCell className="hidden md:table-cell text-muted-foreground">{lead.interestedModel || '—'}</TableCell>
                     <TableCell>
@@ -273,6 +278,11 @@ export default function LeadsPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-0.5">
+                        <Link href={`/leads/${lead.id}`}>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-purple-600" title="View Details">
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                        </Link>
                         {lead.status !== 'CONVERTED' && lead.status !== 'LOST' && (
                           <Button
                             size="sm"
