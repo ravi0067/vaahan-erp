@@ -2,8 +2,14 @@ import pg from 'pg';
 const { Client } = pg;
 
 async function checkSupabaseTables() {
+  // Use Supabase pooler URL format
+  const connectionString = process.env.DATABASE_URL || 
+    'postgresql://postgres.vsadlgeprxfaihmveamk:vaahan%402026erp@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true';
+  
+  console.log('[v0] Connecting to database...');
+  
   const client = new Client({
-    connectionString: process.env.DATABASE_URL,
+    connectionString,
     ssl: { rejectUnauthorized: false }
   });
 
