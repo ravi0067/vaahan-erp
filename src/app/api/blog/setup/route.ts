@@ -135,7 +135,7 @@ export async function GET(req: NextRequest) {
 
   try {
     // Upsert all posts via Supabase REST (no Prisma needed)
-    const upserted = await sbFetch("BlogPost", {
+    const upserted = await sbFetch("BlogPost?on_conflict=slug", {
       method: "POST",
       body: JSON.stringify(BLOG_POSTS),
     });
