@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Suspense } from "react";
 import BlogListContent from "./BlogListContent";
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: "VaahanERP Blog — Dealership Tips & ERP Insights",
   description: "Vehicle dealership management tips, ERP insights, sales automation, and industry news in Hinglish. VaahanERP ke saath apna showroom badao.",

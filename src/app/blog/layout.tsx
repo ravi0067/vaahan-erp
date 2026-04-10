@@ -12,7 +12,7 @@ export default function BlogLayout({ children }: { children: React.ReactNode }) 
       <header className="border-b bg-white sticky top-0 z-50 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/logo-icon.png" alt="VaahanERP" className="h-8 w-8" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            <img src="/logo-icon.png" alt="VaahanERP" className="h-8 w-8" />
             <span className="font-bold text-xl text-gray-900">VaahanERP</span>
             <span className="text-sm text-gray-400 ml-1">Blog</span>
           </Link>

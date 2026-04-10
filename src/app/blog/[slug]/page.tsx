@@ -1,33 +1,66 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Clock, Eye, Calendar, Tag, Share2 } from "lucide-react";
+import { ArrowLeft, Clock, Eye, Calendar, Tag } from "lucide-react";
+import prisma from "@/lib/prisma";
+
+export const dynamic = 'force-dynamic';
 
 interface Props { params: { slug: string }; }
 
 async function getPost(slug: string) {
   try {
-    const base = process.env.NEXTAUTH_URL || "http://localhost:3000";
-    const res = await fetch(`${base}/api/blog/${slug}`, { cache: "no-store" });
-    if (!res.ok) return null;
-    return res.json();
-  } catch { return null; }
+    const post = await prisma.blogPost.findUnique({
+      where: { slug, published: true },
+      include: { author: { select: { name: true } } },
+    });
+    if (!post) return null;
+
+    await prisma.blogPost.update({
+      where: { id: post.id },
+      data: { views: { increment: 1 } },
+    });
+
+    const related = await prisma.blogPost.findMany({
+      where: {
+        published: true,
+        id: { not: post.id },
+        OR: [
+          ...(post.category ? [{ category: post.category }] : []),
+          { featured: true },
+        ],
+      },
+      take: 3,
+      orderBy: { publishedAt: "desc" },
+      select: { title: true, slug: true, coverImage: true, category: true, publishedAt: true, excerpt: true },
+    });
+
+    return { post, related };
+  } catch {
+    return null;
+  }
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const data = await getPost(params.slug);
-  if (!data) return { title: "Post Not Found" };
-  const { post } = data;
-  return {
-    title: post.metaTitle || post.title,
-    description: post.metaDesc || post.excerpt,
-    openGraph: {
+  try {
+    const post = await prisma.blogPost.findUnique({
+      where: { slug: params.slug, published: true },
+      select: { title: true, metaTitle: true, metaDesc: true, excerpt: true, coverImage: true },
+    });
+    if (!post) return { title: "Post Not Found" };
+    return {
       title: post.metaTitle || post.title,
-      description: post.metaDesc || post.excerpt,
-      images: post.coverImage ? [post.coverImage] : [],
-      type: "article",
-    },
-  };
+      description: post.metaDesc || post.excerpt || undefined,
+      openGraph: {
+        title: post.metaTitle || post.title,
+        description: post.metaDesc || post.excerpt || undefined,
+        images: post.coverImage ? [post.coverImage] : [],
+        type: "article",
+      },
+    };
+  } catch {
+    return { title: "VaahanERP Blog" };
+  }
 }
 
 export default async function BlogPostPage({ params }: Props) {
@@ -35,8 +68,8 @@ export default async function BlogPostPage({ params }: Props) {
   if (!data) notFound();
 
   const { post, related } = data;
-
-  const readTime = Math.max(3, Math.ceil(post.content.replace(/<[^>]*>/g, "").length / 1000));
+  const plainText = post.content.replace(/<[^>]*>/g, "");
+  const readTime = Math.max(3, Math.ceil(plainText.length / 1000));
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
@@ -54,7 +87,7 @@ export default async function BlogPostPage({ params }: Props) {
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight mb-4">{post.title}</h1>
 
           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 pb-6 border-b">
-            {post.author && <span className="font-medium text-gray-700">By {post.author.name}</span>}
+            {post.author?.name && <span className="font-medium text-gray-700">By {post.author.name}</span>}
             <span className="flex items-center gap-1">
               <Calendar className="w-3.5 h-3.5" />
               {new Date(post.publishedAt || post.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
@@ -87,7 +120,7 @@ export default async function BlogPostPage({ params }: Props) {
         )}
 
         <div className="mt-10 p-6 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl text-white text-center">
-          <h3 className="text-xl font-bold mb-2">Apni Dealership Automate Karo! 🚀</h3>
+          <h3 className="text-xl font-bold mb-2">Apni Dealership Automate Karo!</h3>
           <p className="text-orange-100 mb-4 text-sm">Leads, bookings, service, cashflow — sab ek jagah. VaahanERP try karo free mein.</p>
           <Link href="/pricing" className="inline-block bg-white text-orange-600 font-semibold px-6 py-2.5 rounded-full hover:bg-orange-50 transition-colors text-sm">
             Free Demo Book Karo →
@@ -99,7 +132,7 @@ export default async function BlogPostPage({ params }: Props) {
         <section className="mt-14">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Related Posts</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {related.map((r: any) => (
+            {related.map((r) => (
               <Link key={r.slug} href={`/blog/${r.slug}`} className="group block rounded-xl border hover:shadow-md transition-all bg-white overflow-hidden">
                 {r.coverImage ? (
                   <img src={r.coverImage} alt={r.title} className="w-full h-36 object-cover" />
