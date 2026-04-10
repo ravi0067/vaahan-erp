@@ -22,7 +22,7 @@ const quickPrompts = [
 ];
 
 // ── 3D-style Avatar Component ────────────────────────────────────────────
-const DEFAULT_AVATAR_IMAGE = "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=1200&q=80";
+const DEFAULT_AVATAR_IMAGE = "/avatars/ravi-vaani.jpg";
 
 function AvatarCharacter({ mood, isSpeaking, avatarImageUrl }: { mood: Mood; isSpeaking: boolean; avatarImageUrl?: string }) {
   const gradients: Record<Mood, string> = {

@@ -310,7 +310,7 @@ export default function AIConfigPage() {
 
               <div className="grid gap-2">
                 <Label>Model</Label>
-                <Select value={get("ai.model", "gemini-2.5-flash")} onValueChange={(v) => set("ai.model", v)}>
+                <Select value={get("ai.model", "gemini-2.5-pro")} onValueChange={(v) => set("ai.model", v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {get("ai.provider", "gemini") === "gemini" && (
@@ -573,7 +573,7 @@ export default function AIConfigPage() {
               <div className="grid gap-2">
                 <Label>Custom Avatar URL</Label>
                 <Input
-                  value={get("vaani.customAvatarUrl", "/avatars/vaani-default.jpg")}
+                  value={get("vaani.customAvatarUrl", "/avatars/ravi-vaani.jpg")}
                   onChange={(e) => set("vaani.customAvatarUrl", e.target.value)}
                   placeholder="https://your-domain.com/avatar.png"
                 />
