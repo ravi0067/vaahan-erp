@@ -36,6 +36,7 @@ import {
   Brain,
   CreditCard,
   Monitor,
+  FileText,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -92,6 +93,7 @@ function buildNavItems(bookingLabel: string, stockLabel: string, iconName: strin
     { label: "Clients (Admin)", icon: ShieldCheck, href: "/admin" },
     { label: "Brand Management", icon: Store, href: "/admin/brands" },
     { label: "AI Configuration", icon: Brain, href: "/admin/ai-config" },
+    { label: "Blog Management", icon: FileText, href: "/admin/blog" },
     { label: "Help & Support", icon: HelpCircle, href: "/help" },
   ];
 }
@@ -101,7 +103,7 @@ function getNavItemsForRole(role: string | undefined, allNavItems: NavItem[], al
 
   // Super admin sees only admin pages
   if (role === "SUPER_ADMIN") {
-    const superAdminPaths = ["/dashboard", "/admin", "/admin/settings", "/admin/brands", "/admin/ai-config", "/reports", "/settings", "/settings/subscription", "/vaani-avatar", "/admin/avatar-analytics", "/help"];
+    const superAdminPaths = ["/dashboard", "/admin", "/admin/settings", "/admin/brands", "/admin/ai-config", "/admin/blog", "/reports", "/settings", "/settings/subscription", "/vaani-avatar", "/admin/avatar-analytics", "/help"];
     return allNavItems.filter((n) => superAdminPaths.includes(n.href));
   }
 

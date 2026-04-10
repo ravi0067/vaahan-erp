@@ -56,6 +56,7 @@ model User {
   approvedExpenses Expense[]      @relation("ApprovedBy")
   mechanicJobCards JobCard[]      @relation("Mechanic")
   assignedLeads    Lead[]         @relation("AssignedLeads")
+  blogPosts        BlogPost[]     @relation("BlogAuthor")
   tenant           Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
@@ -622,4 +623,31 @@ model SystemSetting {
   category  String   @default("general")
   updatedAt DateTime @updatedAt
   updatedBy String?
+}
+
+// ── Blog System ─────────────────────────────────────────────────────────
+model BlogPost {
+  id          String    @id @default(cuid())
+  title       String
+  slug        String    @unique
+  content     String    @db.Text
+  excerpt     String?   @db.Text
+  coverImage  String?
+  published   Boolean   @default(false)
+  featured    Boolean   @default(false)
+  metaTitle   String?
+  metaDesc    String?   @db.Text
+  category    String?
+  tags        String?
+  authorId    String?
+  author      User?     @relation("BlogAuthor", fields: [authorId], references: [id])
+  views       Int       @default(0)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([slug])
+  @@index([published])
+  @@index([featured])
+  @@index([category])
 }
