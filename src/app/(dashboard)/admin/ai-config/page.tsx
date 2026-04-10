@@ -523,6 +523,127 @@ export default function AIConfigPage() {
         {/* TAB 3: Vaani AI */}
         {/* ════════════════════════════════════════════════════════════ */}
         <TabsContent value="vaani">
+          {/* Vaani Avatar Configuration */}
+          <Card className="border-violet-200 bg-violet-50/40">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5 text-violet-600" /> Vaani Avatar — Custom AI Avatar</CardTitle>
+              <p className="text-sm text-muted-foreground">Yahan se website wala avatar control hoga. Custom image/URL daal ke default avatar set kar sakte ho.</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-lg border border-violet-200 bg-white p-3 text-sm text-violet-900">
+                <p className="font-medium">Quick note</p>
+                <p className="mt-1 text-violet-800/80">Agar aap custom image use karna chahte ho, <span className="font-medium">Avatar Style = Custom</span> ya <span className="font-medium">Avatar Character = Custom</span> select karo. Phir niche <span className="font-medium">Custom Avatar URL</span> field me image link daalo. Ye avatar Vaani TV page pe default use hoga.</p>
+              </div>
+
+              <Toggle
+                enabled={getBool("vaani.avatarEnabled", true)}
+                onChange={(v) => setBool("vaani.avatarEnabled", v)}
+                label="🎭 Avatar Enabled"
+                desc="Website pe avatar dikhao ya sirf chat widget"
+              />
+
+              <div className="grid gap-2">
+                <Label>Avatar Style</Label>
+                <Select value={get("vaani.avatarStyle", "custom")} onValueChange={(v) => set("vaani.avatarStyle", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="custom">Custom Image / Upload (Recommended ⭐)</SelectItem>
+                    <SelectItem value="3d-animated">3D Animated</SelectItem>
+                    <SelectItem value="2d-cartoon">2D Cartoon</SelectItem>
+                    <SelectItem value="realistic">Realistic</SelectItem>
+                    <SelectItem value="minimal">Minimal (Icon Only)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Avatar Character</Label>
+                <Select value={get("vaani.avatarCharacter", "custom")} onValueChange={(v) => set("vaani.avatarCharacter", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="custom">🎨 My Custom Avatar</SelectItem>
+                    <SelectItem value="female-indian">👩🏽 Indian Woman</SelectItem>
+                    <SelectItem value="male-indian">👨🏽 Indian Man</SelectItem>
+                    <SelectItem value="robot">🤖 Robot</SelectItem>
+                    <SelectItem value="mascot">🐾 Brand Mascot</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Custom Avatar URL</Label>
+                <Input
+                  value={get("vaani.customAvatarUrl", "/avatars/vaani-default.jpg")}
+                  onChange={(e) => set("vaani.customAvatarUrl", e.target.value)}
+                  placeholder="https://your-domain.com/avatar.png"
+                />
+                <p className="text-xs text-muted-foreground">Image URL daalo. PNG/JPG/WebP best hai. Agar blank raha to system default avatar use karega.</p>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Avatar Color Theme</Label>
+                <Select value={get("vaani.avatarTheme", "purple")} onValueChange={(v) => set("vaani.avatarTheme", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="purple">💜 Purple (Default)</SelectItem>
+                    <SelectItem value="blue">💙 Blue</SelectItem>
+                    <SelectItem value="green">💚 Green</SelectItem>
+                    <SelectItem value="red">❤️ Red</SelectItem>
+                    <SelectItem value="orange">🧡 Orange</SelectItem>
+                    <SelectItem value="brand">🎨 Brand Colors (Auto)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Avatar Position</Label>
+                <Select value={get("vaani.avatarPosition", "bottom-right")} onValueChange={(v) => set("vaani.avatarPosition", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bottom-right">↘️ Bottom Right (Default)</SelectItem>
+                    <SelectItem value="bottom-left">↙️ Bottom Left</SelectItem>
+                    <SelectItem value="center">🎯 Center (Full Page)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Avatar Size</Label>
+                <Select value={get("vaani.avatarSize", "medium")} onValueChange={(v) => set("vaani.avatarSize", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="small">Small (Mobile Friendly)</SelectItem>
+                    <SelectItem value="medium">Medium (Default ⭐)</SelectItem>
+                    <SelectItem value="large">Large (Desktop)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Toggle
+                enabled={getBool("vaani.avatarAnimations", true)}
+                onChange={(v) => setBool("vaani.avatarAnimations", v)}
+                label="✨ Animations Enabled"
+                desc="Idle, speaking, listening animations"
+              />
+
+              <Toggle
+                enabled={getBool("vaani.avatarSpeakingLips", true)}
+                onChange={(v) => setBool("vaani.avatarSpeakingLips", v)}
+                label="👄 Lip Sync"
+                desc="Speaking ke waqt avatar me motion effect"
+              />
+
+              <SaveButton
+                keys={[
+                  "vaani.avatarEnabled", "vaani.avatarStyle", "vaani.avatarCharacter",
+                  "vaani.customAvatarUrl", "vaani.avatarTheme", "vaani.avatarPosition",
+                  "vaani.avatarSize", "vaani.avatarAnimations", "vaani.avatarSpeakingLips",
+                ]}
+                label="Save Avatar Config"
+              />
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-pink-600" /> Vaani AI Settings — वाणी</CardTitle>
@@ -599,123 +720,6 @@ export default function AIConfigPage() {
             </CardContent>
           </Card>
 
-          {/* Vaani Avatar Configuration */}
-          <Card className="mt-4">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5 text-violet-600" /> Vaani Avatar — Custom AI Avatar</CardTitle>
-              <p className="text-sm text-muted-foreground">Website pe dikhne wala AI avatar customize karo — look, style, aur behavior</p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Toggle
-                enabled={getBool("vaani.avatarEnabled", true)}
-                onChange={(v) => setBool("vaani.avatarEnabled", v)}
-                label="🎭 Avatar Enabled"
-                desc="Website pe 3D avatar dikhao ya sirf chat widget"
-              />
-
-              <div className="grid gap-2">
-                <Label>Avatar Style</Label>
-                <Select value={get("vaani.avatarStyle", "3d-animated")} onValueChange={(v) => set("vaani.avatarStyle", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="3d-animated">3D Animated (Default ⭐)</SelectItem>
-                    <SelectItem value="2d-cartoon">2D Cartoon</SelectItem>
-                    <SelectItem value="realistic">Realistic</SelectItem>
-                    <SelectItem value="minimal">Minimal (Icon Only)</SelectItem>
-                    <SelectItem value="custom">Custom (Upload Your Own)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Avatar Character</Label>
-                <Select value={get("vaani.avatarCharacter", "female-indian")} onValueChange={(v) => set("vaani.avatarCharacter", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="female-indian">👩🏽 Indian Woman (Vaani Default)</SelectItem>
-                    <SelectItem value="male-indian">👨🏽 Indian Man</SelectItem>
-                    <SelectItem value="robot">🤖 Robot</SelectItem>
-                    <SelectItem value="mascot">🐾 Brand Mascot</SelectItem>
-                    <SelectItem value="custom">🎨 Custom Upload</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {(get("vaani.avatarStyle") === "custom" || get("vaani.avatarCharacter") === "custom") && (
-                <div className="grid gap-2">
-                  <Label>Custom Avatar URL</Label>
-                  <Input
-                    value={get("vaani.customAvatarUrl")}
-                    onChange={(e) => set("vaani.customAvatarUrl", e.target.value)}
-                    placeholder="https://your-domain.com/avatar.png or .glb for 3D"
-                  />
-                  <p className="text-xs text-muted-foreground">PNG/SVG for 2D, GLB/GLTF for 3D avatar. Max 5MB recommended.</p>
-                </div>
-              )}
-
-              <div className="grid gap-2">
-                <Label>Avatar Color Theme</Label>
-                <Select value={get("vaani.avatarTheme", "purple")} onValueChange={(v) => set("vaani.avatarTheme", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="purple">💜 Purple (Default)</SelectItem>
-                    <SelectItem value="blue">💙 Blue</SelectItem>
-                    <SelectItem value="green">💚 Green</SelectItem>
-                    <SelectItem value="red">❤️ Red</SelectItem>
-                    <SelectItem value="orange">🧡 Orange</SelectItem>
-                    <SelectItem value="brand">🎨 Brand Colors (Auto)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Avatar Position</Label>
-                <Select value={get("vaani.avatarPosition", "bottom-right")} onValueChange={(v) => set("vaani.avatarPosition", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bottom-right">↘️ Bottom Right (Default)</SelectItem>
-                    <SelectItem value="bottom-left">↙️ Bottom Left</SelectItem>
-                    <SelectItem value="center">🎯 Center (Full Page)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Avatar Size</Label>
-                <Select value={get("vaani.avatarSize", "medium")} onValueChange={(v) => set("vaani.avatarSize", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="small">Small (Mobile Friendly)</SelectItem>
-                    <SelectItem value="medium">Medium (Default ⭐)</SelectItem>
-                    <SelectItem value="large">Large (Desktop)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Toggle
-                enabled={getBool("vaani.avatarAnimations", true)}
-                onChange={(v) => setBool("vaani.avatarAnimations", v)}
-                label="✨ Animations Enabled"
-                desc="Idle, speaking, listening animations"
-              />
-
-              <Toggle
-                enabled={getBool("vaani.avatarSpeakingLips", true)}
-                onChange={(v) => setBool("vaani.avatarSpeakingLips", v)}
-                label="👄 Lip Sync"
-                desc="Avatar ke hoth bolte waqt move karenge"
-              />
-
-              <SaveButton
-                keys={[
-                  "vaani.avatarEnabled", "vaani.avatarStyle", "vaani.avatarCharacter",
-                  "vaani.customAvatarUrl", "vaani.avatarTheme", "vaani.avatarPosition",
-                  "vaani.avatarSize", "vaani.avatarAnimations", "vaani.avatarSpeakingLips",
-                ]}
-                label="Save Avatar Config"
-              />
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* ════════════════════════════════════════════════════════════ */}

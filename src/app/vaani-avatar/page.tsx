@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import Image from "next/image";
 import {
   Mic, MicOff, Volume2, VolumeX, Maximize, Minimize,
   MessageSquare, Phone, Bike, Wrench, Shield, Clock,
@@ -21,7 +22,9 @@ const quickPrompts = [
 ];
 
 // ── 3D-style Avatar Component ────────────────────────────────────────────
-function AvatarCharacter({ mood, isSpeaking }: { mood: Mood; isSpeaking: boolean }) {
+const DEFAULT_AVATAR_IMAGE = "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=1200&q=80";
+
+function AvatarCharacter({ mood, isSpeaking, avatarImageUrl }: { mood: Mood; isSpeaking: boolean; avatarImageUrl?: string }) {
   const gradients: Record<Mood, string> = {
     idle: "from-violet-600 via-purple-600 to-indigo-700",
     listening: "from-blue-500 via-cyan-500 to-blue-600",
@@ -58,46 +61,18 @@ function AvatarCharacter({ mood, isSpeaking }: { mood: Mood; isSpeaking: boolean
         
         {/* Inner avatar face */}
         <div className="absolute inset-3 rounded-full bg-gradient-to-b from-white/15 to-white/5 backdrop-blur-sm flex flex-col items-center justify-center">
-          {/* Female avatar face using SVG */}
-          <svg viewBox="0 0 200 200" className="w-32 h-32 md:w-40 md:h-40">
-            {/* Hair */}
-            <ellipse cx="100" cy="70" rx="55" ry="60" fill="#1a1a2e" />
-            <ellipse cx="100" cy="50" rx="50" ry="45" fill="#16213e" />
-            {/* Face */}
-            <ellipse cx="100" cy="90" rx="40" ry="45" fill="#f4c4a0" />
-            {/* Eyes */}
-            <ellipse cx="85" cy="82" rx="5" ry={mood === "listening" ? "6" : isSpeaking ? "5" : "4"} fill="#2d1b1b">
-              <animate attributeName="ry" values={isSpeaking ? "4;6;4" : "4;4;4"} dur="2s" repeatCount="indefinite" />
-            </ellipse>
-            <ellipse cx="115" cy="82" rx="5" ry={mood === "listening" ? "6" : isSpeaking ? "5" : "4"} fill="#2d1b1b">
-              <animate attributeName="ry" values={isSpeaking ? "4;6;4" : "4;4;4"} dur="2s" repeatCount="indefinite" />
-            </ellipse>
-            {/* Eye sparkle */}
-            <circle cx="87" cy="80" r="1.5" fill="white" opacity="0.8" />
-            <circle cx="117" cy="80" r="1.5" fill="white" opacity="0.8" />
-            {/* Eyebrows */}
-            <path d="M75 73 Q85 68 95 73" stroke="#1a1a2e" strokeWidth="2" fill="none" />
-            <path d="M105 73 Q115 68 125 73" stroke="#1a1a2e" strokeWidth="2" fill="none" />
-            {/* Nose */}
-            <path d="M98 92 Q100 97 102 92" stroke="#d4a07a" strokeWidth="1.5" fill="none" />
-            {/* Mouth — changes with mood */}
-            {isSpeaking ? (
-              <ellipse cx="100" cy="108" rx="8" ry="5" fill="#c0392b">
-                <animate attributeName="ry" values="3;6;3" dur="0.4s" repeatCount="indefinite" />
-              </ellipse>
-            ) : mood === "greeting" ? (
-              <path d="M88 105 Q100 118 112 105" stroke="#c0392b" strokeWidth="2.5" fill="#e74c3c" opacity="0.7" />
-            ) : (
-              <path d="M90 106 Q100 113 110 106" stroke="#c0392b" strokeWidth="2" fill="none" />
-            )}
-            {/* Bindi */}
-            <circle cx="100" cy="70" r="2.5" fill="#e74c3c" />
-            {/* Earrings */}
-            <circle cx="58" cy="95" r="3" fill="#f1c40f" opacity="0.8" />
-            <circle cx="142" cy="95" r="3" fill="#f1c40f" opacity="0.8" />
-            {/* Dupatta hint */}
-            <path d="M55 120 Q100 140 145 120" stroke="#9b59b6" strokeWidth="6" fill="none" opacity="0.5" />
-          </svg>
+          <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border border-white/20 shadow-2xl">
+            <Image
+              src={avatarImageUrl || DEFAULT_AVATAR_IMAGE}
+              alt="Vaani Avatar"
+              fill
+              sizes="160px"
+              className={`object-cover transition-transform duration-700 ${isSpeaking ? "scale-110" : "scale-100"}`}
+              priority
+              unoptimized
+            />
+            <div className={`absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-white/10 ${isSpeaking ? "animate-pulse" : ""}`} />
+          </div>
           
           <p className="text-white font-bold text-xs md:text-sm tracking-widest mt-1">VAANI</p>
         </div>
@@ -161,6 +136,7 @@ export default function VaaniAvatarPage() {
   const [dealershipName, setDealershipName] = useState("VaahanERP Showroom");
   const [brandColor, setBrandColor] = useState("#7c3aed");
   const [showSettings, setShowSettings] = useState(false);
+  const [avatarImageUrl, setAvatarImageUrl] = useState(DEFAULT_AVATAR_IMAGE);
 
   // ── Inventory (real dealership stock) ─────────────────────────────────
   const [inventory, setInventory] = useState<{
@@ -204,8 +180,26 @@ export default function VaaniAvatarPage() {
         if (b.color) setBrandColor(b.color);
       } catch {}
     }
+    const savedAvatar = localStorage.getItem("vaani_avatar_image");
+    if (savedAvatar) setAvatarImageUrl(savedAvatar);
     const savedVoice = localStorage.getItem("vaani_voice");
     if (savedVoice === "male" || savedVoice === "female") setVoiceGender(savedVoice);
+  }, []);
+
+  useEffect(() => {
+    const loadAvatarConfig = async () => {
+      try {
+        const res = await fetch("/api/admin/ai-config", { credentials: "include" });
+        if (!res.ok) return;
+        const data = await res.json();
+        const avatarUrl = data?.settings?.vaani?.["vaani.customAvatarUrl"]?.value;
+        if (avatarUrl && typeof avatarUrl === "string" && !avatarUrl.includes("••••")) {
+          setAvatarImageUrl(avatarUrl);
+          localStorage.setItem("vaani_avatar_image", avatarUrl);
+        }
+      } catch {}
+    };
+    loadAvatarConfig();
   }, []);
 
   // ── Fetch real dealership inventory ──────────────────────────────────
@@ -576,6 +570,7 @@ export default function VaaniAvatarPage() {
 
   const saveBranding = () => {
     localStorage.setItem("vaani_branding", JSON.stringify({ name: dealershipName, color: brandColor }));
+    localStorage.setItem("vaani_avatar_image", avatarImageUrl);
     setShowSettings(false);
   };
 
@@ -654,7 +649,7 @@ export default function VaaniAvatarPage() {
 
       {/* ── Main Avatar ──────────────────────────────────────────────── */}
       <div className="relative z-10 flex flex-col items-center justify-center" style={{ minHeight: "calc(100vh - 200px)" }}>
-        <AvatarCharacter mood={mood} isSpeaking={isSpeaking} />
+        <AvatarCharacter mood={mood} isSpeaking={isSpeaking} avatarImageUrl={avatarImageUrl} />
 
         {/* Customer name badge */}
         {visitorName && (
@@ -768,6 +763,12 @@ export default function VaaniAvatarPage() {
                     👨 Boy Voice
                   </button>
                 </div>
+              </div>
+              <div>
+                <label className="text-xs text-white/60 block mb-1">Avatar Image URL</label>
+                <input value={avatarImageUrl} onChange={e => setAvatarImageUrl(e.target.value)}
+                  className="w-full h-10 px-3 rounded-lg bg-white/10 border border-white/20 text-white text-sm" />
+                <p className="mt-1 text-[10px] text-white/40">Custom image URL paste karke avatar ko turant replace kar sakte ho.</p>
               </div>
               <div>
                 <label className="text-xs text-white/60 block mb-1">Camera</label>
