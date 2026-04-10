@@ -34,6 +34,8 @@ const SENSITIVE_KEYS = [
   'vercel.token',
   'payment.keyId', 'payment.keySecret',
   'whatsapp.apiKey',
+  'whatsapp.exotel.apiKey', 'whatsapp.exotel.apiToken',
+  'whatsapp.meta.accessToken', 'whatsapp.meta.appSecret', 'whatsapp.meta.webhookVerifyToken',
   'calling.apiKey', 'calling.apiSecret', 'calling.accountSid',
   'vaani.elevenLabsKey',
 ];

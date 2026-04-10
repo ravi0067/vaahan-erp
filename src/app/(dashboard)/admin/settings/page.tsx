@@ -394,23 +394,35 @@ function WhatsAppTab() {
   const [testing, setTesting] = React.useState(false);
   const [testNumber, setTestNumber] = React.useState("");
 
-  const handleSave = async () => {
-    setSaving(true);
-    await saveToApi({
-      "whatsapp.provider": whatsapp.provider,
-      "whatsapp.apiKey": whatsapp.apiKey,
-      "whatsapp.phoneNumberId": whatsapp.phoneNumberId,
-      "whatsapp.enabled": whatsapp.enabled ? "true" : "false",
-      ...Object.fromEntries(Object.entries(whatsapp.templates).map(([k, v]) => [`whatsapp.template.${k}`, v])),
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
+  // Active provider: "exotel" | "meta"
+  const [activeProvider, setActiveProvider] = React.useState<"exotel" | "meta">("exotel");
 
-  const handleTest = () => {
-    setTesting(true);
-    setTimeout(() => setTesting(false), 1500);
+  // Exotel WhatsApp config
+  const [exotel, setExotel] = React.useState({
+    apiKey: "",
+    apiToken: "",
+    accountSid: "",
+    fromNumber: "",
+    enabled: true,
+  });
+
+  // Meta (Facebook) WhatsApp Business API config
+  const [meta, setMeta] = React.useState({
+    accessToken: "",
+    phoneNumberId: "",
+    wabaId: "",
+    appId: "",
+    appSecret: "",
+    webhookVerifyToken: "",
+    enabled: false,
+  });
+
+  const templateLabels: Record<string, string> = {
+    booking_confirmation: "Booking Confirmation",
+    payment_receipt: "Payment Receipt",
+    delivery_ready: "Delivery Ready",
+    followup_reminder: "Follow-up Reminder",
+    rto_update: "RTO Update",
   };
 
   const updateTemplate = (key: string, value: string) => {
@@ -422,18 +434,47 @@ function WhatsAppTab() {
     setWhatsApp({ clientOverrides: { ...whatsapp.clientOverrides, [clientId]: !current } });
   };
 
-  const templateLabels: Record<string, string> = {
-    booking_confirmation: "Booking Confirmation",
-    payment_receipt: "Payment Receipt",
-    delivery_ready: "Delivery Ready",
-    followup_reminder: "Follow-up Reminder",
-    rto_update: "RTO Update",
+  const handleTest = () => {
+    setTesting(true);
+    setTimeout(() => setTesting(false), 1500);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    await saveToApi({
+      // Active provider selection
+      "whatsapp.activeProvider": activeProvider,
+      "whatsapp.enabled": whatsapp.enabled ? "true" : "false",
+
+      // Exotel WhatsApp
+      "whatsapp.exotel.apiKey": exotel.apiKey,
+      "whatsapp.exotel.apiToken": exotel.apiToken,
+      "whatsapp.exotel.accountSid": exotel.accountSid,
+      "whatsapp.exotel.fromNumber": exotel.fromNumber,
+      "whatsapp.exotel.enabled": exotel.enabled ? "true" : "false",
+
+      // Meta WhatsApp Business API
+      "whatsapp.meta.accessToken": meta.accessToken,
+      "whatsapp.meta.phoneNumberId": meta.phoneNumberId,
+      "whatsapp.meta.wabaId": meta.wabaId,
+      "whatsapp.meta.appId": meta.appId,
+      "whatsapp.meta.appSecret": meta.appSecret,
+      "whatsapp.meta.webhookVerifyToken": meta.webhookVerifyToken,
+      "whatsapp.meta.enabled": meta.enabled ? "true" : "false",
+
+      // Templates (common)
+      ...Object.fromEntries(Object.entries(whatsapp.templates).map(([k, v]) => [`whatsapp.template.${k}`, v])),
+    });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">WhatsApp Alerts</h3>
+        <h3 className="text-lg font-semibold">WhatsApp Configuration</h3>
         <button
           onClick={() => setWhatsApp({ enabled: !whatsapp.enabled })}
           className={`relative w-11 h-6 rounded-full transition-colors ${
@@ -446,46 +487,232 @@ function WhatsAppTab() {
         </button>
       </div>
 
-      <div className="grid gap-4">
-        <div className="grid gap-2">
-          <Label>Provider</Label>
-          <Select value={whatsapp.provider} onValueChange={(v) => setWhatsApp({ provider: v as "whatsapp_business" | "twilio" | "wati" })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="whatsapp_business">WhatsApp Business API</SelectItem>
-              <SelectItem value="twilio">Twilio</SelectItem>
-              <SelectItem value="wati">Wati</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Provider Switch */}
+      <div className="rounded-xl border bg-muted/30 p-1 flex gap-1">
+        <button
+          onClick={() => setActiveProvider("exotel")}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
+            activeProvider === "exotel"
+              ? "bg-white dark:bg-gray-800 shadow text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <span className="text-lg">📞</span>
+          Exotel WhatsApp
+          {activeProvider === "exotel" && (
+            <span className="ml-1 text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 px-2 py-0.5 rounded-full font-semibold">ACTIVE</span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveProvider("meta")}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
+            activeProvider === "meta"
+              ? "bg-white dark:bg-gray-800 shadow text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <span className="text-lg">🔵</span>
+          Meta WhatsApp Business API
+          {activeProvider === "meta" && (
+            <span className="ml-1 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 px-2 py-0.5 rounded-full font-semibold">ACTIVE</span>
+          )}
+        </button>
+      </div>
 
-        <div className="grid gap-2">
-          <Label>API Key / Auth Token</Label>
-          <MaskedInput
-            value={whatsapp.apiKey}
-            onChange={(v) => setWhatsApp({ apiKey: v })}
-            placeholder="Enter API key or auth token"
-          />
-        </div>
+      {/* ── EXOTEL CONFIG ─────────────────────────────────────── */}
+      {activeProvider === "exotel" && (
+        <Card className="border-orange-200 dark:border-orange-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <span className="text-xl">📞</span>
+              Exotel WhatsApp Configuration
+              <span className="ml-auto text-xs bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300 px-2 py-0.5 rounded-full">
+                Currently Active
+              </span>
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Exotel ka WhatsApp gateway — API key aur Account SID se messages bhejta hai
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-sm font-medium">Enable Exotel WhatsApp</Label>
+              <button
+                onClick={() => setExotel(p => ({ ...p, enabled: !p.enabled }))}
+                className={`relative w-10 h-5 rounded-full transition-colors ${exotel.enabled ? "bg-green-500" : "bg-gray-300"}`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${exotel.enabled ? "left-[22px]" : "left-0.5"}`} />
+              </button>
+            </div>
 
-        <div className="grid gap-2">
-          <Label>Phone Number ID / From Number</Label>
-          <Input
-            value={whatsapp.phoneNumberId}
-            onChange={(e) => setWhatsApp({ phoneNumberId: e.target.value })}
-            placeholder="+91XXXXXXXXXX"
-          />
-        </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label>API Key</Label>
+                <MaskedInput
+                  value={exotel.apiKey}
+                  onChange={(v) => setExotel(p => ({ ...p, apiKey: v }))}
+                  placeholder="Exotel API Key"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>API Token</Label>
+                <MaskedInput
+                  value={exotel.apiToken}
+                  onChange={(v) => setExotel(p => ({ ...p, apiToken: v }))}
+                  placeholder="Exotel API Token"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Account SID</Label>
+                <Input
+                  value={exotel.accountSid}
+                  onChange={(e) => setExotel(p => ({ ...p, accountSid: e.target.value }))}
+                  placeholder="Exotel Account SID"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>From Number (WhatsApp)</Label>
+                <Input
+                  value={exotel.fromNumber}
+                  onChange={(e) => setExotel(p => ({ ...p, fromNumber: e.target.value }))}
+                  placeholder="+91XXXXXXXXXX"
+                />
+              </div>
+            </div>
 
-        {/* Templates */}
-        <div className="space-y-3">
-          <Label className="text-base font-semibold">Message Templates</Label>
+            <div className="rounded-lg bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 p-3 text-xs text-orange-800 dark:text-orange-300">
+              <p className="font-semibold mb-1">Exotel Dashboard se milenge:</p>
+              <p>API Key + API Token → Settings → API → Credentials</p>
+              <p>Account SID → Dashboard ka top pe dikhta hai</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── META WHATSAPP BUSINESS API CONFIG ────────────────── */}
+      {activeProvider === "meta" && (
+        <Card className="border-blue-200 dark:border-blue-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <span className="text-xl">🔵</span>
+              Meta WhatsApp Business API
+              <span className="ml-auto text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 px-2 py-0.5 rounded-full">
+                {meta.enabled ? "Will Be Active" : "Ready to Configure"}
+              </span>
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Meta Business Manager se approve hone ke baad yahan credentials daalna — phir "Active" switch karna
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-sm font-medium">Enable Meta WhatsApp API</Label>
+              <button
+                onClick={() => setMeta(p => ({ ...p, enabled: !p.enabled }))}
+                className={`relative w-10 h-5 rounded-full transition-colors ${meta.enabled ? "bg-blue-500" : "bg-gray-300"}`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${meta.enabled ? "left-[22px]" : "left-0.5"}`} />
+              </button>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2 sm:col-span-2">
+                <Label>Permanent Access Token</Label>
+                <MaskedInput
+                  value={meta.accessToken}
+                  onChange={(v) => setMeta(p => ({ ...p, accessToken: v }))}
+                  placeholder="EAAxxxxxxxxxx... (Meta System User Token)"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Meta Business Manager → System Users → Generate Token (never expires)
+                </p>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Phone Number ID</Label>
+                <Input
+                  value={meta.phoneNumberId}
+                  onChange={(e) => setMeta(p => ({ ...p, phoneNumberId: e.target.value }))}
+                  placeholder="1234567890"
+                />
+                <p className="text-xs text-muted-foreground">
+                  WhatsApp Manager → Phone Numbers → Phone Number ID
+                </p>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>WhatsApp Business Account ID (WABA ID)</Label>
+                <Input
+                  value={meta.wabaId}
+                  onChange={(e) => setMeta(p => ({ ...p, wabaId: e.target.value }))}
+                  placeholder="WABA ID (Business Account ID)"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label>App ID</Label>
+                <Input
+                  value={meta.appId}
+                  onChange={(e) => setMeta(p => ({ ...p, appId: e.target.value }))}
+                  placeholder="Meta App ID"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label>App Secret</Label>
+                <MaskedInput
+                  value={meta.appSecret}
+                  onChange={(v) => setMeta(p => ({ ...p, appSecret: v }))}
+                  placeholder="Meta App Secret"
+                />
+              </div>
+
+              <div className="grid gap-2 sm:col-span-2">
+                <Label>Webhook Verify Token</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={meta.webhookVerifyToken}
+                    onChange={(e) => setMeta(p => ({ ...p, webhookVerifyToken: e.target.value }))}
+                    placeholder="apna custom verify token — kuch bhi (e.g. VaahanWH2026)"
+                    className="flex-1"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setMeta(p => ({ ...p, webhookVerifyToken: `Vaahan_${Math.random().toString(36).slice(2, 10).toUpperCase()}` }))}
+                  >
+                    Generate
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Webhook URL: <code className="bg-muted px-1 rounded">https://vaahanerp.com/api/webhooks/whatsapp/meta</code>
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-800 dark:text-blue-300 space-y-1">
+              <p className="font-semibold">Meta Business Manager steps (jab account approve ho):</p>
+              <p>1. business.facebook.com → WhatsApp Manager → Phone Numbers → iska Phone Number ID copy karo</p>
+              <p>2. Meta Developers → App → WhatsApp → API Setup → Permanent Token banao (System User se)</p>
+              <p>3. Webhooks → Callback URL mein upar wala URL daalo, Verify Token yahan wala daalo</p>
+              <p>4. Sab fields bharke Save karo → phir upar "Meta" tab "Active" select karo</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── TEMPLATES (common) ───────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">Message Templates (Dono providers ke liye)</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Use placeholders: {"{{customer_name}}"}, {"{{booking_id}}"}, {"{{vehicle}}"}, {"{{amount}}"}, {"{{remaining}}"}
+            Placeholders: {"{{customer_name}}"}, {"{{booking_id}}"}, {"{{vehicle}}"}, {"{{amount}}"}, {"{{remaining}}"}
           </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
           {Object.entries(templateLabels).map(([key, label]) => (
             <div key={key} className="grid gap-1">
-              <Label className="text-xs">{label}</Label>
+              <Label className="text-xs font-medium">{label}</Label>
               <Textarea
                 value={whatsapp.templates[key] || ""}
                 onChange={(e) => updateTemplate(key, e.target.value)}
@@ -494,61 +721,61 @@ function WhatsAppTab() {
               />
             </div>
           ))}
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Per-client overrides */}
-        <Card>
-          <CardHeader className="py-3">
-            <CardTitle className="text-sm">Per-Client WhatsApp Override</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Client</TableHead>
-                  <TableHead className="text-center w-[100px]">Enabled</TableHead>
+      {/* ── PER-CLIENT OVERRIDES ─────────────────────────────── */}
+      <Card>
+        <CardHeader className="py-3">
+          <CardTitle className="text-sm">Per-Client WhatsApp Override</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Client</TableHead>
+                <TableHead className="text-center w-[100px]">Enabled</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {mockClients.map((c) => (
+                <TableRow key={c.id}>
+                  <TableCell>{c.name}</TableCell>
+                  <TableCell className="text-center">
+                    <button
+                      onClick={() => toggleClientOverride(c.id)}
+                      className={`relative w-9 h-5 rounded-full transition-colors ${
+                        (whatsapp.clientOverrides[c.id] ?? true) ? "bg-green-500" : "bg-gray-300"
+                      }`}
+                    >
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                        (whatsapp.clientOverrides[c.id] ?? true) ? "left-[18px]" : "left-0.5"
+                      }`} />
+                    </button>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mockClients.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell>{c.name}</TableCell>
-                    <TableCell className="text-center">
-                      <button
-                        onClick={() => toggleClientOverride(c.id)}
-                        className={`relative w-9 h-5 rounded-full transition-colors ${
-                          (whatsapp.clientOverrides[c.id] ?? true) ? "bg-green-500" : "bg-gray-300"
-                        }`}
-                      >
-                        <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                          (whatsapp.clientOverrides[c.id] ?? true) ? "left-[18px]" : "left-0.5"
-                        }`} />
-                      </button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-        {/* Test */}
-        <div className="flex items-end gap-2">
-          <div className="grid gap-2 flex-1">
-            <Label className="text-xs">Test Phone Number</Label>
-            <Input value={testNumber} onChange={(e) => setTestNumber(e.target.value)} placeholder="+919876543210" />
-          </div>
-          <Button variant="outline" onClick={handleTest} disabled={testing}>
-            <MessageCircle className="h-4 w-4 mr-2" />
-            {testing ? "Sending..." : "Test WhatsApp"}
-          </Button>
+      {/* ── TEST + SAVE ──────────────────────────────────────── */}
+      <div className="flex items-end gap-2">
+        <div className="grid gap-2 flex-1">
+          <Label className="text-xs">Test Phone Number</Label>
+          <Input value={testNumber} onChange={(e) => setTestNumber(e.target.value)} placeholder="+919876543210" />
         </div>
+        <Button variant="outline" onClick={handleTest} disabled={testing}>
+          <MessageCircle className="h-4 w-4 mr-2" />
+          {testing ? "Sending..." : `Test via ${activeProvider === "meta" ? "Meta" : "Exotel"}`}
+        </Button>
       </div>
 
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving}>
           {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-          {saved ? "Saved ✅" : saving ? "Saving..." : "Save"}
+          {saved ? "Saved ✅" : saving ? "Saving..." : "Save WhatsApp Config"}
         </Button>
       </div>
     </div>
