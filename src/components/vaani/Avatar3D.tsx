@@ -1,13 +1,14 @@
 "use client";
 
-import React, { Suspense, useRef, useEffect, useState, useMemo } from "react";
+import React, { Suspense, useRef, useMemo, useState, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, useGLTF, Environment, ContactShadows } from "@react-three/drei";
 import * as THREE from "three";
 
-// ── ReadyPlayer.Me Avatar Model ──────────────────────────────────────────
-// Default female Indian avatar URL — replace with your custom RPM avatar
-const DEFAULT_AVATAR_URL = "https://models.readyplayer.me/6460d95f9ae1c45d525a1ca2.glb";
+// ── Realistic female Indian avatar (ReadyPlayer.Me) ──────────────────────
+// Using morphTargets query for lip sync + expressions support
+const DEFAULT_AVATAR_URL =
+  "https://models.readyplayer.me/6460d95f9ae1c45d525a1ca2.glb?morphTargets=ARKit,Oculus+Visemes&textureAtlas=1024";
 
 interface AvatarModelProps {
   url: string;
@@ -16,118 +17,115 @@ interface AvatarModelProps {
 }
 
 function AvatarModel({ url, isSpeaking, mood }: AvatarModelProps) {
-  const { scene, nodes } = useGLTF(url) as any;
+  const { scene } = useGLTF(url) as any;
   const modelRef = useRef<THREE.Group>(null);
-  const mixerRef = useRef<THREE.AnimationMixer | null>(null);
 
-  // Clone scene so we can manipulate it
   const clonedScene = useMemo(() => scene.clone(true), [scene]);
 
-  // Find head bone for lip sync
-  const headBone = useMemo(() => {
-    let head: THREE.Bone | null = null;
+  // Find morph target mesh and head bone
+  const { morphMesh, headBone } = useMemo(() => {
+    let mesh: any = null;
+    let head: any = null;
     clonedScene.traverse((child: any) => {
-      if (child.isBone && (child.name === "Head" || child.name === "head")) {
-        head = child;
-      }
+      if (child.isSkinnedMesh && child.morphTargetDictionary && !mesh) mesh = child;
+      if (child.isBone && (child.name === "Head" || child.name === "head") && !head) head = child;
     });
-    return head;
+    return { morphMesh: mesh, headBone: head };
   }, [clonedScene]);
 
-  // Find morph targets for expressions
-  const morphMesh = useMemo(() => {
-    let mesh: THREE.SkinnedMesh | null = null;
-    clonedScene.traverse((child: any) => {
-      if (child.isSkinnedMesh && child.morphTargetDictionary) {
-        mesh = child;
-      }
-    });
-    return mesh;
-  }, [clonedScene]);
-
-  useFrame((state, delta) => {
+  useFrame((state) => {
     if (!modelRef.current) return;
-
-    // Subtle idle breathing animation
     const t = state.clock.elapsedTime;
-    modelRef.current.position.y = Math.sin(t * 0.8) * 0.005;
 
-    // Lip sync — morph target animation when speaking
-    if (morphMesh && (morphMesh as any).morphTargetDictionary) {
-      const dict = (morphMesh as any).morphTargetDictionary;
-      const influences = (morphMesh as any).morphTargetInfluences;
+    // Subtle breathing
+    modelRef.current.position.y = Math.sin(t * 0.8) * 0.003;
 
-      if (influences) {
-        // Mouth open/close for speaking
-        const mouthOpenIdx = dict["mouthOpen"] ?? dict["jawOpen"] ?? dict["viseme_aa"] ?? -1;
-        const mouthSmileIdx = dict["mouthSmile"] ?? dict["mouthSmileLeft"] ?? -1;
+    if (morphMesh?.morphTargetDictionary && morphMesh.morphTargetInfluences) {
+      const dict = morphMesh.morphTargetDictionary;
+      const inf = morphMesh.morphTargetInfluences;
 
-        if (mouthOpenIdx >= 0) {
-          if (isSpeaking) {
-            // Animated mouth movement simulating speech
-            const mouthValue = (Math.sin(t * 12) * 0.3 + Math.sin(t * 8.3) * 0.2 + Math.sin(t * 15.7) * 0.15);
-            influences[mouthOpenIdx] = Math.max(0, Math.min(0.7, mouthValue + 0.2));
-          } else {
-            // Smoothly close mouth
-            influences[mouthOpenIdx] *= 0.9;
-          }
+      // ── Lip sync ──
+      const mouthIdx = dict["mouthOpen"] ?? dict["jawOpen"] ?? dict["viseme_aa"] ?? -1;
+      if (mouthIdx >= 0) {
+        if (isSpeaking) {
+          const v = Math.sin(t * 12) * 0.3 + Math.sin(t * 8.3) * 0.2 + Math.sin(t * 15.7) * 0.15 + 0.2;
+          inf[mouthIdx] = Math.max(0, Math.min(0.7, v));
+        } else {
+          inf[mouthIdx] *= 0.9;
         }
+      }
 
-        // Smile based on mood
-        if (mouthSmileIdx >= 0) {
-          const targetSmile = mood === "greeting" ? 0.6 : mood === "speaking" ? 0.3 : 0.15;
-          influences[mouthSmileIdx] += (targetSmile - influences[mouthSmileIdx]) * 0.05;
-        }
+      // ── Smile per mood ──
+      const smileIdx = dict["mouthSmile"] ?? dict["mouthSmileLeft"] ?? -1;
+      if (smileIdx >= 0) {
+        const target = mood === "greeting" ? 0.6 : mood === "speaking" ? 0.3 : 0.15;
+        inf[smileIdx] += (target - inf[smileIdx]) * 0.05;
+      }
 
-        // Blink animation
-        const blinkLIdx = dict["eyeBlinkLeft"] ?? dict["eyeBlink_L"] ?? -1;
-        const blinkRIdx = dict["eyeBlinkRight"] ?? dict["eyeBlink_R"] ?? -1;
-        if (blinkLIdx >= 0 && blinkRIdx >= 0) {
-          const blinkCycle = t % 4;
-          const blinkValue = blinkCycle > 3.85 ? Math.sin((blinkCycle - 3.85) / 0.15 * Math.PI) : 0;
-          influences[blinkLIdx] = blinkValue;
-          influences[blinkRIdx] = blinkValue;
-        }
+      // ── Eye blink ──
+      const blinkL = dict["eyeBlinkLeft"] ?? dict["eyeBlink_L"] ?? -1;
+      const blinkR = dict["eyeBlinkRight"] ?? dict["eyeBlink_R"] ?? -1;
+      if (blinkL >= 0 && blinkR >= 0) {
+        const cycle = t % 4;
+        const val = cycle > 3.85 ? Math.sin((cycle - 3.85) / 0.15 * Math.PI) : 0;
+        inf[blinkL] = val;
+        inf[blinkR] = val;
+      }
+
+      // ── Eyebrow raise when listening ──
+      const browUp = dict["browInnerUp"] ?? -1;
+      if (browUp >= 0) {
+        const target = mood === "listening" ? 0.4 : mood === "thinking" ? 0.25 : 0;
+        inf[browUp] += (target - inf[browUp]) * 0.05;
       }
     }
 
-    // Head subtle movement when speaking
+    // Head movement when speaking
     if (headBone && isSpeaking) {
-      (headBone as THREE.Bone).rotation.y = Math.sin(t * 1.5) * 0.04;
-      (headBone as THREE.Bone).rotation.x = Math.sin(t * 2.1) * 0.02;
+      headBone.rotation.y = Math.sin(t * 1.5) * 0.04;
+      headBone.rotation.x = Math.sin(t * 2.1) * 0.02;
     }
   });
 
   return (
     <group ref={modelRef}>
-      <primitive
-        object={clonedScene}
-        scale={1.8}
-        position={[0, -1.7, 0]}
-        rotation={[0.05, 0, 0]}
-      />
+      <primitive object={clonedScene} scale={1.8} position={[0, -1.7, 0]} rotation={[0.05, 0, 0]} />
     </group>
   );
 }
 
-// ── Main 3D Canvas ───────────────────────────────────────────────────────
+// ── Loading fallback ─────────────────────────────────────────────────────
+function LoadingFallback() {
+  const meshRef = useRef<THREE.Mesh>(null);
+  useFrame((state) => {
+    if (meshRef.current) meshRef.current.rotation.y = state.clock.elapsedTime;
+  });
+  return (
+    <mesh ref={meshRef}>
+      <sphereGeometry args={[0.5, 32, 32]} />
+      <meshStandardMaterial color="#7c3aed" wireframe transparent opacity={0.6} />
+    </mesh>
+  );
+}
+
+// ── Main export ──────────────────────────────────────────────────────────
 interface Avatar3DProps {
   isSpeaking: boolean;
   mood: string;
   avatarUrl?: string;
 }
 
-function LoadingFallback() {
-  return (
-    <mesh>
-      <sphereGeometry args={[0.5, 32, 32]} />
-      <meshStandardMaterial color="#7c3aed" wireframe />
-    </mesh>
-  );
-}
-
 export default function Avatar3D({ isSpeaking, mood, avatarUrl }: Avatar3DProps) {
   const url = avatarUrl || DEFAULT_AVATAR_URL;
+  const [hasError, setHasError] = useState(false);
+
+  if (hasError) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-white/40 text-sm">
+        3D Avatar load failed. Check network.
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full" style={{ minHeight: "350px" }}>
@@ -135,6 +133,7 @@ export default function Avatar3D({ isSpeaking, mood, avatarUrl }: Avatar3DProps)
         camera={{ position: [0, 0.2, 1.8], fov: 30 }}
         gl={{ antialias: true, alpha: true }}
         style={{ background: "transparent" }}
+        onError={() => setHasError(true)}
       >
         <ambientLight intensity={0.6} />
         <directionalLight position={[5, 5, 5]} intensity={0.8} castShadow />
@@ -165,6 +164,3 @@ export default function Avatar3D({ isSpeaking, mood, avatarUrl }: Avatar3DProps)
     </div>
   );
 }
-
-// Preload the default avatar
-useGLTF.preload(DEFAULT_AVATAR_URL);

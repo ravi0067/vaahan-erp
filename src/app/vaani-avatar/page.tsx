@@ -1,11 +1,33 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import dynamic from "next/dynamic";
 import {
   Mic, MicOff, Volume2, VolumeX, Maximize, Minimize,
   MessageSquare, Phone, Bike, Wrench, Shield, Clock,
   Sparkles, Camera, CameraOff, User, Settings, X
 } from "lucide-react";
+
+// Dynamic import for 3D avatar (heavy Three.js bundle — load only when needed)
+const Avatar3D = dynamic(() => import("@/components/vaani/Avatar3D"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center">
+      <div className="w-16 h-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+    </div>
+  ),
+});
+
+// Error boundary for 3D canvas crashes
+class Avatar3DErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallback: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: any) { super(props); this.state = { hasError: false }; }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error: any) { console.error("3D Avatar error:", error); }
+  render() { return this.state.hasError ? this.props.fallback : this.props.children; }
+}
 
 // ── Types ────────────────────────────────────────────────────────────────
 interface ChatMsg { id: string; role: "user" | "vaani"; text: string; ts: Date; }
@@ -250,6 +272,8 @@ export default function VaaniAvatarPage() {
   const [brandColor, setBrandColor] = useState("#7c3aed");
   const [showSettings, setShowSettings] = useState(false);
   const [avatarImageUrl, setAvatarImageUrl] = useState(DEFAULT_AVATAR_IMAGE);
+  const [avatarMode, setAvatarMode] = useState<"3d" | "2d">("3d"); // default 3D
+  const [avatarGlbUrl, setAvatarGlbUrl] = useState(""); // custom GLB URL if any
 
   // ── Inventory (real dealership stock) ─────────────────────────────────
   const [inventory, setInventory] = useState<{
@@ -295,6 +319,8 @@ export default function VaaniAvatarPage() {
     }
     const savedAvatar = localStorage.getItem("vaani_avatar_image");
     if (savedAvatar) setAvatarImageUrl(savedAvatar);
+    const savedMode = localStorage.getItem("vaani_avatar_mode");
+    if (savedMode === "2d" || savedMode === "3d") setAvatarMode(savedMode);
     const savedVoice = localStorage.getItem("vaani_voice");
     if (savedVoice === "male" || savedVoice === "female") setVoiceGender(savedVoice);
   }, []);
@@ -762,7 +788,29 @@ export default function VaaniAvatarPage() {
 
       {/* ── Main Avatar ──────────────────────────────────────────────── */}
       <div className="relative z-10 flex flex-col items-center justify-center" style={{ minHeight: "calc(100vh - 200px)" }}>
-        <AvatarCharacter mood={mood} isSpeaking={isSpeaking} avatarImageUrl={avatarImageUrl} />
+        {avatarMode === "3d" ? (
+          <Avatar3DErrorBoundary fallback={<AvatarCharacter mood={mood} isSpeaking={isSpeaking} avatarImageUrl={avatarImageUrl} />}>
+            <div className="w-72 h-80 md:w-96 md:h-[420px]">
+              <Avatar3D isSpeaking={isSpeaking} mood={mood} avatarUrl={avatarGlbUrl || undefined} />
+            </div>
+            {/* Speaking status under 3D */}
+            <div className={`mt-2 px-5 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm transition-all duration-500 ${
+              mood === "idle" ? "bg-white/10 text-white/60" :
+              mood === "listening" ? "bg-blue-500/20 text-blue-300 animate-pulse" :
+              mood === "thinking" ? "bg-amber-500/20 text-amber-300" :
+              mood === "speaking" ? "bg-green-500/20 text-green-300" :
+              "bg-pink-500/20 text-pink-300"
+            }`}>
+              {mood === "idle" && "\uD83D\uDCAC Baat karein mujhse..."}
+              {mood === "listening" && "\uD83D\uDC42 Sun rahi hoon..."}
+              {mood === "thinking" && "\uD83E\uDD14 Soch rahi hoon..."}
+              {mood === "speaking" && "\uD83D\uDDE3\uFE0F Bol rahi hoon..."}
+              {mood === "greeting" && "\uD83D\uDE4F Swagat hai!"}
+            </div>
+          </Avatar3DErrorBoundary>
+        ) : (
+          <AvatarCharacter mood={mood} isSpeaking={isSpeaking} avatarImageUrl={avatarImageUrl} />
+        )}
 
         {/* Customer name badge */}
         {visitorName && (
@@ -860,6 +908,21 @@ export default function VaaniAvatarPage() {
                     className="w-10 h-10 rounded-lg cursor-pointer" />
                   <input value={brandColor} onChange={e => setBrandColor(e.target.value)}
                     className="flex-1 h-10 px-3 rounded-lg bg-white/10 border border-white/20 text-white text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-white/60 block mb-1">Avatar Mode</label>
+                <div className="flex gap-2">
+                  <button onClick={() => { setAvatarMode("3d"); localStorage.setItem("vaani_avatar_mode", "3d"); }}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      avatarMode === "3d" ? "bg-purple-500/30 text-purple-300 border border-purple-400/50" : "bg-white/10 text-white/60"}`}>
+                    🧊 3D Avatar
+                  </button>
+                  <button onClick={() => { setAvatarMode("2d"); localStorage.setItem("vaani_avatar_mode", "2d"); }}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      avatarMode === "2d" ? "bg-green-500/30 text-green-300 border border-green-400/50" : "bg-white/10 text-white/60"}`}>
+                    🖼️ 2D Image
+                  </button>
                 </div>
               </div>
               <div>
