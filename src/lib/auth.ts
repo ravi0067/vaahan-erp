@@ -4,12 +4,11 @@ import "@/lib/auth-types";
 
 // Fallback demo users — used when DB is unreachable (serverless cold starts, etc.)
 const FALLBACK_USERS = [
-  { id: "user-super-admin", name: "Ravi (Super Admin)", email: "superadmin@vaahan.com", password: "super123", role: "SUPER_ADMIN" as const, tenantId: "tenant-platform", tenantName: "VaahanERP Platform" },
-  { id: "user-bike-owner", name: "Rajesh Bajrang", email: "owner@bajrangmotors.com", password: "owner123", role: "OWNER" as const, tenantId: "", tenantName: "Shri Bajrang Motors" },
-  { id: "user-bike-sales", name: "Amit Sharma", email: "sales@bajrangmotors.com", password: "sales123", role: "SALES_EXEC" as const, tenantId: "", tenantName: "Shri Bajrang Motors" },
-  { id: "user-bike-mechanic", name: "Deepak Yadav", email: "mechanic@bajrangmotors.com", password: "mechanic123", role: "MECHANIC" as const, tenantId: "", tenantName: "Shri Bajrang Motors" },
-  { id: "user-car-owner", name: "Vinod Sharma", email: "owner@sharmacars.com", password: "owner123", role: "OWNER" as const, tenantId: "", tenantName: "Sharma Cars" },
-  { id: "user-car-sales", name: "Rohit Gupta", email: "sales@sharmacars.com", password: "sales123", role: "SALES_EXEC" as const, tenantId: "", tenantName: "Sharma Cars" },
+  { id: "user-super-admin-001", name: "Super Admin", email: "admin@vaahan.com", password: "admin123", role: "SUPER_ADMIN" as const, tenantId: "system-vaahan-001", tenantName: "VaahanERP System" },
+  { id: "user-owner-001", name: "Dealership Owner", email: "owner@demomotors.com", password: "admin123", role: "OWNER" as const, tenantId: "demo-motors-001", tenantName: "Demo Motors Lucknow" },
+  { id: "user-manager-001", name: "Arjun Singh", email: "manager@demomotors.com", password: "admin123", role: "MANAGER" as const, tenantId: "demo-motors-001", tenantName: "Demo Motors Lucknow" },
+  { id: "user-sales-001", name: "Pooja Verma", email: "sales@demomotors.com", password: "admin123", role: "SALES_EXEC" as const, tenantId: "demo-motors-001", tenantName: "Demo Motors Lucknow" },
+  { id: "user-accounts-001", name: "Suresh Gupta", email: "accounts@demomotors.com", password: "admin123", role: "ACCOUNTANT" as const, tenantId: "demo-motors-001", tenantName: "Demo Motors Lucknow" },
 ];
 
 async function authenticateFromDB(email: string, password: string) {
