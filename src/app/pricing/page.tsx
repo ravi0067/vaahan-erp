@@ -176,7 +176,10 @@ export default function PricingPage() {
             </div>
             <Image src="/logo.png" alt="VaahanERP" width={140} height={40} className="h-9 w-auto" />
           </Link>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <Link href="/blog">
+              <Button variant="ghost">Blog</Button>
+            </Link>
             <Link href="/register">
               <Button variant="outline">Register</Button>
             </Link>
@@ -453,6 +456,7 @@ export default function PricingPage() {
           </div>
           <div className="flex gap-4 text-sm text-muted-foreground">
             <Link href="/" className="hover:text-foreground">Home</Link>
+            <Link href="/blog" className="hover:text-foreground">Blog</Link>
             <Link href="/pricing" className="hover:text-foreground font-medium text-foreground">Pricing</Link>
             <Link href="/login" className="hover:text-foreground">Login</Link>
           </div>

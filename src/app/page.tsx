@@ -109,7 +109,10 @@ export default function HomePage() {
             </div>
             <Image src="/logo.png" alt="VaahanERP" width={140} height={40} className="h-9 w-auto" />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <Link href="/blog">
+              <Button variant="ghost">Blog</Button>
+            </Link>
             <Link href="/pricing">
               <Button variant="ghost">Pricing</Button>
             </Link>
@@ -307,6 +310,7 @@ export default function HomePage() {
             © 2026 Ravi Accounting Services. All rights reserved.
           </p>
           <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+            <Link href="/blog" className="hover:text-primary underline">Blog</Link>
             <a href="/privacy-policy" className="hover:text-primary underline">Privacy Policy</a>
             <a href="/terms" className="hover:text-primary underline">Terms of Service</a>
             <a href="/data-deletion" className="hover:text-primary underline">Data Deletion</a>
