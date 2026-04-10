@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import Image from "next/image";
 import {
   Mic, MicOff, Volume2, VolumeX, Maximize, Minimize,
   MessageSquare, Phone, Bike, Wrench, Shield, Clock,
@@ -21,10 +20,15 @@ const quickPrompts = [
   { icon: Phone, label: "📞 Contact", query: "Showroom ka timing aur number?" },
 ];
 
-// ── 3D-style Avatar Component ────────────────────────────────────────────
+// ── Custom Avatar with Lip Sync, Eye Blink, Expressions & Speaking Effects ──
 const DEFAULT_AVATAR_IMAGE = "/avatars/ravi-vaani.jpg";
 
 function AvatarCharacter({ mood, isSpeaking, avatarImageUrl }: { mood: Mood; isSpeaking: boolean; avatarImageUrl?: string }) {
+  const [mouthOpen, setMouthOpen] = useState(0);
+  const [eyeBlink, setEyeBlink] = useState(false);
+  const frameRef = useRef<number>(0);
+  const blinkTimerRef = useRef<any>(null);
+
   const gradients: Record<Mood, string> = {
     idle: "from-violet-600 via-purple-600 to-indigo-700",
     listening: "from-blue-500 via-cyan-500 to-blue-600",
@@ -32,6 +36,50 @@ function AvatarCharacter({ mood, isSpeaking, avatarImageUrl }: { mood: Mood; isS
     speaking: "from-emerald-500 via-green-500 to-teal-600",
     greeting: "from-pink-500 via-rose-500 to-pink-600",
   };
+
+  const glowColors: Record<Mood, string> = {
+    idle: "rgba(124,58,237,0.3)",
+    listening: "rgba(59,130,246,0.5)",
+    thinking: "rgba(245,158,11,0.4)",
+    speaking: "rgba(16,185,129,0.5)",
+    greeting: "rgba(236,72,153,0.4)",
+  };
+
+  const ringColors: Record<Mood, string> = {
+    idle: "border-violet-500/30",
+    listening: "border-blue-400/60",
+    thinking: "border-amber-400/50",
+    speaking: "border-emerald-400/60",
+    greeting: "border-pink-400/50",
+  };
+
+  // Lip sync — fast random mouth open/close simulating speech
+  useEffect(() => {
+    if (!isSpeaking) { setMouthOpen(0); return; }
+    let running = true;
+    const animate = () => {
+      if (!running) return;
+      const val = Math.random() * 0.7 + Math.sin(Date.now() * 0.015) * 0.3;
+      setMouthOpen(Math.max(0, Math.min(1, val)));
+      frameRef.current = requestAnimationFrame(animate);
+    };
+    frameRef.current = requestAnimationFrame(animate);
+    return () => { running = false; cancelAnimationFrame(frameRef.current); };
+  }, [isSpeaking]);
+
+  // Natural eye blink every 2-6 seconds
+  useEffect(() => {
+    const scheduleBlink = () => {
+      const delay = 2000 + Math.random() * 4000;
+      blinkTimerRef.current = setTimeout(() => {
+        setEyeBlink(true);
+        setTimeout(() => setEyeBlink(false), 150);
+        scheduleBlink();
+      }, delay);
+    };
+    scheduleBlink();
+    return () => clearTimeout(blinkTimerRef.current);
+  }, []);
 
   // Animated speaking bars
   const speakBars = isSpeaking ? [...Array(7)].map((_, i) => (
@@ -41,50 +89,115 @@ function AvatarCharacter({ mood, isSpeaking, avatarImageUrl }: { mood: Mood; isS
     }} />
   )) : null;
 
+  // Expression filter per mood
+  const overlayFilter = mood === "thinking" ? "brightness(0.85) saturate(0.8)"
+    : mood === "listening" ? "brightness(1.1) saturate(1.1)"
+    : mood === "speaking" ? "brightness(1.05) contrast(1.05)"
+    : mood === "greeting" ? "brightness(1.15) saturate(1.2)"
+    : "brightness(1) saturate(1)";
+
   return (
     <div className="relative flex flex-col items-center">
-      {/* Outer glow */}
-      <div className={`absolute -inset-12 rounded-full bg-gradient-to-r ${gradients[mood]} opacity-15 blur-3xl
-        ${isSpeaking ? "animate-pulse" : ""}`} />
-      
-      {/* Rings when speaking */}
-      {isSpeaking && <>
-        <div className="absolute w-80 h-80 rounded-full border-2 border-white/5 animate-ping" style={{ animationDuration: "2s" }} />
-        <div className="absolute w-96 h-96 rounded-full border border-white/3 animate-ping" style={{ animationDuration: "3s" }} />
-      </>}
+      {/* Outer glow — mood-reactive */}
+      <div className="absolute -inset-16 rounded-full blur-3xl transition-all duration-1000"
+        style={{ background: `radial-gradient(circle, ${glowColors[mood]}, transparent 70%)`,
+          transform: isSpeaking ? "scale(1.3)" : "scale(1)",
+        }} />
 
-      {/* Avatar Body — Female character silhouette */}
-      <div className={`relative w-52 h-52 md:w-64 md:h-64 rounded-full bg-gradient-to-br ${gradients[mood]}
-        flex items-center justify-center shadow-2xl transition-all duration-700 overflow-hidden
+      {/* Animated rings */}
+      {(isSpeaking || mood === "listening") && <>
+        <div className={`absolute w-72 h-72 md:w-80 md:h-80 rounded-full border-2 ${ringColors[mood]} animate-ping`} style={{ animationDuration: "2s" }} />
+        <div className={`absolute w-80 h-80 md:w-96 md:h-96 rounded-full border ${ringColors[mood]} animate-ping`} style={{ animationDuration: "3s" }} />
+      </>}
+      {mood === "thinking" && (
+        <div className="absolute w-72 h-72 md:w-80 md:h-80 rounded-full border-2 border-amber-400/30 animate-spin" style={{ animationDuration: "4s" }} />
+      )}
+
+      {/* Main avatar container */}
+      <div className={`relative w-56 h-56 md:w-72 md:h-72 rounded-full bg-gradient-to-br ${gradients[mood]}
+        flex items-center justify-center shadow-2xl transition-all duration-500 overflow-hidden
         ${mood === "listening" ? "scale-105 ring-4 ring-blue-400/40" : ""}
-        ${isSpeaking ? "scale-110" : ""}`}>
-        
-        {/* Inner avatar face */}
-        <div className="absolute inset-3 rounded-full bg-gradient-to-b from-white/15 to-white/5 backdrop-blur-sm flex flex-col items-center justify-center">
-          <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border border-white/20 shadow-2xl">
-            <Image
-              src={avatarImageUrl || DEFAULT_AVATAR_IMAGE}
-              alt="Vaani Avatar"
-              fill
-              sizes="160px"
-              className={`object-cover transition-transform duration-700 ${isSpeaking ? "scale-110" : "scale-100"}`}
-              priority
-              unoptimized
-            />
-            <div className={`absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-white/10 ${isSpeaking ? "animate-pulse" : ""}`} />
-          </div>
-          
-          <p className="text-white font-bold text-xs md:text-sm tracking-widest mt-1">VAANI</p>
+        ${mood === "thinking" ? "scale-[1.02]" : ""}
+        ${isSpeaking ? "scale-110" : ""}
+        ${mood === "greeting" ? "ring-4 ring-pink-400/30" : ""}`}
+        style={{ animation: isSpeaking ? "avatarBreathe 0.6s ease-in-out infinite" : mood === "idle" ? "avatarIdle 4s ease-in-out infinite" : "none" }}>
+
+        {/* Spinning gradient border ring */}
+        <div className="absolute inset-1 rounded-full overflow-hidden" style={{
+          background: `conic-gradient(from 0deg, ${glowColors[mood]}, transparent 40%, ${glowColors[mood]})`,
+          animation: "spinRing 3s linear infinite",
+        }}>
+          <div className="absolute inset-1 rounded-full bg-slate-950" />
+        </div>
+
+        {/* Avatar image with expression overlays */}
+        <div className="absolute inset-3 rounded-full overflow-hidden">
+          {/* Main image */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={avatarImageUrl || DEFAULT_AVATAR_IMAGE}
+            alt="Vaani Avatar"
+            className="w-full h-full object-cover transition-all duration-300"
+            style={{
+              filter: overlayFilter,
+              transform: isSpeaking
+                ? `scale(${1.02 + mouthOpen * 0.03}) translateY(${-mouthOpen * 1.5}px)`
+                : mood === "listening" ? "scale(1.03)" : "scale(1)",
+            }}
+          />
+
+          {/* Eye blink overlay — thin skin-colored bars over eye region */}
+          {eyeBlink && (
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute top-[28%] left-[22%] w-[20%] h-[4%] bg-[#d4a07a] rounded-full opacity-90" />
+              <div className="absolute top-[28%] right-[22%] w-[20%] h-[4%] bg-[#d4a07a] rounded-full opacity-90" />
+            </div>
+          )}
+
+          {/* Lip/mouth movement overlay when speaking */}
+          {isSpeaking && (
+            <div className="absolute bottom-[20%] left-1/2 -translate-x-1/2 pointer-events-none">
+              <div style={{
+                  width: `${20 + mouthOpen * 14}px`,
+                  height: `${3 + mouthOpen * 14}px`,
+                  background: `radial-gradient(ellipse, rgba(180,40,40,${0.5 + mouthOpen * 0.35}), rgba(120,20,20,${0.3 + mouthOpen * 0.25}))`,
+                  borderRadius: "50%",
+                  transition: "all 50ms ease-out",
+                  boxShadow: `0 ${mouthOpen * 2}px ${4 + mouthOpen * 4}px rgba(0,0,0,0.3)`,
+                }} />
+            </div>
+          )}
+
+          {/* Mood color overlays */}
+          {mood === "greeting" && (
+            <div className="absolute inset-0 bg-gradient-to-t from-pink-500/10 via-transparent to-transparent pointer-events-none" />
+          )}
+          {mood === "thinking" && (
+            <div className="absolute inset-0 pointer-events-none" style={{
+              background: "repeating-conic-gradient(rgba(245,158,11,0.05) 0%, transparent 5%)",
+              animation: "spinRing 6s linear infinite",
+            }} />
+          )}
+          {mood === "listening" && (
+            <div className="absolute inset-0 border-4 border-blue-400/20 rounded-full animate-pulse pointer-events-none" />
+          )}
+
+          {/* Breathing shadow */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-white/5 pointer-events-none"
+            style={{ opacity: isSpeaking ? 0.4 + mouthOpen * 0.2 : 0.3 }} />
         </div>
       </div>
 
-      {/* Speaking bars */}
+      {/* Name tag */}
+      <p className="text-white font-bold text-sm md:text-base tracking-[0.25em] mt-3 drop-shadow-lg">VAANI</p>
+
+      {/* Speaking equalizer bars */}
       {isSpeaking && (
-        <div className="flex gap-1 items-end mt-4 h-8">{speakBars}</div>
+        <div className="flex gap-1 items-end mt-3 h-8">{speakBars}</div>
       )}
 
-      {/* Status */}
-      <div className={`mt-4 px-5 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm ${
+      {/* Mood status badge */}
+      <div className={`mt-3 px-5 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm transition-all duration-500 ${
         mood === "idle" ? "bg-white/10 text-white/60" :
         mood === "listening" ? "bg-blue-500/20 text-blue-300 animate-pulse" :
         mood === "thinking" ? "bg-amber-500/20 text-amber-300" :
@@ -796,6 +909,9 @@ export default function VaaniAvatarPage() {
 
       <style jsx>{`
         @keyframes speakBar { from { transform: scaleY(0.5); } to { transform: scaleY(1.5); } }
+        @keyframes avatarBreathe { 0%,100% { transform: scale(1.10); } 50% { transform: scale(1.13); } }
+        @keyframes avatarIdle { 0%,100% { transform: scale(1); } 50% { transform: scale(1.015); } }
+        @keyframes spinRing { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
     </div>
   );
