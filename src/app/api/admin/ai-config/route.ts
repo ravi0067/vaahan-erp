@@ -1,6 +1,6 @@
 /**
  * AI Configuration API — Save/Load system settings
- * Uses Supabase REST API (not Prisma) to avoid serverless connection issues
+ * Uses Prisma (reliable) instead of Supabase REST
  * GET  /api/admin/ai-config — Load all settings
  * POST /api/admin/ai-config — Save settings (upsert)
  * SUPER_ADMIN only
@@ -8,20 +8,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-auth';
+import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-function supabaseHeaders() {
-  return {
-    'apikey': SUPABASE_KEY,
-    'Authorization': `Bearer ${SUPABASE_KEY}`,
-    'Content-Type': 'application/json',
-    'Prefer': 'return=representation',
-  };
-}
 
 // Keys that should be masked in GET response
 const SENSITIVE_KEYS = [
@@ -48,17 +37,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Super Admin only' }, { status: 403 });
     }
 
-    // Fetch all settings via Supabase REST
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/SystemSetting?select=*`, {
-      headers: supabaseHeaders(),
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      return NextResponse.json({ error: `DB error: ${errText}` }, { status: 500 });
-    }
-
-    const settings: { id: string; key: string; value: string; encrypted: boolean; category: string; updatedAt: string }[] = await res.json();
+    // Fetch all settings via Prisma
+    const settings = await prisma.systemSetting.findMany();
 
     // Group by category and mask sensitive values
     const grouped: Record<string, Record<string, any>> = {};
@@ -81,6 +61,7 @@ export async function GET(request: NextRequest) {
       settings: grouped,
     });
   } catch (error: any) {
+    console.error('[AI-Config GET]', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -102,6 +83,7 @@ export async function POST(request: NextRequest) {
 
     const userId = session!.user.id;
     let savedCount = 0;
+    const errors: string[] = [];
 
     for (const [key, value] of Object.entries(settings)) {
       // Skip masked values (user didn't change them)
@@ -111,51 +93,39 @@ export async function POST(request: NextRequest) {
 
       const category = key.split('.')[0];
       const isSensitive = SENSITIVE_KEYS.includes(key);
-      const now = new Date().toISOString();
 
-      // Check if key exists
-      const checkRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/SystemSetting?key=eq.${encodeURIComponent(key)}&select=id`,
-        { headers: supabaseHeaders() }
-      );
-      const existing = await checkRes.json();
-
-      if (existing && existing.length > 0) {
-        // Update
-        await fetch(
-          `${SUPABASE_URL}/rest/v1/SystemSetting?key=eq.${encodeURIComponent(key)}`,
-          {
-            method: 'PATCH',
-            headers: supabaseHeaders(),
-            body: JSON.stringify({
-              value: String(value),
-              category,
-              encrypted: isSensitive,
-              updatedBy: userId,
-              updatedAt: now,
-            }),
-          }
-        );
-      } else {
-        // Insert
-        await fetch(
-          `${SUPABASE_URL}/rest/v1/SystemSetting`,
-          {
-            method: 'POST',
-            headers: supabaseHeaders(),
-            body: JSON.stringify({
-              key,
-              value: String(value),
-              category,
-              encrypted: isSensitive,
-              updatedBy: userId,
-              updatedAt: now,
-            }),
-          }
-        );
+      try {
+        await prisma.systemSetting.upsert({
+          where: { key },
+          update: {
+            value: String(value),
+            category,
+            encrypted: isSensitive,
+            updatedBy: userId,
+          },
+          create: {
+            key,
+            value: String(value),
+            category,
+            encrypted: isSensitive,
+            updatedBy: userId,
+          },
+        });
+        savedCount++;
+      } catch (err: any) {
+        console.error(`[AI-Config] Failed to save key "${key}":`, err.message);
+        errors.push(key);
       }
+    }
 
-      savedCount++;
+    if (errors.length > 0) {
+      return NextResponse.json({
+        success: false,
+        saved: savedCount,
+        failed: errors.length,
+        failedKeys: errors,
+        error: `${errors.length} settings failed to save`,
+      }, { status: 207 });
     }
 
     return NextResponse.json({
@@ -163,6 +133,7 @@ export async function POST(request: NextRequest) {
       saved: savedCount,
     });
   } catch (error: any) {
+    console.error('[AI-Config POST]', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
