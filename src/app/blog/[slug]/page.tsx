@@ -2,51 +2,15 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Clock, Eye, Calendar, Tag } from "lucide-react";
-import prisma from "@/lib/prisma";
+import { getBlogPostBySlug, getRelatedPosts, incrementViews } from "@/lib/supabase-blog";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface Props { params: { slug: string }; }
 
-async function getPost(slug: string) {
-  try {
-    const post = await prisma.blogPost.findUnique({
-      where: { slug, published: true },
-      include: { author: { select: { name: true } } },
-    });
-    if (!post) return null;
-
-    await prisma.blogPost.update({
-      where: { id: post.id },
-      data: { views: { increment: 1 } },
-    });
-
-    const related = await prisma.blogPost.findMany({
-      where: {
-        published: true,
-        id: { not: post.id },
-        OR: [
-          ...(post.category ? [{ category: post.category }] : []),
-          { featured: true },
-        ],
-      },
-      take: 3,
-      orderBy: { publishedAt: "desc" },
-      select: { title: true, slug: true, coverImage: true, category: true, publishedAt: true, excerpt: true },
-    });
-
-    return { post, related };
-  } catch {
-    return null;
-  }
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
-    const post = await prisma.blogPost.findUnique({
-      where: { slug: params.slug, published: true },
-      select: { title: true, metaTitle: true, metaDesc: true, excerpt: true, coverImage: true },
-    });
+    const post = await getBlogPostBySlug(params.slug);
     if (!post) return { title: "Post Not Found" };
     return {
       title: post.metaTitle || post.title,
@@ -64,10 +28,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function BlogPostPage({ params }: Props) {
-  const data = await getPost(params.slug);
-  if (!data) notFound();
+  const post = await getBlogPostBySlug(params.slug);
+  if (!post) notFound();
 
-  const { post, related } = data;
+  // fire-and-forget
+  incrementViews(post.id);
+
+  const related = await getRelatedPosts(post.id, post.category);
   const plainText = post.content.replace(/<[^>]*>/g, "");
   const readTime = Math.max(3, Math.ceil(plainText.length / 1000));
 
@@ -87,7 +54,6 @@ export default async function BlogPostPage({ params }: Props) {
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight mb-4">{post.title}</h1>
 
           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 pb-6 border-b">
-            {post.author?.name && <span className="font-medium text-gray-700">By {post.author.name}</span>}
             <span className="flex items-center gap-1">
               <Calendar className="w-3.5 h-3.5" />
               {new Date(post.publishedAt || post.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
@@ -138,7 +104,7 @@ export default async function BlogPostPage({ params }: Props) {
                   <img src={r.coverImage} alt={r.title} className="w-full h-36 object-cover" />
                 ) : (
                   <div className="w-full h-36 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                    <span className="text-4xl font-bold text-gray-300">{r.title.charAt(0)}</span>
+                    <span className="text-4xl font-bold text-gray-300">{r.title?.charAt(0)}</span>
                   </div>
                 )}
                 <div className="p-4">
