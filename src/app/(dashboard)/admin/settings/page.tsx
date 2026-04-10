@@ -17,10 +17,34 @@ import {
 import {
   CreditCard, Bot, MessageCircle, Mail, MessageSquare, Save,
   Eye, EyeOff, Zap, Copy, ArrowLeft, CheckCircle2, AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import { useSettingsStore } from "@/store/settings-store";
 import { AutoTriggerConfig } from "./components/AutoTriggerConfig";
+import { toast } from "sonner";
+
+// ── DB API Save Helper ─────────────────────────────────────────────────
+async function saveToApi(settings: Record<string, string>): Promise<boolean> {
+  try {
+    const res = await fetch("/api/admin/ai-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ settings }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast.success(`✅ ${data.saved} settings database mein save ho gayi!`);
+      return true;
+    } else {
+      toast.error(data.error || "Save failed");
+      return false;
+    }
+  } catch {
+    toast.error("Network error — check connection");
+    return false;
+  }
+}
 
 // ── Masked Input Component ─────────────────────────────────────────────
 function MaskedInput({
@@ -64,10 +88,19 @@ const mockClients = [
 function PaymentGatewayTab() {
   const { paymentGateway, setPaymentGateway } = useSettingsStore();
   const [saved, setSaved] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
   const [testing, setTesting] = React.useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setSaving(true);
     setPaymentGateway({ connected: paymentGateway.keyId.length > 0 && paymentGateway.keySecret.length > 0 });
+    await saveToApi({
+      "payment.provider": paymentGateway.provider,
+      "payment.keyId": paymentGateway.keyId,
+      "payment.keySecret": paymentGateway.keySecret,
+      "payment.testMode": paymentGateway.testMode ? "true" : "false",
+    });
+    setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -167,9 +200,9 @@ function PaymentGatewayTab() {
           <Zap className="h-4 w-4 mr-2" />
           {testing ? "Testing..." : "Test Connection"}
         </Button>
-        <Button onClick={handleSave}>
-          <Save className="h-4 w-4 mr-2" />
-          {saved ? "Saved ✅" : "Save"}
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+          {saved ? "Saved ✅" : saving ? "Saving..." : "Save"}
         </Button>
       </div>
     </div>
@@ -180,10 +213,20 @@ function PaymentGatewayTab() {
 function AIAssistantTab() {
   const { aiAssistant, setAIAssistant } = useSettingsStore();
   const [saved, setSaved] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
   const [testing, setTesting] = React.useState(false);
   const [testResult, setTestResult] = React.useState("");
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setSaving(true);
+    await saveToApi({
+      "ai.provider": aiAssistant.provider,
+      "ai.apiKey": aiAssistant.apiKey,
+      "ai.model": aiAssistant.model,
+      "ai.maxTokens": String(aiAssistant.maxTokens),
+      "ai.enabled": aiAssistant.enabledGlobal ? "true" : "false",
+    });
+    setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -334,9 +377,9 @@ function AIAssistantTab() {
           <Bot className="h-4 w-4 mr-2" />
           {testing ? "Testing AI..." : "Test AI"}
         </Button>
-        <Button onClick={handleSave}>
-          <Save className="h-4 w-4 mr-2" />
-          {saved ? "Saved ✅" : "Save"}
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+          {saved ? "Saved ✅" : saving ? "Saving..." : "Save"}
         </Button>
       </div>
     </div>
@@ -347,10 +390,20 @@ function AIAssistantTab() {
 function WhatsAppTab() {
   const { whatsapp, setWhatsApp } = useSettingsStore();
   const [saved, setSaved] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
   const [testing, setTesting] = React.useState(false);
   const [testNumber, setTestNumber] = React.useState("");
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setSaving(true);
+    await saveToApi({
+      "whatsapp.provider": whatsapp.provider,
+      "whatsapp.apiKey": whatsapp.apiKey,
+      "whatsapp.phoneNumberId": whatsapp.phoneNumberId,
+      "whatsapp.enabled": whatsapp.enabled ? "true" : "false",
+      ...Object.fromEntries(Object.entries(whatsapp.templates).map(([k, v]) => [`whatsapp.template.${k}`, v])),
+    });
+    setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -493,9 +546,9 @@ function WhatsAppTab() {
       </div>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave}>
-          <Save className="h-4 w-4 mr-2" />
-          {saved ? "Saved ✅" : "Save"}
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+          {saved ? "Saved ✅" : saving ? "Saving..." : "Save"}
         </Button>
       </div>
     </div>
@@ -506,10 +559,23 @@ function WhatsAppTab() {
 function EmailTab() {
   const { email, setEmail } = useSettingsStore();
   const [saved, setSaved] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
   const [testing, setTesting] = React.useState(false);
   const [testEmail, setTestEmail] = React.useState("");
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setSaving(true);
+    await saveToApi({
+      "smtp.provider": email.provider,
+      "smtp.host": email.host,
+      "smtp.port": email.port,
+      "smtp.username": email.username,
+      "smtp.password": email.password,
+      "smtp.fromName": email.fromName,
+      "smtp.fromEmail": email.fromEmail,
+      "smtp.enabled": email.enabled ? "true" : "false",
+    });
+    setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -622,9 +688,9 @@ function EmailTab() {
       </div>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave}>
-          <Save className="h-4 w-4 mr-2" />
-          {saved ? "Saved ✅" : "Save"}
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+          {saved ? "Saved ✅" : saving ? "Saving..." : "Save"}
         </Button>
       </div>
     </div>
@@ -635,8 +701,17 @@ function EmailTab() {
 function SMSTab() {
   const { sms, setSMS } = useSettingsStore();
   const [saved, setSaved] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setSaving(true);
+    await saveToApi({
+      "sms.provider": sms.provider,
+      "sms.apiKey": sms.apiKey,
+      "sms.senderId": sms.senderId,
+      "sms.enabled": sms.enabled ? "true" : "false",
+    });
+    setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -711,9 +786,9 @@ function SMSTab() {
       </div>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave}>
-          <Save className="h-4 w-4 mr-2" />
-          {saved ? "Saved ✅" : "Save"}
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+          {saved ? "Saved ✅" : saving ? "Saving..." : "Save"}
         </Button>
       </div>
     </div>
@@ -738,8 +813,22 @@ function CallingTab() {
   const [testNumber, setTestNumber] = React.useState('');
   const [testResult, setTestResult] = React.useState('');
 
-  const handleSave = () => {
+  const [saving, setSaving] = React.useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
     localStorage.setItem('vaahan_calling_config', JSON.stringify(config));
+    await saveToApi({
+      "calling.provider": config.provider,
+      "calling.apiKey": config.apiKey,
+      "calling.apiSecret": config.apiSecret,
+      "calling.callerId": config.callerId,
+      "calling.accountSid": config.accountSid,
+      "calling.autoCallEnabled": config.autoCallEnabled ? "true" : "false",
+      "calling.callRecordingEnabled": config.callRecordingEnabled ? "true" : "false",
+      "calling.maxRetries": String(config.maxRetries),
+    });
+    setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -924,9 +1013,9 @@ function CallingTab() {
       )}
 
       <div className="flex gap-2">
-        <Button onClick={handleSave}>
-          <Save className="h-4 w-4 mr-2" />
-          {saved ? "Saved ✅" : "Save Calling Config"}
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+          {saved ? "Saved ✅" : saving ? "Saving..." : "Save Calling Config"}
         </Button>
       </div>
     </div>

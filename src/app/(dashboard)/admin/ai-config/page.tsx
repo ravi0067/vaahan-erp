@@ -595,6 +595,106 @@ export default function AIConfigPage() {
                 </div>
               )}
 
+              {/* ── Custom Avatar Section ─────────────────────────── */}
+              <div className="space-y-4 border-2 border-dashed border-purple-200 dark:border-purple-800 rounded-xl p-4 bg-purple-50/50 dark:bg-purple-950/30">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🎭</span>
+                  <p className="font-semibold text-sm text-purple-800 dark:text-purple-200">Custom AI Avatar — Vaani Ka Look</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label className="text-xs">Avatar Name (Display Naam)</Label>
+                    <Input
+                      value={get("vaani.avatarName", "Vaani")}
+                      onChange={(e) => set("vaani.avatarName", e.target.value)}
+                      placeholder="e.g., Vaani, Priya, Arjun, Riya"
+                    />
+                    <p className="text-xs text-muted-foreground">Yeh naam customers ko dikh aur sun'ai dega</p>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label className="text-xs">Avatar Gender</Label>
+                    <Select value={get("vaani.avatarGender", "female")} onValueChange={(v) => set("vaani.avatarGender", v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="female">👩 Female (Vaani — Default)</SelectItem>
+                        <SelectItem value="male">👨 Male (Custom)</SelectItem>
+                        <SelectItem value="neutral">🧑 Neutral / Robot</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label className="text-xs">Avatar Style</Label>
+                  <Select value={get("vaani.avatarStyle", "3d")} onValueChange={(v) => set("vaani.avatarStyle", v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="3d">🎮 3D Animated (Default — Current)</SelectItem>
+                      <SelectItem value="photo">📸 Real Photo / Company Staff</SelectItem>
+                      <SelectItem value="cartoon">🎨 Cartoon / Illustrated</SelectItem>
+                      <SelectItem value="anime">✨ Anime Style</SelectItem>
+                      <SelectItem value="minimal">⬜ Minimal / Icon Only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label className="text-xs">Custom Avatar Image URL</Label>
+                  <Input
+                    value={get("vaani.avatarUrl", "")}
+                    onChange={(e) => set("vaani.avatarUrl", e.target.value)}
+                    placeholder="https://example.com/your-avatar.png"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Apni company staff ki photo ya custom image ka URL paste karo.
+                    Khaali chodo toh default 3D Vaani avatar use hogi.
+                  </p>
+                </div>
+
+                {get("vaani.avatarUrl") && (
+                  <div className="flex items-center gap-4 p-3 bg-white dark:bg-gray-900 rounded-lg border">
+                    <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-purple-400 flex-shrink-0">
+                      <img
+                        src={get("vaani.avatarUrl")}
+                        alt="Avatar Preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).src = "https://ui-avatars.com/api/?name=Vaani&background=7c3aed&color=fff&size=64"; }}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-purple-700 dark:text-purple-300">Preview: {get("vaani.avatarName", "Vaani")}</p>
+                      <p className="text-xs text-muted-foreground">Yahi image showroom TV pe dikhegi</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid gap-2">
+                  <Label className="text-xs">Avatar Background Color</Label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={get("vaani.avatarBgColor", "#7c3aed")}
+                      onChange={(e) => set("vaani.avatarBgColor", e.target.value)}
+                      className="w-10 h-10 rounded border cursor-pointer"
+                    />
+                    <Input
+                      value={get("vaani.avatarBgColor", "#7c3aed")}
+                      onChange={(e) => set("vaani.avatarBgColor", e.target.value)}
+                      placeholder="#7c3aed"
+                      className="w-32"
+                    />
+                    <span className="text-xs text-muted-foreground">TV screen ka background</span>
+                  </div>
+                </div>
+
+                <SaveButton
+                  keys={["vaani.avatarName", "vaani.avatarGender", "vaani.avatarStyle", "vaani.avatarUrl", "vaani.avatarBgColor"]}
+                  label="💾 Save Avatar Settings"
+                />
+              </div>
+
               <SaveButton keys={["vaani.voiceEnabled", "vaani.autoGreet", "vaani.language", "vaani.personality", "vaani.welcomeMessage", "vaani.ttsProvider", "vaani.elevenLabsKey"]} label="Save Vaani Settings" />
             </CardContent>
           </Card>

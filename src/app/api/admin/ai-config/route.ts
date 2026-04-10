@@ -26,12 +26,15 @@ function supabaseHeaders() {
 // Keys that should be masked in GET response
 const SENSITIVE_KEYS = [
   'ai.apiKey.gemini', 'ai.apiKey.openai', 'ai.apiKey.claude',
+  'ai.apiKey',
   'exotel.apiKey', 'exotel.apiToken',
   'smtp.password',
   'sms.apiKey',
   'github.token',
   'vercel.token',
-  'payment.keySecret',
+  'payment.keyId', 'payment.keySecret',
+  'whatsapp.apiKey',
+  'calling.apiKey', 'calling.apiSecret', 'calling.accountSid',
   'vaani.elevenLabsKey',
 ];
 

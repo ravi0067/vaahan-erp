@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Bot, Key, Github, Cloud, Shield, Zap, Check, AlertTriangle } from 'lucide-react';
+import { Bot, Key, Github, Cloud, Shield, Zap, Check, AlertTriangle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function AIBotConfig() {
@@ -27,12 +27,42 @@ export function AIBotConfig() {
   });
 
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
-    // Save to localStorage for now (production: use encrypted DB)
-    localStorage.setItem('vaahan_ai_config', JSON.stringify(config));
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/admin/ai-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          settings: {
+            'ai.apiKey.claude': config.claudeApiKey,
+            'ai.apiKey.openai': config.openaiApiKey,
+            'ai.apiKey.gemini': config.geminiApiKey,
+            'github.token': config.githubToken,
+            'github.repo': config.githubRepo,
+            'vercel.token': config.vercelToken,
+            'whatsapp.apiKey': config.whatsappApiKey,
+            'whatsapp.phoneNumberId': config.whatsappPhoneId,
+            'ai.model': config.aiModel,
+            'ai.autoFixErrors': config.autoFixErrors ? 'true' : 'false',
+            'ai.autoDeployEnabled': config.autoDeployEnabled ? 'true' : 'false',
+            'ai.voiceCommandEnabled': config.voiceCommandEnabled ? 'true' : 'false',
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`✅ ${data.saved} AI settings database mein save ho gayi!`);
+      } else {
+        toast.error(data.error || 'Save failed');
+      }
+    } catch {
+      toast.error('Network error — check connection');
+    }
+    setSaving(false);
     setSaved(true);
-    toast.success('AI Bot configuration saved!');
     setTimeout(() => setSaved(false), 3000);
   };
 
@@ -170,8 +200,14 @@ export function AIBotConfig() {
         </CardContent>
       </Card>
 
-      <Button onClick={handleSave} className="w-full bg-green-600 hover:bg-green-700" size="lg">
-        {saved ? <><Check className="h-4 w-4 mr-2" /> Saved!</> : '💾 Save AI Bot Configuration'}
+      <Button onClick={handleSave} disabled={saving} className="w-full bg-green-600 hover:bg-green-700" size="lg">
+        {saving ? (
+          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving to DB...</>
+        ) : saved ? (
+          <><Check className="h-4 w-4 mr-2" /> Saved to Database! ✅</>
+        ) : (
+          '💾 Save AI Bot Configuration'
+        )}
       </Button>
     </div>
   );
