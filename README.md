@@ -84,4 +84,4 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions.
 
 ## Security
 
-See [SECURITY.md](./SECURITY.md) for security guidelines and how to report vulnerabilities.
+See [SECURITY.md](./SECURITY.md) for security guidelines and how to report vulnerabilities. 
