@@ -40,20 +40,20 @@ export async function GET(req: NextRequest) {
       };
     }
 
+    // 🔥 FIXED QUERY (NO INCLUDE)
     const posts = await prisma.blogPost.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      include: {
-        author: {
-          select: { name: true },
-        },
-      },
     });
+
+    // 🔥 DEBUG (important)
+    console.log("BLOG POSTS:", posts);
 
     return NextResponse.json({
       success: true,
       data: posts || [],
     });
+
   } catch (error: any) {
     console.error("GET BLOG ERROR:", error);
 
@@ -134,6 +134,7 @@ export async function POST(req: NextRequest) {
       success: true,
       data: post,
     });
+
   } catch (error: any) {
     console.error("POST BLOG ERROR:", error);
 
