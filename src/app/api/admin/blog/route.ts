@@ -12,11 +12,16 @@ function slugify(text: string) {
     .substring(0, 100);
 }
 
+// ================= GET ALL BLOGS =================
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
+
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, data: [], error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     const { searchParams } = new URL(req.url);
@@ -24,36 +29,59 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status");
 
     const where: any = {};
+
     if (status === "published") where.published = true;
     if (status === "draft") where.published = false;
-    if (search) where.title = { contains: search, mode: "insensitive" };
+
+    if (search) {
+      where.title = {
+        contains: search,
+        mode: "insensitive",
+      };
+    }
 
     const posts = await prisma.blogPost.findMany({
       where,
       orderBy: { createdAt: "desc" },
       include: {
-        author: { select: { name: true } },
+        author: {
+          select: { name: true },
+        },
       },
     });
 
-    return NextResponse.json(posts);
+    return NextResponse.json({
+      success: true,
+      data: posts || [],
+    });
   } catch (error: any) {
-    console.error("GET /api/admin/blog error:", error?.message || error);
+    console.error("GET BLOG ERROR:", error);
+
     return NextResponse.json(
-      { error: "Failed to fetch blog posts", detail: error?.message },
+      {
+        success: false,
+        data: [],
+        error: "Failed to fetch blog posts",
+      },
       { status: 500 }
     );
   }
 }
 
+// ================= CREATE BLOG =================
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
+
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     const body = await req.json();
+
     const {
       title,
       content,
@@ -69,14 +97,20 @@ export async function POST(req: NextRequest) {
 
     if (!title || !content) {
       return NextResponse.json(
-        { error: "Title and content are required" },
+        { success: false, error: "Title and content required" },
         { status: 400 }
       );
     }
 
     let slug = slugify(title);
-    const existing = await prisma.blogPost.findUnique({ where: { slug } });
-    if (existing) slug = `${slug}-${Date.now()}`;
+
+    const existing = await prisma.blogPost.findUnique({
+      where: { slug },
+    });
+
+    if (existing) {
+      slug = `${slug}-${Date.now()}`;
+    }
 
     const post = await prisma.blogPost.create({
       data: {
@@ -96,11 +130,18 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json(post, { status: 201 });
+    return NextResponse.json({
+      success: true,
+      data: post,
+    });
   } catch (error: any) {
-    console.error("POST /api/admin/blog error:", error?.message || error);
+    console.error("POST BLOG ERROR:", error);
+
     return NextResponse.json(
-      { error: "Failed to create blog post", detail: error?.message },
+      {
+        success: false,
+        error: "Failed to create blog",
+      },
       { status: 500 }
     );
   }
