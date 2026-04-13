@@ -332,6 +332,129 @@ export default function PricingPage() {
         </div>
       </section>
 
+      {/* Comparison Table */}
+      <section className="max-w-7xl mx-auto px-4 pb-20">
+        <h2 className="text-2xl md:text-3xl font-bold text-center mb-3">
+          Feature Comparison
+        </h2>
+        <p className="text-center text-muted-foreground mb-8 text-sm">
+          Har plan mein kya milega — ek nazar mein dekho
+        </p>
+        <div className="overflow-x-auto rounded-xl border bg-background shadow-sm">
+          <table className="w-full text-[11px] text-left">
+            <thead className="bg-muted/50 border-b">
+              <tr>
+                <th className="p-3 font-semibold w-1/4 text-xs">Feature</th>
+                <th className="p-3 font-semibold text-center text-blue-600">ERP Basic</th>
+                <th className="p-3 font-semibold text-center text-purple-600">ERP Pro ⭐</th>
+                <th className="p-3 font-semibold text-center text-amber-600">ERP Ent.</th>
+                <th className="p-3 font-semibold text-center text-teal-600">Books Pro</th>
+                <th className="p-3 font-semibold text-center text-indigo-600">Books Ent.</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {[
+                ["Core ERP (Booking, Inv, CRM)", "✅", "✅", "✅", "❌", "❌"],
+                ["Desktop Billing Software", "₹2,499", "✅ FREE", "✅ FREE", "✅", "✅"],
+                ["AI Chatbot (52+ Tools)", "❌", "✅", "✅", "❌", "✅"],
+                ["WhatsApp Integration", "❌", "1000/mo", "Unlimited", "❌", "❌"],
+                ["Live tracking (Swiggy style)", "❌", "✅", "✅", "❌", "❌"],
+                ["Multi-Location Support", "❌", "❌", "✅", "❌", "✅ (10 Co)"],
+                ["Tally XML Export", "❌", "❌", "✅", "❌", "✅"],
+                ["User Access", "2", "10", "Unlimited", "1", "5"],
+                ["Cloud Data Sync", "✅", "✅", "✅", "❌", "✅"],
+                ["Priority Support 24/7", "❌", "❌", "✅", "❌", "✅"],
+              ].map(([feature, basic, pro, ent, bpro, bent], i) => (
+                <tr key={feature as string} className="hover:bg-muted/30 transition-colors">
+                  <td className="p-2.5 font-medium border-r">{feature}</td>
+                  <td className="p-2.5 text-center border-r">{basic}</td>
+                  <td className="p-2.5 text-center border-r bg-purple-50/30">{pro}</td>
+                  <td className="p-2.5 text-center border-r">{ent}</td>
+                  <td className="p-2.5 text-center border-r">{bpro}</td>
+                  <td className="p-2.5 text-center">{bent}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Payment Methods */}
+      <section className="bg-muted/30 border-y">
+        <div className="max-w-4xl mx-auto px-4 py-12 text-center">
+          <h2 className="text-2xl font-bold mb-3">💳 Payment Methods</h2>
+          <p className="text-muted-foreground mb-8 text-sm">India + International — dono supported hai</p>
+          <div className="grid sm:grid-cols-2 gap-6 max-w-xl mx-auto">
+            <Card className="border-2 hover:border-blue-300 transition-colors">
+              <CardContent className="p-6 text-center">
+                <div className="text-3xl mb-2">🇮🇳</div>
+                <h3 className="font-bold text-lg mb-1 text-blue-600">Razorpay</h3>
+                <p className="text-xs text-muted-foreground">UPI • Cards • Net Banking</p>
+                <p className="text-[10px] text-green-600 mt-2 font-bold uppercase tracking-wider">Recommended for India</p>
+              </CardContent>
+            </Card>
+            <Card className="border-2 hover:border-indigo-300 transition-colors">
+              <CardContent className="p-6 text-center">
+                <div className="text-3xl mb-2">🌍</div>
+                <h3 className="font-bold text-lg mb-1 text-indigo-600">PayPal</h3>
+                <p className="text-xs text-muted-foreground">International Cards • Bank Transfer</p>
+                <p className="text-[10px] text-blue-600 mt-2 font-bold uppercase tracking-wider">For Global Clients</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="max-w-3xl mx-auto px-4 py-16">
+        <h2 className="text-2xl md:text-3xl font-bold text-center mb-3">
+          ❓ Frequently Asked Questions
+        </h2>
+        <p className="text-center text-muted-foreground mb-8 text-sm">
+          Sawaal? Yahan jawab hai!
+        </p>
+        <div className="space-y-3">
+          {faqs.map((faq, i) => (
+            <div
+              key={i}
+              className="border rounded-xl overflow-hidden bg-background"
+            >
+              <button
+                onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                className="w-full p-4 text-left font-medium flex items-center justify-between hover:bg-muted/50 transition-colors"
+              >
+                <span className="text-sm">{faq.q}</span>
+                <span className="text-muted-foreground ml-2 text-lg leading-none">
+                  {openFaq === i ? "−" : "+"}
+                </span>
+              </button>
+              {openFaq === i && (
+                <div className="px-4 pb-4 text-xs text-muted-foreground leading-relaxed animate-in slide-in-from-top-2 duration-200">
+                  {faq.a}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="bg-gradient-to-r from-primary to-purple-700 text-white mx-4 rounded-3xl overflow-hidden shadow-2xl mb-20">
+        <div className="max-w-4xl mx-auto px-6 py-16 text-center">
+          <h2 className="text-3xl font-bold mb-4">
+            🚀 Abhi Start Karo — 1 Month FREE!
+          </h2>
+          <p className="text-white/80 mb-8 max-w-lg mx-auto text-sm">
+            Koi credit card nahi chahiye. 30 din tak poora Pro plan try karo. Pasand aaye toh continue karo, nahi toh koi charge nahi.
+          </p>
+          <Link href="/register">
+            <Button size="lg" variant="secondary" className="gap-2 text-base px-10 font-bold h-14 rounded-full shadow-lg hover:scale-105 transition-transform">
+              Start Free Trial <ArrowRight className="h-5 w-5" />
+            </Button>
+          </Link>
+        </div>
+      </section>
+
       {/* Contact & Footer Section */}
       <section className="bg-muted/30 border-t">
         <div className="max-w-6xl mx-auto px-4 py-12">
