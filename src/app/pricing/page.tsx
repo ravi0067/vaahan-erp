@@ -31,7 +31,7 @@ const plans = [
   {
     id: "basic",
     name: "ERP Basic",
-    tagline: "The Hook — Chhote Showrooms ke liye",
+    tagline: "The Hook — Chhote Showrooms",
     monthlyPrice: 4999,
     yearlyPrice: 49999,
     icon: Zap,
@@ -51,13 +51,17 @@ const plans = [
       { text: "Lead CRM (50 leads/month)", included: true },
       { text: "2 User Access", included: true },
       { text: "Email Support", included: true },
-      { text: "Desktop Billing App", included: false },
+      { text: "AI Chatbot (52 Tools)", included: false },
+      { text: "WhatsApp Bot", included: false },
+      { text: "Exotel Auto-Calling", included: false },
+      { text: "Vaani AI Voice Bot", included: false },
+      { text: "Priority Support", included: false },
     ],
   },
   {
     id: "pro",
     name: "ERP Pro",
-    tagline: "The Money Maker — Serious Dealers ke liye",
+    tagline: "The Money Maker — Serious Dealers",
     monthlyPrice: 9999,
     yearlyPrice: 99999,
     icon: Crown,
@@ -73,19 +77,22 @@ const plans = [
       { text: "Everything in Basic", included: true },
       { text: "Desktop Billing Software (FREE) 💿", included: true },
       { text: "AI Chatbot — 52+ Tools 🤖", included: true },
-      { text: "WhatsApp Bot (1000 msg/mo free)", included: true },
-      { text: "Exotel Auto-Calling (500 calls/mo)", included: true },
+      { text: "WhatsApp Bot (1000 msg/mo)", included: true },
+      { text: "Exotel Auto-Calling (500)", included: true },
       { text: "Live Tracking — Swiggy Style 🛵", included: true },
       { text: "Premium Daybook & Reports", included: true },
       { text: "Up to 10 User Access", included: true },
       { text: "Unlimited Leads", included: true },
+      { text: "SMS Notifications (MSG91)", included: true },
+      { text: "Email + Chat Support", included: true },
+      { text: "Vaani AI Voice Bot", included: false },
     ],
-    usageNote: "Limit ke baad: ₹1/WhatsApp msg • ₹2/AI query • ₹3/call min",
+    usageNote: "Usage: ₹1/WA • ₹2/AI • ₹3/Call",
   },
   {
     id: "enterprise",
     name: "ERP Enterprise",
-    tagline: "The VIP — Multi-Location Chains ke liye",
+    tagline: "The VIP — Multi-Location Chains",
     monthlyPrice: 14999,
     yearlyPrice: 149999,
     icon: Building2,
@@ -104,13 +111,18 @@ const plans = [
       { text: "Multi-Location (2-3 branches)", included: true },
       { text: "Vaani AI Voice Bot 🎙️", included: true },
       { text: "Unlimited WhatsApp + Calls", included: true },
-      { text: "SLA Guarantee — 99.9% Uptime", included: true },
+      { text: "Advanced Analytics Dashboard", included: true },
+      { text: "Custom Report Builder", included: true },
+      { text: "Priority Support — 24/7", included: true },
+      { text: "Dedicated Account Manager", included: true },
+      { text: "Vaani AI Avatar TV Setup 🖥️", included: true },
+      { text: "SLA Guarantee — 99.9%", included: true },
     ],
   },
   {
     id: "books-pro",
     name: "VaahanBooks Pro",
-    tagline: "Only Billing — Single Shop ke liye",
+    tagline: "Only Billing — Single Shop",
     monthlyPrice: 249,
     yearlyPrice: 2499,
     icon: BarChart3,
@@ -128,6 +140,8 @@ const plans = [
       { text: "GSTR 1/3B Reports", included: true },
       { text: "Offline-First Database", included: true },
       { text: "Inventory Tracking", included: true },
+      { text: "Cash Tracking", included: true },
+      { text: "Expense Manager", included: true },
     ],
   },
   {
@@ -151,6 +165,8 @@ const plans = [
       { text: "AI Financial Assistant", included: true },
       { text: "Cloud Data Sync", included: true },
       { text: "Priority Support", included: true },
+      { text: "Tally XML Export", included: true },
+      { text: "Multi-User (Up to 5)", included: true },
     ],
   },
 ];
@@ -299,7 +315,7 @@ export default function PricingPage() {
                 </Link>
 
                 <div className="space-y-2">
-                  {plan.features.slice(0, 6).map((f, i) => (
+                  {plan.features.map((f, i) => (
                     <div key={i} className="flex items-start gap-1.5 text-[11px]">
                       {f.included ? (
                         <Check className="h-3 w-3 text-green-600 mt-0.5" />
