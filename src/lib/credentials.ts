@@ -85,9 +85,9 @@ export async function getGeminiApiKeyAsync(): Promise<string> {
   return process.env.GEMINI_API_KEY || "";
 }
 
-// Get Gemini model from DB config — default to gemini-2.5-pro
+// Get Gemini model from DB config — default to gemini-2.5-flash
 export function getGeminiModel(): string {
-  return getSetting("ai.model", "") || "gemini-2.5-pro";
+  return getSetting("ai.model", "") || "gemini-2.5-flash";
 }
 
 // ElevenLabs
