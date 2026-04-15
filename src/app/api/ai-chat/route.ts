@@ -5,6 +5,128 @@ import { getSystemPrompt } from '@/lib/ai-system-prompt';
 
 export const dynamic = 'force-dynamic';
 
+// ── Blog-related query detection ──────────────────────────
+function isBlogQuery(text: string): boolean {
+  const triggers = [
+    'blog', 'post', 'article', 'likho', 'likh', 'write', 'publish',
+    'draft', 'content', 'seo', 'generate blog', 'blog banao',
+    'blog dikhao', 'blog list', 'blog padho', 'read blog',
+    'latest blog', 'blog kitne', 'blog page',
+  ];
+  const lower = text.toLowerCase();
+  return triggers.some(t => lower.includes(t));
+}
+
+// ── Fetch blog data for AI context ────────────────────────
+async function getBlogContext(tenantId: string): Promise<string> {
+  try {
+    const posts = await prisma.blogPost.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: {
+        id: true, title: true, slug: true, published: true,
+        featured: true, category: true, views: true,
+        createdAt: true, publishedAt: true,
+      }
+    });
+
+    if (!posts.length) return '\n[Blog Data] Abhi koi blog post nahi hai. User ko suggest karo ki naya blog create kare /admin/blog/new se.';
+
+    const published = posts.filter(p => p.published);
+    const drafts = posts.filter(p => !p.published);
+
+    let ctx = `\n[Blog Data] Total: ${posts.length} posts (${published.length} published, ${drafts.length} drafts)\n`;
+    ctx += 'Recent posts:\n';
+    posts.forEach((p, i) => {
+      ctx += `${i + 1}. "${p.title}" [${p.published ? '✅ Published' : '📝 Draft'}] | Category: ${p.category || 'None'} | Views: ${p.views || 0} | Slug: ${p.slug}\n`;
+    });
+
+    return ctx;
+  } catch (e) {
+    console.error('Blog context error:', e);
+    return '\n[Blog Data] Blog module available. User can manage at /admin/blog';
+  }
+}
+
+// ── Generate blog content via AI ──────────────────────────
+async function generateBlogContent(keyword: string, apiKey: string, language: string = 'hinglish'): Promise<any> {
+  try {
+    const prompt = `You are a content writer for VaahanERP — a dealership management software used by bike and car showrooms across India.
+
+Write a ${language === 'hinglish' ? 'Hinglish (mix of Hindi + English)' : 'English'} blog post about: "${keyword}"
+
+Requirements:
+- Length: 900–1200 words
+- SEO optimized with proper headings
+- Practical tips for vehicle dealership owners
+- Include subheadings (H2, H3)
+- Include a CTA at the end for VaahanERP dealership software
+- Engaging and informative tone
+
+Return JSON with these exact keys:
+{
+  "title": "SEO-friendly blog title",
+  "metaTitle": "60-char SEO meta title",
+  "metaDesc": "155-char meta description",
+  "excerpt": "2-sentence blog summary",
+  "category": "one of: Business Tips, Technology, Sales, Service, Finance, Industry News",
+  "tags": "comma-separated tags (5-7 tags)",
+  "content": "full HTML blog content with <h2>, <h3>, <p>, <ul>, <li> tags"
+}`;
+
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7, responseMimeType: 'application/json' },
+      }),
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) return null;
+    return JSON.parse(text);
+  } catch (e) {
+    console.error('Blog generation error:', e);
+    return null;
+  }
+}
+
+// ── Create blog post in database ──────────────────────────
+async function createBlogPost(blogData: any, authorId: string | null, publish: boolean = false): Promise<any> {
+  try {
+    let slug = blogData.title.toLowerCase()
+      .replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, '').substring(0, 100);
+
+    const existing = await prisma.blogPost.findUnique({ where: { slug } });
+    if (existing) slug = `${slug}-${Date.now()}`;
+
+    const post = await prisma.blogPost.create({
+      data: {
+        title: blogData.title,
+        slug,
+        content: blogData.content,
+        excerpt: blogData.excerpt || null,
+        published: publish,
+        featured: false,
+        metaTitle: blogData.metaTitle || blogData.title,
+        metaDesc: blogData.metaDesc || blogData.excerpt || null,
+        category: blogData.category || null,
+        tags: blogData.tags || null,
+        authorId: authorId || null,
+        publishedAt: publish ? new Date() : null,
+      },
+    });
+
+    return post;
+  } catch (e) {
+    console.error('Blog create error:', e);
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { session, error } = await getAuthSession();
@@ -14,6 +136,7 @@ export async function POST(request: NextRequest) {
     const { messages, apiKey, callingConfig } = body;
     const tenantId = session!.user.tenantId;
     const userRole = session!.user.role;
+    const userId = (session!.user as any)?.id || null;
 
     // AI Chat Response Logic
     let response = '';
@@ -24,9 +147,45 @@ export async function POST(request: NextRequest) {
       ? messages[messages.length - 1].parts[0].text 
       : body.message || '';
 
+    // ── Check for blog write/generate intent ──
+    const lowerMsg = latestMessage.toLowerCase();
+    const wantsBlogGenerate = isBlogQuery(latestMessage) && 
+      (lowerMsg.includes('likho') || lowerMsg.includes('likh') || lowerMsg.includes('write') || 
+       lowerMsg.includes('generate') || lowerMsg.includes('banao') || lowerMsg.includes('create'));
+
+    if (wantsBlogGenerate && apiKey) {
+      // Extract the topic from the message
+      const topicMatch = latestMessage.match(/(?:about|on|ke\s+baare|par|pe|topic|keyword)\s*[:\-]?\s*(.+)/i) 
+        || latestMessage.match(/(?:blog|post|article)\s+(?:likho|likh|write|generate|banao)\s+(.+)/i)
+        || latestMessage.match(/(?:likho|likh|write|generate|banao)\s+(?:ek\s+)?(?:blog|post|article)\s+(.+)/i);
+      
+      const topic = topicMatch ? topicMatch[1].trim() : latestMessage.replace(/blog|post|article|likho|likh|write|generate|banao|create|karo/gi, '').trim();
+
+      if (topic.length > 3) {
+        const language = /[\u0900-\u097F]/.test(latestMessage) ? 'hindi' : 'hinglish';
+        const blogData = await generateBlogContent(topic, apiKey, language);
+
+        if (blogData) {
+          const post = await createBlogPost(blogData, userId, false);
+          if (post) {
+            response = `📝 Blog draft ready ho gaya!\n\nTitle: "${blogData.title}"\nCategory: ${blogData.category}\nTags: ${blogData.tags}\n\nDraft save ho gaya hai → /admin/blog/${post.id}/edit pe jaake review aur publish kar sakte ho.\n\nPublish karna hai abhi? Bol do "publish karo" 🚀`;
+            actions = [{ type: 'blog_created', postId: post.id, slug: post.slug }];
+          } else {
+            response = `Blog generate ho gaya but save karne mein issue aaya. /admin/blog/new pe jaake manually paste kar sakte ho:\n\nTitle: ${blogData.title}\nCategory: ${blogData.category}`;
+          }
+        } else {
+          response = `Blog generate nahi ho paya. API issue lag raha hai. /admin/blog/new se manually try karo ya thodi der mein phir se bolo.`;
+        }
+
+        return NextResponse.json({ response, actions, timestamp: new Date().toISOString() });
+      }
+    }
+
     if (apiKey) {
-      // Use Live Gemini API
+      // Use Live Gemini API — with enriched context
       let contextData = "";
+
+      // Always get stats for non-super-admin
       if (userRole !== 'SUPER_ADMIN') {
         try {
           const stats = await getTodayStats(tenantId);
@@ -34,6 +193,11 @@ export async function POST(request: NextRequest) {
         } catch (e) {
           console.error("Failed to fetch stats for context:", e);
         }
+      }
+
+      // Add blog context if blog-related query
+      if (isBlogQuery(latestMessage)) {
+        contextData += await getBlogContext(tenantId);
       }
 
       const systemPrompt = getSystemPrompt(userRole, 'VaahanERP', 'BIKE');
@@ -142,6 +306,32 @@ export async function POST(request: NextRequest) {
 
 async function handleClientAI(message: string, tenantId: string, userRole: string, action?: string) {
   const lowerMessage = message.toLowerCase();
+
+  // Blog Management
+  if (isBlogQuery(message)) {
+    try {
+      const posts = await prisma.blogPost.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: { id: true, title: true, slug: true, published: true, category: true, views: true, createdAt: true }
+      });
+
+      if (posts.length === 0) {
+        return `📝 **Blog Module**\n\nAbhi koi blog post nahi hai.\n\n**Naya blog create karne ke liye:**\n→ /admin/blog/new pe jaao\n→ Ya mujhe bolo "blog likho [topic]" — main AI se generate kar doongi!\n\nExample: "blog likho dealership management tips ke baare mein"`;
+      }
+
+      const published = posts.filter(p => p.published);
+      const drafts = posts.filter(p => !p.published);
+      let resp = `📝 **Blog Posts** (${posts.length} total — ${published.length} published, ${drafts.length} drafts)\n\n`;
+      posts.forEach((p, i) => {
+        resp += `${i + 1}. ${p.published ? '✅' : '📝'} **${p.title}** | ${p.category || 'No category'} | ${p.views || 0} views\n`;
+      });
+      resp += `\n**Actions:**\n→ /admin/blog — manage all posts\n→ "Blog likho [topic]" — AI se naya blog generate karo\n→ /admin/blog/new — manually naya blog likho`;
+      return resp;
+    } catch {
+      return `📝 Blog module available hai → /admin/blog\nAI blog generate karne ke liye bolo: "blog likho [topic]"`;
+    }
+  }
   
   // Lead Follow-up Management
   if (lowerMessage.includes('follow up') || lowerMessage.includes('followup')) {
@@ -209,26 +399,66 @@ Example: "Send delivery update to Rahul Kumar" or "Share RTO docs with customer 
   }
 
   // Default helpful response
-  return `🤖 **VaahanERP AI Assistant at your service!**
+  return `🤖 **VaahanERP AI Assistant — Vaani at your service!**
 
-I can help you with:
+Main yeh sab kar sakti hoon:
 
-📞 **Lead Management** - Follow-ups, conversions, reminders
-💰 **Payment Tracking** - Reminders, receipts, pending collections  
-📋 **Customer Communication** - WhatsApp, SMS, email automation
-🚗 **Inventory Updates** - Stock alerts, vehicle status updates
-🔧 **Service Coordination** - Job cards, mechanic assignments
-📊 **Business Intelligence** - Daily reports, analytics, insights
+📞 **Lead Management** — Follow-ups, conversions, reminders
+💰 **Payment Tracking** — Reminders, receipts, pending collections
+📋 **Customer Communication** — WhatsApp, SMS, email automation
+🚗 **Inventory/Stock** — Stock alerts, vehicle status
+🔧 **Service** — Job cards, mechanic assignments
+📊 **Reports & Analytics** — Daily reports, insights
+📝 **Blog Management** — AI blog generation, publish, manage
+📄 **Documents & RTO** — Upload, track, share
+💵 **Cashflow & Expenses** — Track income/expenses
+📢 **Marketing & Promotions** — Create offers, campaigns
 
-**Just ask me naturally:** 
-- "Follow up with hot leads"
-- "Send payment reminder to Rahul"  
-- "Show me today's sales report"
-- "Upload RTO docs for booking #123"`;
+**Natural language mein bolo:**
+- "Aaj ki sales dikhao"
+- "Blog likho dealership tips ke baare mein"
+- "Hot leads list karo"
+- "Blog page kahan hai?"
+- "Payment reminder bhejo Rahul ko"
+- "Stock mein kitni bikes hain?"
+- "Naya customer add karo"`;
 }
 
 async function handleSuperAdminAI(message: string, action?: string) {
   const lowerMessage = message.toLowerCase();
+
+  // Blog Management (Super Admin)
+  if (isBlogQuery(message)) {
+    try {
+      const posts = await prisma.blogPost.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: { id: true, title: true, slug: true, published: true, featured: true, category: true, views: true, createdAt: true }
+      });
+
+      const total = await prisma.blogPost.count();
+      const published = posts.filter(p => p.published).length;
+      
+      let resp = `📝 **Blog Management (Super Admin)**\n\nTotal: ${total} posts (${published} published)\n\n`;
+      
+      if (posts.length > 0) {
+        resp += `**Recent Posts:**\n`;
+        posts.forEach((p, i) => {
+          resp += `${i + 1}. ${p.published ? '✅' : '📝'} ${p.featured ? '⭐' : ''} "${p.title}" | ${p.category || '-'} | ${p.views} views\n`;
+        });
+      }
+      
+      resp += `\n**Blog Actions:**\n`;
+      resp += `→ "Blog likho [topic]" — AI-generated SEO blog\n`;
+      resp += `→ /admin/blog — Full blog management\n`;
+      resp += `→ /admin/blog/new — Create manually\n`;
+      resp += `→ /blog — Public blog page\n`;
+      
+      return resp;
+    } catch {
+      return `📝 Blog Module → /admin/blog\nAI Blog: "blog likho [topic]"\nPublic page: /blog`;
+    }
+  }
 
   // GitHub Code Management
   if (lowerMessage.includes('fix') || lowerMessage.includes('bug') || lowerMessage.includes('feature')) {
