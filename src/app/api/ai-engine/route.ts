@@ -359,8 +359,17 @@ Your role: ${userRole} - you have access to categories: ${relevantCategories.joi
         if (followUpData.candidates && followUpData.candidates[0]) {
           const textParts = followUpData.candidates[0].content.parts.filter(p => p.text);
           finalResponse = textParts.map(p => p.text).join('');
-        } else {
-          finalResponse = 'Function calls executed successfully but no response generated.';
+        }
+        
+        // If Gemini returned empty after function call, build response from tool results
+        if (!finalResponse || finalResponse.trim() === '') {
+          const toolMessages = functionResponses.map(fr => {
+            if (typeof fr.response === 'string') return fr.response;
+            if (fr.response?.message) return fr.response.message;
+            if (fr.response?.error) return `❌ ${fr.name}: ${fr.response.error}`;
+            return JSON.stringify(fr.response);
+          });
+          finalResponse = toolMessages.join('\n\n') || 'Tool executed but no data returned. Please try a more specific query.';
         }
 
       } else {

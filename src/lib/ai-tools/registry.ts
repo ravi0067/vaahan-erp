@@ -121,7 +121,9 @@ class AIToolRegistry implements ToolRegistry {
     if (this.containsKeywords(message, [
       'system', 'admin', 'user', 'setting', 'configuration',
       'health', 'status', 'report', 'dashboard', 'promotion',
-      'offer', 'discount', 'sale offer'
+      'offer', 'discount', 'sale offer', 'client', 'tenant',
+      'kitne', 'total', 'platform', 'dealership', 'register',
+      'blog', 'overview', 'all', 'sab', 'poora'
     ])) {
       categories.push(ToolCategory.SYSTEM);
     }

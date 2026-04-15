@@ -29,6 +29,59 @@ function todayStart(): Date {
   return new Date(ist.getTime() - (5.5 * 60 * 60 * 1000));
 }
 
+// Safe query helper — catches DB errors and returns default
+async function safeCount(query: Promise<number>): Promise<number> {
+  try { return await query; } catch (e) { console.error('DB query error:', e); return 0; }
+}
+async function safeAggregate(query: Promise<any>): Promise<any> {
+  try { return await query; } catch (e) { console.error('DB aggregate error:', e); return { _sum: { amount: null } }; }
+}
+
+// ═══════════════════════════════════════
+// TOOL 0: get_platform_stats (Super Admin)
+// ═══════════════════════════════════════
+const getPlatformStats: ToolDefinition = {
+  name: 'get_platform_stats',
+  description: 'Get platform-wide stats — total clients/tenants, users, bookings, leads across ALL dealerships. Use when Super Admin asks for total clients, platform overview, or system-wide data.',
+  category: ToolCategory.SYSTEM,
+  permissionLevel: PermissionLevel.AUTO,
+  parameters: {},
+  handler: async (_params: any, _tenantId: string, userRole?: string): Promise<ToolResult> => {
+    try {
+      const [tenants, users, bookings, leads, vehicles, jobCards] = await Promise.all([
+        prisma.tenant.findMany({ where: { status: 'ACTIVE' }, select: { id: true, name: true, slug: true, plan: true, createdAt: true } }),
+        safeCount(prisma.user.count()),
+        safeCount(prisma.booking.count()),
+        safeCount(prisma.lead.count()),
+        safeCount(prisma.vehicle.count()),
+        safeCount(prisma.jobCard.count()),
+      ]);
+
+      const tenantList = tenants.map((t: any, i: number) =>
+        `${i + 1}. ${t.name} (${t.slug}) — Plan: ${t.plan} | Since: ${formatDate(t.createdAt)}`
+      ).join('\n');
+
+      return {
+        success: true,
+        data: { totalTenants: tenants.length, totalUsers: users, totalBookings: bookings, totalLeads: leads },
+        message: `🌐 Platform Stats — VaahanERP
+
+🏢 Total Clients: ${tenants.length}
+👥 Total Users: ${users}
+📋 Total Bookings: ${bookings}
+👥 Total Leads: ${leads}
+🏍️ Total Vehicles: ${vehicles}
+🔧 Total Service Jobs: ${jobCards}
+
+📋 Client List:
+${tenantList}`
+      };
+    } catch (error: any) {
+      return { success: false, message: `❌ Error: ${error.message}` };
+    }
+  }
+};
+
 // ═══════════════════════════════════════
 // TOOL 1: get_dashboard_stats
 // ═══════════════════════════════════════
@@ -39,30 +92,46 @@ const getDashboardStats: ToolDefinition = {
   permissionLevel: PermissionLevel.AUTO,
   parameters: {},
   handler: async (_params: any, tenantId: string): Promise<ToolResult> => {
-    const today = todayStart();
-    const [bookings, leads, vehicles, cashIn, cashOut, serviceJobs, pendingRTO, expenses] = await Promise.all([
-      prisma.booking.count({ where: { tenantId, createdAt: { gte: today } } }),
-      prisma.lead.count({ where: { tenantId, createdAt: { gte: today } } }),
-      prisma.vehicle.count({ where: { tenantId, status: 'SOLD', createdAt: { gte: today } } }),
-      prisma.cashTransaction.aggregate({ where: { tenantId, type: 'INFLOW', createdAt: { gte: today } }, _sum: { amount: true } }),
-      prisma.cashTransaction.aggregate({ where: { tenantId, type: 'OUTFLOW', createdAt: { gte: today } }, _sum: { amount: true } }),
-      prisma.jobCard.count({ where: { tenantId, status: 'IN_PROGRESS' } }),
-      prisma.rTORegistration.count({ where: { booking: { tenantId }, status: { in: ['APPLIED', 'PENDING'] } } }),
-      prisma.expense.aggregate({ where: { tenantId, createdAt: { gte: today } }, _sum: { amount: true } })
-    ]);
+    try {
+      const today = todayStart();
+      
+      // Run all queries with error protection — each one independent
+      const [bookings, leads, vehicles, cashIn, cashOut, serviceJobs, expenses] = await Promise.all([
+        safeCount(prisma.booking.count({ where: { tenantId, createdAt: { gte: today } } })),
+        safeCount(prisma.lead.count({ where: { tenantId, createdAt: { gte: today } } })),
+        safeCount(prisma.vehicle.count({ where: { tenantId, status: 'SOLD', createdAt: { gte: today } } })),
+        safeAggregate(prisma.cashTransaction.aggregate({ where: { tenantId, type: 'INFLOW', createdAt: { gte: today } }, _sum: { amount: true } })),
+        safeAggregate(prisma.cashTransaction.aggregate({ where: { tenantId, type: 'OUTFLOW', createdAt: { gte: today } }, _sum: { amount: true } })),
+        safeCount(prisma.jobCard.count({ where: { tenantId, status: 'IN_PROGRESS' } })),
+        safeAggregate(prisma.expense.aggregate({ where: { tenantId, createdAt: { gte: today } }, _sum: { amount: true } }))
+      ]);
 
-    const totalLeads = await prisma.lead.count({ where: { tenantId } });
-    const hotLeads = await prisma.lead.count({ where: { tenantId, dealHealth: 'HOT' } });
-    const totalBookings = await prisma.booking.count({ where: { tenantId, status: { in: ['CONFIRMED', 'RTO_PENDING', 'READY'] } } });
-    const availableStock = await prisma.vehicle.count({ where: { tenantId, status: 'AVAILABLE' } });
+      // RTO query separate — it uses nested relation which can cause type issues
+      let pendingRTO = 0;
+      try {
+        pendingRTO = await prisma.rTORegistration.count({
+          where: { booking: { tenantId: String(tenantId) }, status: { in: ['APPLIED', 'PENDING'] } }
+        });
+      } catch (e) { console.error('RTO query error:', e); }
 
-    const cashInAmt = Number(cashIn._sum.amount || 0);
-    const cashOutAmt = Number(cashOut._sum.amount || 0);
-    const expenseAmt = Number(expenses._sum.amount || 0);
+      const totalLeads = await safeCount(prisma.lead.count({ where: { tenantId } }));
+      const hotLeads = await safeCount(prisma.lead.count({ where: { tenantId, dealHealth: 'HOT' } }));
+      const totalBookings = await safeCount(prisma.booking.count({ where: { tenantId, status: { in: ['CONFIRMED', 'RTO_PENDING', 'READY'] } } }));
+      const availableStock = await safeCount(prisma.vehicle.count({ where: { tenantId, status: 'AVAILABLE' } }));
 
-    return {
-      success: true,
-      message: `📊 Dashboard Summary — ${formatDate(new Date())}
+      const cashInAmt = Number(cashIn._sum?.amount || 0);
+      const cashOutAmt = Number(cashOut._sum?.amount || 0);
+      const expenseAmt = Number(expenses._sum?.amount || 0);
+
+      return {
+        success: true,
+        data: {
+          todaySales: vehicles, newBookings: bookings, totalBookings,
+          newLeads: leads, totalLeads, hotLeads,
+          cashIn: cashInAmt, cashOut: cashOutAmt, expenses: expenseAmt,
+          serviceJobs, pendingRTO, availableStock
+        },
+        message: `📊 Dashboard Summary — ${formatDate(new Date())}
 
 🏍️ Today's Sales: ${vehicles} vehicles sold
 📋 New Bookings: ${bookings} today | ${totalBookings} active total
@@ -72,7 +141,11 @@ const getDashboardStats: ToolDefinition = {
 🔧 Service Jobs: ${serviceJobs} in progress
 📄 RTO Pending: ${pendingRTO}
 🏍️ Available Stock: ${availableStock} vehicles`
-    };
+      };
+    } catch (error: any) {
+      console.error('Dashboard stats error:', error);
+      return { success: false, message: `❌ Dashboard data fetch mein error: ${error.message}` };
+    }
   }
 };
 
@@ -866,6 +939,7 @@ const getInsuranceExpiring: ToolDefinition = {
 // ═══════════════════════════════════════
 export function registerAllDataTools(): void {
   const tools = [
+    getPlatformStats,
     getDashboardStats,
     getSalesReport,
     getRevenueReport,
